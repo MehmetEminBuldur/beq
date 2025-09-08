@@ -4,7 +4,6 @@
 
 ![BeQ Logo](https://via.placeholder.com/200x80/2563eb/ffffff?text=BeQ)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104.1-009688.svg)](https://fastapi.tiangolo.com)
 [![Next.js](https://img.shields.io/badge/Next.js-14-black.svg)](https://nextjs.org/)
@@ -24,9 +23,9 @@ BeQ is an avant-garde AI-powered life management application that transcends tra
 ## ✨ Key Features
 
 ### 🤖 AI-Powered Orchestration
-- **Conversational AI**: Natural language interaction for schedule management
+- **Conversational AI**: Natural language interaction powered by LangGraph workflows
 - **Intelligent Scheduling**: AI-driven optimization considering health, preferences, and constraints
-- **Proactive Assistance**: Context-aware suggestions and resource recommendations
+- **Proactive Assistance**: Context-aware suggestions and resource recommendations with state management
 
 ### 📅 Smart Calendar Integration
 - **Universal Sync**: Google Calendar, Microsoft Teams, Outlook integration
@@ -57,7 +56,7 @@ BeQ follows a modern microservices architecture designed for scalability, mainta
                                  │
                     ┌────────────▼────────────┐
                     │   Orchestrator Service   │
-                    │   (FastAPI + LangChain)  │
+                    │   (FastAPI + LangGraph)  │
                     └────────────┬────────────┘
                                  │
         ┌────────────┬────────────┼────────────┬────────────┐
@@ -74,7 +73,7 @@ BeQ follows a modern microservices architecture designed for scalability, mainta
 
 **Backend Services:**
 - **FastAPI**: High-performance async web framework
-- **LangChain**: LLM orchestration and AI agent management
+- **LangGraph**: Advanced AI workflow orchestration and agent management
 - **PostgreSQL**: Primary data storage with per-service databases
 - **Redis**: Caching and session management
 - **Qdrant**: Vector database for RAG and semantic search
@@ -89,7 +88,7 @@ BeQ follows a modern microservices architecture designed for scalability, mainta
 - **OpenAI GPT-4**: Primary language model
 - **OR-Tools**: Constraint programming for optimization
 - **Sentence Transformers**: Text embeddings
-- **LangChain Tools**: AI agent capabilities
+- **LangGraph Workflows**: Advanced AI agent capabilities and state management
 
 **Infrastructure:**
 - **Docker**: Containerization

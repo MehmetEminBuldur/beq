@@ -6,7 +6,8 @@ pydantic-settings==2.1.0
 
 # LLM and AI dependencies
 openai==1.3.7
-langchain==0.0.350
+langgraph==0.0.62
+langchain-core==0.1.0
 langchain-openai==0.0.2
 anthropic==0.7.8
 tiktoken==0.5.2

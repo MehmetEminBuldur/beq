@@ -8,7 +8,7 @@ and perform scheduling-related operations.
 from typing import Dict, Any, Optional
 from uuid import UUID
 
-from langchain.tools import BaseTool
+from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 import httpx
 import structlog
