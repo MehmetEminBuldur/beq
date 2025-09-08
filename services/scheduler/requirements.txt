@@ -12,12 +12,10 @@ numpy==1.26.2
 tenacity==8.2.3  # For retry logic
 tiktoken==0.5.2  # For token counting
 
-# Database and storage
+# Database and storage (PostgreSQL only)
 sqlalchemy==2.0.23
 alembic==1.13.1
 asyncpg==0.29.0
-redis==5.0.1
-aioredis==2.0.1
 
 # HTTP client
 httpx==0.25.2

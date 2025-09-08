@@ -18,8 +18,6 @@ asyncio==3.4.3
 # Supabase and database
 supabase==2.3.0
 postgrest==0.13.0
-redis==5.0.1
-aioredis==2.0.1
 
 # Security and authentication
 python-jose[cryptography]==3.3.0

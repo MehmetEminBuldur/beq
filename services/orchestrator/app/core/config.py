@@ -46,9 +46,7 @@ class Settings(BaseSettings):
     )
     database_echo: bool = Field(False, description="Echo SQL queries")
     
-    # Redis settings
-    redis_url: str = Field("redis://localhost:6379/0", description="Redis URL")
-    redis_password: Optional[str] = Field(None, description="Redis password")
+# Redis removed - using client-side local storage caching
     
     # AI/LLM settings (Open Source Only - Gemma 3 27B IT)
     openrouter_api_key: Optional[str] = Field(None, description="OpenRouter API key")

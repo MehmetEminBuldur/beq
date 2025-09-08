@@ -5,6 +5,7 @@ import { Toaster } from 'react-hot-toast';
 import { QueryProvider } from '@/lib/providers/query-provider';
 import { AuthProvider } from '@/lib/providers/auth-provider';
 import { AppStateProviderWrapper } from '@/lib/providers/app-state-provider';
+import { ServiceWorkerProvider, OfflineIndicator } from '@/components/providers/service-worker-provider';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -92,14 +93,16 @@ export default function RootLayout({ children }: RootLayoutProps) {
           enableSystem
           disableTransitionOnChange
         >
-          <QueryProvider>
-            <AuthProvider>
-              <AppStateProviderWrapper>
-                <div className="relative flex min-h-screen flex-col">
-                  <div className="flex-1">{children}</div>
-                </div>
-              </AppStateProviderWrapper>
-              <Toaster
+          <ServiceWorkerProvider>
+            <OfflineIndicator />
+            <QueryProvider>
+              <AuthProvider>
+                <AppStateProviderWrapper>
+                  <div className="relative flex min-h-screen flex-col">
+                    <div className="flex-1">{children}</div>
+                  </div>
+                </AppStateProviderWrapper>
+                <Toaster
                 position="top-right"
                 toastOptions={{
                   duration: 4000,
@@ -121,9 +124,10 @@ export default function RootLayout({ children }: RootLayoutProps) {
                     },
                   },
                 }}
-              />
-            </AuthProvider>
-          </QueryProvider>
+                />
+              </AuthProvider>
+            </QueryProvider>
+          </ServiceWorkerProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -32,6 +32,12 @@ BeQ is an avant-garde AI-powered life management application that transcends tra
 - **Real-time Optimization**: On-the-fly rescheduling with instant plan re-optimization
 - **Conflict Resolution**: Intelligent handling of scheduling conflicts
 
+### 🏠 Native Caching & Offline Support
+- **Local Storage Caching**: Browser-native caching with zero infrastructure
+- **Offline-First**: Full functionality without internet connection
+- **Service Worker**: Advanced caching and background synchronization
+- **Auto-Compression**: Intelligent data compression for optimal storage
+
 ### 🎯 Holistic Life Optimization
 - **Well-being Focus**: Sleep, rest, and health optimization in scheduling
 - **Personal Development**: AI-curated learning resources and habit formation
@@ -75,7 +81,7 @@ BeQ follows a modern microservices architecture designed for scalability, mainta
 - **FastAPI**: High-performance async web framework
 - **LangGraph**: Advanced AI workflow orchestration and agent management
 - **Supabase**: Modern backend-as-a-service with PostgreSQL and real-time features
-- **Redis**: Caching and session management
+- **Local Storage**: Browser-native caching with offline support
 - **Qdrant**: Vector database for RAG and semantic search
 
 **Frontend:**

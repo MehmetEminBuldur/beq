@@ -25,19 +25,6 @@ services:
     profiles:
       - local-db  # Only start with --profile local-db
 
-  redis:
-    image: redis:7-alpine
-    container_name: beq-redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   # Vector database for RAG
   qdrant:
@@ -62,7 +49,6 @@ services:
     container_name: beq-orchestrator
     environment:
       - ENVIRONMENT=development
-      - REDIS_URL=redis://redis:6379/0
       - SCHEDULER_SERVICE_URL=http://scheduler:8001
       - RAG_SERVICE_URL=http://rag-recommender:8002
       - CALENDAR_SERVICE_URL=http://calendar-integration:8003
@@ -75,8 +61,6 @@ services:
       - "8000:8000"
     depends_on:
       postgres:
-        condition: service_healthy
-      redis:
         condition: service_healthy
     restart: unless-stopped
     volumes:
@@ -92,15 +76,12 @@ services:
     environment:
       - ENVIRONMENT=development
       - DATABASE_URL=postgresql+asyncpg://beq:beq_password@postgres:5432/beq_scheduler
-      - REDIS_URL=redis://redis:6379/1
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - OPENROUTER_MODEL=${OPENROUTER_MODEL:-google/gemma-2-27b-it}
     ports:
       - "8001:8001"
     depends_on:
       postgres:
-        condition: service_healthy
-      redis:
         condition: service_healthy
     restart: unless-stopped
     networks:
@@ -114,15 +95,11 @@ services:
     environment:
       - ENVIRONMENT=development
       - DATABASE_URL=postgresql+asyncpg://beq:beq_password@postgres:5432/beq_rag
-      - REDIS_URL=redis://redis:6379/2
       - QDRANT_URL=http://qdrant:6333
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
     ports:
       - "8002:8002"
     depends_on:
       postgres:
-        condition: service_healthy
-      redis:
         condition: service_healthy
       qdrant:
         condition: service_healthy
@@ -138,7 +115,6 @@ services:
     environment:
       - ENVIRONMENT=development
       - DATABASE_URL=postgresql+asyncpg://beq:beq_password@postgres:5432/beq_calendar
-      - REDIS_URL=redis://redis:6379/3
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - MICROSOFT_CLIENT_ID=${MICROSOFT_CLIENT_ID}
@@ -147,8 +123,6 @@ services:
       - "8003:8003"
     depends_on:
       postgres:
-        condition: service_healthy
-      redis:
         condition: service_healthy
     restart: unless-stopped
     networks:
@@ -213,7 +187,6 @@ services:
 
 volumes:
   postgres_data:
-  redis_data:
   qdrant_data:
   prometheus_data:
   grafana_data:
