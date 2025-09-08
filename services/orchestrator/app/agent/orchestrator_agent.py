@@ -14,14 +14,17 @@ import json
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
-from langchain_openai import ChatOpenAI
 from langchain_core.tools import BaseTool
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from pydantic import BaseModel, Field
 import structlog
 
 from ..core.config import get_settings
 from ..core.logging import LoggerMixin
+from ..llm.openrouter_client import (
+    OpenRouterConversationalClient,
+    ConversationMessage,
+    get_openrouter_conversational_client
+)
 from ..tools.scheduling_tools import (
     ScheduleBrickTool, 
     OptimizeScheduleTool,
@@ -99,24 +102,17 @@ class OrchestratorAgent(LoggerMixin):
     """Main orchestrator agent for BeQ conversations using LangGraph."""
     
     def __init__(self):
-        self.llm = self._initialize_llm()
+        self.openrouter_client = None  # Will be initialized async
         self.tools = self._initialize_tools()
         self.workflow = self._create_workflow()
         self.checkpointer = MemorySaver()
         self.conversations: Dict[UUID, ConversationContext] = {}
     
-    def _initialize_llm(self):
-        """Initialize the language model."""
-        if settings.default_llm_provider == "openai":
-            return ChatOpenAI(
-                api_key=settings.openai_api_key,
-                model=settings.default_model,
-                temperature=settings.temperature,
-                max_tokens=settings.max_tokens
-            )
-        else:
-            # TODO: Add support for other LLM providers (Anthropic, etc.)
-            raise ValueError(f"Unsupported LLM provider: {settings.default_llm_provider}")
+    async def _get_llm_client(self) -> OpenRouterConversationalClient:
+        """Get the OpenRouter LLM client (async initialization)."""
+        if self.openrouter_client is None:
+            self.openrouter_client = await get_openrouter_conversational_client()
+        return self.openrouter_client
     
     def _initialize_tools(self) -> List[BaseTool]:
         """Initialize all available tools for the agent."""
@@ -189,13 +185,20 @@ class OrchestratorAgent(LoggerMixin):
         4. What follow-up questions might be needed?
         
         User context: {json.dumps(state.get("user_context", {}), default=str)}
+        
+        Respond with a brief analysis in 1-2 sentences.
         """
         
-        # Analyze with LLM
-        analysis_response = await self.llm.ainvoke([
-            SystemMessage(content=self._create_system_prompt()),
-            HumanMessage(content=analysis_prompt)
-        ])
+        # Analyze with OpenRouter Gemma
+        llm_client = await self._get_llm_client()
+        conversation_messages = [
+            ConversationMessage(role="user", content=analysis_prompt)
+        ]
+        
+        analysis_response = await llm_client.generate_response(
+            messages=conversation_messages,
+            system_prompt=self._create_system_prompt()
+        )
         
         # Update state with analysis results
         state["next_action"] = "tools_required"
@@ -274,15 +277,22 @@ class OrchestratorAgent(LoggerMixin):
         
         Be supportive, specific, and actionable. Use the Bricks and Quantas terminology.
         Explain what actions were taken and suggest next steps.
+        Keep your response conversational and helpful.
         """
         
-        response = await self.llm.ainvoke([
-            SystemMessage(content=self._create_system_prompt()),
-            HumanMessage(content=response_prompt)
-        ])
+        # Generate response with OpenRouter Gemma
+        llm_client = await self._get_llm_client()
+        conversation_messages = [
+            ConversationMessage(role="user", content=response_prompt)
+        ]
+        
+        response_content = await llm_client.generate_response(
+            messages=conversation_messages,
+            system_prompt=self._create_system_prompt()
+        )
         
         # Add AI response to messages
-        state["messages"].append(AIMessage(content=response.content))
+        state["messages"].append(AIMessage(content=response_content))
         
         return state
     

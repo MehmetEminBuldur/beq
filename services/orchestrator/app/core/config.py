@@ -50,13 +50,16 @@ class Settings(BaseSettings):
     redis_url: str = Field("redis://localhost:6379/0", description="Redis URL")
     redis_password: Optional[str] = Field(None, description="Redis password")
     
-    # AI/LLM settings
-    openai_api_key: Optional[str] = Field(None, description="OpenAI API key")
-    anthropic_api_key: Optional[str] = Field(None, description="Anthropic API key")
-    default_llm_provider: str = Field("openai", description="Default LLM provider")
-    default_model: str = Field("gpt-4-turbo-preview", description="Default LLM model")
+    # AI/LLM settings (Open Source Only - Gemma 3 27B IT)
+    openrouter_api_key: Optional[str] = Field(None, description="OpenRouter API key")
+    openrouter_model: str = Field("google/gemma-2-27b-it", description="OpenRouter model")
+    
+    # LLM configuration
     max_tokens: int = Field(4000, description="Maximum tokens for LLM responses")
     temperature: float = Field(0.7, description="LLM temperature")
+    top_p: float = Field(0.9, description="Nucleus sampling parameter")
+    frequency_penalty: float = Field(0.1, description="Frequency penalty")
+    presence_penalty: float = Field(0.1, description="Presence penalty")
     
     # External service URLs
     scheduler_service_url: str = Field(

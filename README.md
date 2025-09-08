@@ -22,9 +22,9 @@ BeQ is an avant-garde AI-powered life management application that transcends tra
 
 ## ✨ Key Features
 
-### 🤖 AI-Powered Orchestration
-- **Conversational AI**: Natural language interaction powered by LangGraph workflows
-- **Intelligent Scheduling**: AI-driven optimization considering health, preferences, and constraints
+### 🤖 AI-Powered Orchestration (100% Open Source)
+- **Conversational AI**: Natural language interaction powered by Gemma 3 27B IT via OpenRouter
+- **Intelligent Scheduling**: LLM-based optimization considering health, preferences, and constraints
 - **Proactive Assistance**: Context-aware suggestions and resource recommendations with state management
 
 ### 📅 Smart Calendar Integration
@@ -74,7 +74,7 @@ BeQ follows a modern microservices architecture designed for scalability, mainta
 **Backend Services:**
 - **FastAPI**: High-performance async web framework
 - **LangGraph**: Advanced AI workflow orchestration and agent management
-- **PostgreSQL**: Primary data storage with per-service databases
+- **Supabase**: Modern backend-as-a-service with PostgreSQL and real-time features
 - **Redis**: Caching and session management
 - **Qdrant**: Vector database for RAG and semantic search
 
@@ -84,15 +84,17 @@ BeQ follows a modern microservices architecture designed for scalability, mainta
 - **Tailwind CSS**: Utility-first styling
 - **Zustand**: State management
 
-**AI & ML:**
-- **OpenAI GPT-4**: Primary language model
-- **OR-Tools**: Constraint programming for optimization
+**AI & ML (100% Open Source):**
+- **Gemma 3 27B IT**: Primary language model for all AI tasks via OpenRouter
+- **LLM-based Scheduling**: AI-powered intelligent scheduling optimization
+- **Conversational AI**: Natural language interactions powered by Gemma
 - **Sentence Transformers**: Text embeddings
 - **LangGraph Workflows**: Advanced AI agent capabilities and state management
 
 **Infrastructure:**
-- **Docker**: Containerization
-- **PostgreSQL**: Multi-database setup
+- **Vercel**: Modern deployment platform for frontend and serverless functions
+- **Supabase**: Backend-as-a-Service with PostgreSQL, Auth, and real-time features
+- **Docker**: Containerization for development
 - **Prometheus**: Metrics collection
 - **Grafana**: Monitoring dashboards
 
@@ -125,12 +127,18 @@ nano .env
 
 **Required Environment Variables:**
 ```bash
-# AI Services
-OPENAI_API_KEY=your_openai_api_key_here
-ANTHROPIC_API_KEY=your_anthropic_api_key_here  # Optional
+# AI Services (100% Open Source - Gemma 3 27B IT via OpenRouter)
+OPENROUTER_API_KEY=your_openrouter_api_key_here
+OPENROUTER_MODEL=google/gemma-2-27b-it
 
-# Security
-SECRET_KEY=your_super_secret_key_here
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+
+# Deployment (Production)
+NEXT_PUBLIC_API_URL=https://your-app.vercel.app
+VERCEL_URL=your-app.vercel.app
 
 # Calendar Integration (Optional)
 GOOGLE_CLIENT_ID=your_google_client_id

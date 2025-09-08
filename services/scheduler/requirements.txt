@@ -4,11 +4,13 @@ uvicorn[standard]==0.24.0
 pydantic==2.5.0
 pydantic-settings==2.1.0
 
-# Optimization libraries
-ortools==9.8.3296
-pulp==2.7.0
-scipy==1.11.4
+# LLM and AI scheduling (Open Source Only)
+httpx==0.25.2  # For OpenRouter HTTP client
+python-dateutil==2.8.2
+pytz==2023.3
 numpy==1.26.2
+tenacity==8.2.3  # For retry logic
+tiktoken==0.5.2  # For token counting
 
 # Database and storage
 sqlalchemy==2.0.23
