@@ -1,0 +1,219 @@
+version: '3.8'
+
+name: beq
+
+services:
+  # Database services
+  postgres:
+    image: postgres:15-alpine
+    container_name: beq-postgres
+    environment:
+      POSTGRES_DB: beq
+      POSTGRES_USER: beq
+      POSTGRES_PASSWORD: beq_password
+      POSTGRES_MULTIPLE_DATABASES: beq_orchestrator,beq_scheduler,beq_rag,beq_calendar,beq_users
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U beq"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: beq-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Vector database for RAG
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: beq-qdrant
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # BeQ Microservices
+  orchestrator:
+    build:
+      context: ./services/orchestrator
+      dockerfile: Dockerfile
+    container_name: beq-orchestrator
+    environment:
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgresql+asyncpg://beq:beq_password@postgres:5432/beq_orchestrator
+      - REDIS_URL=redis://redis:6379/0
+      - SCHEDULER_SERVICE_URL=http://scheduler:8001
+      - RAG_SERVICE_URL=http://rag-recommender:8002
+      - CALENDAR_SERVICE_URL=http://calendar-integration:8003
+      - USER_PROFILE_SERVICE_URL=http://user-profile:8004
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - SECRET_KEY=${SECRET_KEY:-beq-secret-key-development}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - ./services/orchestrator:/app
+    networks:
+      - beq-network
+
+  scheduler:
+    build:
+      context: ./services/scheduler
+      dockerfile: Dockerfile
+    container_name: beq-scheduler
+    environment:
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgresql+asyncpg://beq:beq_password@postgres:5432/beq_scheduler
+      - REDIS_URL=redis://redis:6379/1
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - beq-network
+
+  rag-recommender:
+    build:
+      context: ./services/rag-recommender
+      dockerfile: Dockerfile
+    container_name: beq-rag-recommender
+    environment:
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgresql+asyncpg://beq:beq_password@postgres:5432/beq_rag
+      - REDIS_URL=redis://redis:6379/2
+      - QDRANT_URL=http://qdrant:6333
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    ports:
+      - "8002:8002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - beq-network
+
+  calendar-integration:
+    build:
+      context: ./services/calendar-integration
+      dockerfile: Dockerfile
+    container_name: beq-calendar-integration
+    environment:
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgresql+asyncpg://beq:beq_password@postgres:5432/beq_calendar
+      - REDIS_URL=redis://redis:6379/3
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - MICROSOFT_CLIENT_ID=${MICROSOFT_CLIENT_ID}
+      - MICROSOFT_CLIENT_SECRET=${MICROSOFT_CLIENT_SECRET}
+    ports:
+      - "8003:8003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - beq-network
+
+  # Frontend application
+  web:
+    build:
+      context: ./clients/web
+      dockerfile: Dockerfile
+    container_name: beq-web
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_ENVIRONMENT=development
+    ports:
+      - "3000:3000"
+    depends_on:
+      - orchestrator
+    restart: unless-stopped
+    volumes:
+      - ./clients/web:/app
+      - /app/node_modules
+    networks:
+      - beq-network
+
+  # Monitoring services (optional, for development)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: beq-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infra/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - beq-network
+    profiles:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: beq-grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infra/monitoring/grafana:/etc/grafana/provisioning
+    networks:
+      - beq-network
+    profiles:
+      - monitoring
+
+volumes:
+  postgres_data:
+  redis_data:
+  qdrant_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  beq-network:
+    driver: bridge
+    name: beq-network
