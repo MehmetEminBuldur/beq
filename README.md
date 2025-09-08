@@ -82,7 +82,7 @@ BeQ follows a modern microservices architecture designed for scalability, mainta
 - **Next.js 14**: React framework with App Router
 - **TypeScript**: Type-safe development
 - **Tailwind CSS**: Utility-first styling
-- **Zustand**: State management
+- **Supabase Real-time**: Native state management with real-time subscriptions
 
 **AI & ML (100% Open Source):**
 - **Gemma 3 27B IT**: Primary language model for all AI tasks via OpenRouter
