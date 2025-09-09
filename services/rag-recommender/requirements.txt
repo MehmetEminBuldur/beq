@@ -4,15 +4,32 @@ uvicorn[standard]==0.24.0
 pydantic==2.5.0
 pydantic-settings==2.1.0
 
-# LLM and AI scheduling (Open Source Only)
-httpx==0.25.2  # For OpenRouter HTTP client
-python-dateutil==2.8.2
-pytz==2023.3
-numpy==1.26.2
-tenacity==8.2.3  # For retry logic
-tiktoken==0.5.2  # For token counting
+# Vector database and search
+qdrant-client==1.7.0
+weaviate-client==3.25.3
+chromadb==0.4.18
 
-# Database and storage (PostgreSQL only)
+# Embeddings and ML
+sentence-transformers==2.2.2
+transformers==4.36.2
+torch==2.1.2
+openai==1.3.7
+tiktoken==0.5.2
+
+# Text processing and NLP
+spacy==3.7.2
+nltk==3.8.1
+langdetect==1.0.9
+beautifulsoup4==4.12.2
+requests==2.31.0
+
+# Recommendation algorithms
+scikit-learn==1.3.2
+numpy==1.26.2
+pandas==2.1.4
+surprise==1.1.3
+
+# Database and storage
 sqlalchemy==2.0.23
 alembic==1.13.1
 asyncpg==0.29.0
@@ -20,6 +37,11 @@ asyncpg==0.29.0
 # HTTP client
 httpx==0.25.2
 aiohttp==3.9.1
+
+# Content crawling and processing
+scrapy==2.11.0
+feedparser==6.0.10
+newspaper3k==0.2.8
 
 # Monitoring and logging
 structlog==23.2.0

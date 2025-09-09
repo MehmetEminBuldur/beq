@@ -4,7 +4,7 @@ Brick management tools for the BeQ AI agent.
 These tools allow the agent to create, update, and manage Bricks and Quantas.
 """
 
-from langchain.tools import BaseTool
+from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 
 from ..core.logging import LoggerMixin

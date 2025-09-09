@@ -4,7 +4,6 @@
 
 ![BeQ Logo](https://via.placeholder.com/200x80/2563eb/ffffff?text=BeQ)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104.1-009688.svg)](https://fastapi.tiangolo.com)
 [![Next.js](https://img.shields.io/badge/Next.js-14-black.svg)](https://nextjs.org/)
@@ -23,15 +22,21 @@ BeQ is an avant-garde AI-powered life management application that transcends tra
 
 ## ✨ Key Features
 
-### 🤖 AI-Powered Orchestration
-- **Conversational AI**: Natural language interaction for schedule management
-- **Intelligent Scheduling**: AI-driven optimization considering health, preferences, and constraints
-- **Proactive Assistance**: Context-aware suggestions and resource recommendations
+### 🤖 AI-Powered Orchestration (100% Open Source)
+- **Conversational AI**: Natural language interaction powered by Gemma 3 27B IT via OpenRouter
+- **Intelligent Scheduling**: LLM-based optimization considering health, preferences, and constraints
+- **Proactive Assistance**: Context-aware suggestions and resource recommendations with state management
 
 ### 📅 Smart Calendar Integration
 - **Universal Sync**: Google Calendar, Microsoft Teams, Outlook integration
 - **Real-time Optimization**: On-the-fly rescheduling with instant plan re-optimization
 - **Conflict Resolution**: Intelligent handling of scheduling conflicts
+
+### 🏠 Native Caching & Offline Support
+- **Local Storage Caching**: Browser-native caching with zero infrastructure
+- **Offline-First**: Full functionality without internet connection
+- **Service Worker**: Advanced caching and background synchronization
+- **Auto-Compression**: Intelligent data compression for optimal storage
 
 ### 🎯 Holistic Life Optimization
 - **Well-being Focus**: Sleep, rest, and health optimization in scheduling
@@ -57,7 +62,7 @@ BeQ follows a modern microservices architecture designed for scalability, mainta
                                  │
                     ┌────────────▼────────────┐
                     │   Orchestrator Service   │
-                    │   (FastAPI + LangChain)  │
+                    │   (FastAPI + LangGraph)  │
                     └────────────┬────────────┘
                                  │
         ┌────────────┬────────────┼────────────┬────────────┐
@@ -74,26 +79,28 @@ BeQ follows a modern microservices architecture designed for scalability, mainta
 
 **Backend Services:**
 - **FastAPI**: High-performance async web framework
-- **LangChain**: LLM orchestration and AI agent management
-- **PostgreSQL**: Primary data storage with per-service databases
-- **Redis**: Caching and session management
+- **LangGraph**: Advanced AI workflow orchestration and agent management
+- **Supabase**: Modern backend-as-a-service with PostgreSQL and real-time features
+- **Local Storage**: Browser-native caching with offline support
 - **Qdrant**: Vector database for RAG and semantic search
 
 **Frontend:**
 - **Next.js 14**: React framework with App Router
 - **TypeScript**: Type-safe development
 - **Tailwind CSS**: Utility-first styling
-- **Zustand**: State management
+- **Supabase Real-time**: Native state management with real-time subscriptions
 
-**AI & ML:**
-- **OpenAI GPT-4**: Primary language model
-- **OR-Tools**: Constraint programming for optimization
+**AI & ML (100% Open Source):**
+- **Gemma 3 27B IT**: Primary language model for all AI tasks via OpenRouter
+- **LLM-based Scheduling**: AI-powered intelligent scheduling optimization
+- **Conversational AI**: Natural language interactions powered by Gemma
 - **Sentence Transformers**: Text embeddings
-- **LangChain Tools**: AI agent capabilities
+- **LangGraph Workflows**: Advanced AI agent capabilities and state management
 
 **Infrastructure:**
-- **Docker**: Containerization
-- **PostgreSQL**: Multi-database setup
+- **Vercel**: Modern deployment platform for frontend and serverless functions
+- **Supabase**: Backend-as-a-Service with PostgreSQL, Auth, and real-time features
+- **Docker**: Containerization for development
 - **Prometheus**: Metrics collection
 - **Grafana**: Monitoring dashboards
 
@@ -126,12 +133,18 @@ nano .env
 
 **Required Environment Variables:**
 ```bash
-# AI Services
-OPENAI_API_KEY=your_openai_api_key_here
-ANTHROPIC_API_KEY=your_anthropic_api_key_here  # Optional
+# AI Services (100% Open Source - Gemma 3 27B IT via OpenRouter)
+OPENROUTER_API_KEY=your_openrouter_api_key_here
+OPENROUTER_MODEL=google/gemma-2-27b-it
 
-# Security
-SECRET_KEY=your_super_secret_key_here
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+
+# Deployment (Production)
+NEXT_PUBLIC_API_URL=https://your-app.vercel.app
+VERCEL_URL=your-app.vercel.app
 
 # Calendar Integration (Optional)
 GOOGLE_CLIENT_ID=your_google_client_id

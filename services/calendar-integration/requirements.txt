@@ -4,15 +4,29 @@ uvicorn[standard]==0.24.0
 pydantic==2.5.0
 pydantic-settings==2.1.0
 
-# LLM and AI scheduling (Open Source Only)
-httpx==0.25.2  # For OpenRouter HTTP client
+# Google Calendar API
+google-auth==2.25.2
+google-auth-oauthlib==1.1.0
+google-auth-httplib2==0.2.0
+google-api-python-client==2.111.0
+
+# Microsoft Graph API
+msal==1.25.0
+msgraph-core==0.2.2
+azure-identity==1.15.0
+
+# OAuth and authentication
+authlib==1.3.0
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
+# Calendar parsing and processing
+icalendar==5.0.11
+recurring-ical-events==2.1.2
 python-dateutil==2.8.2
 pytz==2023.3
-numpy==1.26.2
-tenacity==8.2.3  # For retry logic
-tiktoken==0.5.2  # For token counting
 
-# Database and storage (PostgreSQL only)
+# Database and storage
 sqlalchemy==2.0.23
 alembic==1.13.1
 asyncpg==0.29.0
@@ -20,6 +34,10 @@ asyncpg==0.29.0
 # HTTP client
 httpx==0.25.2
 aiohttp==3.9.1
+
+# Background tasks
+celery==5.3.4
+kombu==5.3.4
 
 # Monitoring and logging
 structlog==23.2.0
@@ -40,5 +58,5 @@ mypy==1.7.1
 python-dotenv==1.0.0
 
 # Utilities
-python-dateutil==2.8.2
-pytz==2023.3
+uuid==1.30
+croniter==2.0.1

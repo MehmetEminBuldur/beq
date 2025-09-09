@@ -4,24 +4,20 @@ uvicorn[standard]==0.24.0
 pydantic==2.5.0
 pydantic-settings==2.1.0
 
-# LLM and AI dependencies
-openai==1.3.7
-langchain==0.0.350
-langchain-openai==0.0.2
-anthropic==0.7.8
-tiktoken==0.5.2
+# LLM and AI dependencies (Open Source Only)
+httpx==0.25.2  # For OpenRouter HTTP client
+langgraph==0.0.62
+langchain-core==0.1.0
+tiktoken==0.5.2  # For token counting
+tenacity==8.2.3  # For retry logic
 
 # HTTP client and async support
-httpx==0.25.2
 aiohttp==3.9.1
 asyncio==3.4.3
 
-# Database and storage
-sqlalchemy==2.0.23
-alembic==1.13.1
-asyncpg==0.29.0
-redis==5.0.1
-aioredis==2.0.1
+# Supabase and database
+supabase==2.3.0
+postgrest==0.13.0
 
 # Security and authentication
 python-jose[cryptography]==3.3.0

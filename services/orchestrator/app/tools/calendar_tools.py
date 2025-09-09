@@ -5,7 +5,7 @@ These tools allow the agent to interact with external calendars
 and manage calendar events.
 """
 
-from langchain.tools import BaseTool
+from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 
 from ..core.logging import LoggerMixin

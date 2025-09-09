@@ -1,27 +1,30 @@
 """
-Main Orchestrator Agent for BeQ.
+Main Orchestrator Agent for BeQ using LangGraph.
 
 This module contains the core AI agent that orchestrates all user interactions,
 manages conversations, and coordinates with other services to provide
-intelligent life management assistance.
+intelligent life management assistance using LangGraph workflows.
 """
 
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, TypedDict
 from uuid import UUID
 import json
 
-from langchain.schema import BaseMessage, HumanMessage, AIMessage, SystemMessage
-from langchain.memory import ConversationBufferWindowMemory
-from langchain.chat_models import ChatOpenAI
-from langchain.agents import AgentExecutor, create_openai_functions_agent
-from langchain.tools import BaseTool
-from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langgraph.graph import StateGraph, END
+from langgraph.checkpoint.memory import MemorySaver
+from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
+from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 import structlog
 
 from ..core.config import get_settings
 from ..core.logging import LoggerMixin
+from ..llm.openrouter_client import (
+    OpenRouterConversationalClient,
+    ConversationMessage,
+    get_openrouter_conversational_client
+)
 from ..tools.scheduling_tools import (
     ScheduleBrickTool, 
     OptimizeScheduleTool,
@@ -43,6 +46,20 @@ from ..tools.calendar_tools import (
 
 settings = get_settings()
 logger = structlog.get_logger(__name__)
+
+
+class AgentState(TypedDict):
+    """State for the LangGraph agent workflow."""
+    messages: List[BaseMessage]
+    user_id: str
+    conversation_id: str
+    user_context: Dict[str, Any]
+    tools_used: List[str]
+    schedule_updated: bool
+    bricks_created: List[str]
+    bricks_updated: List[str]
+    resources_recommended: List[str]
+    next_action: Optional[str]
 
 
 class AgentResponse(BaseModel):
@@ -82,27 +99,20 @@ class ConversationContext(BaseModel):
 
 
 class OrchestratorAgent(LoggerMixin):
-    """Main orchestrator agent for BeQ conversations."""
+    """Main orchestrator agent for BeQ conversations using LangGraph."""
     
     def __init__(self):
-        self.llm = self._initialize_llm()
+        self.openrouter_client = None  # Will be initialized async
         self.tools = self._initialize_tools()
-        self.memory = self._initialize_memory()
-        self.agent_executor = self._create_agent_executor()
+        self.workflow = self._create_workflow()
+        self.checkpointer = MemorySaver()
         self.conversations: Dict[UUID, ConversationContext] = {}
     
-    def _initialize_llm(self):
-        """Initialize the language model."""
-        if settings.default_llm_provider == "openai":
-            return ChatOpenAI(
-                api_key=settings.openai_api_key,
-                model=settings.default_model,
-                temperature=settings.temperature,
-                max_tokens=settings.max_tokens
-            )
-        else:
-            # TODO: Add support for other LLM providers (Anthropic, etc.)
-            raise ValueError(f"Unsupported LLM provider: {settings.default_llm_provider}")
+    async def _get_llm_client(self) -> OpenRouterConversationalClient:
+        """Get the OpenRouter LLM client (async initialization)."""
+        if self.openrouter_client is None:
+            self.openrouter_client = await get_openrouter_conversational_client()
+        return self.openrouter_client
     
     def _initialize_tools(self) -> List[BaseTool]:
         """Initialize all available tools for the agent."""
@@ -136,44 +146,175 @@ class OrchestratorAgent(LoggerMixin):
         
         return tools
     
-    def _initialize_memory(self):
-        """Initialize conversation memory."""
-        return ConversationBufferWindowMemory(
-            k=settings.memory_max_messages,
-            memory_key="chat_history",
-            return_messages=True
-        )
+    def _create_workflow(self) -> StateGraph:
+        """Create the LangGraph workflow."""
+        
+        # Create the workflow graph
+        workflow = StateGraph(AgentState)
+        
+        # Add nodes
+        workflow.add_node("analyze_request", self._analyze_request)
+        workflow.add_node("execute_tools", self._execute_tools)
+        workflow.add_node("generate_response", self._generate_response)
+        workflow.add_node("update_context", self._update_context)
+        
+        # Define edges
+        workflow.set_entry_point("analyze_request")
+        workflow.add_edge("analyze_request", "execute_tools")
+        workflow.add_edge("execute_tools", "generate_response")
+        workflow.add_edge("generate_response", "update_context")
+        workflow.add_edge("update_context", END)
+        
+        return workflow.compile(checkpointer=self.checkpointer)
     
-    def _create_agent_executor(self):
-        """Create the agent executor with tools and prompts."""
+    async def _analyze_request(self, state: AgentState) -> AgentState:
+        """Analyze the user request and determine required actions."""
         
-        # Create the system prompt
-        system_prompt = self._create_system_prompt()
+        latest_message = state["messages"][-1]
+        user_message = latest_message.content
         
-        # Create the prompt template
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", system_prompt),
-            MessagesPlaceholder(variable_name="chat_history"),
-            ("human", "{input}"),
-            MessagesPlaceholder(variable_name="agent_scratchpad")
-        ])
+        # Create analysis prompt
+        analysis_prompt = f"""
+        Analyze this user request for BeQ life management assistance:
+        "{user_message}"
         
-        # Create the agent
-        agent = create_openai_functions_agent(
-            llm=self.llm,
-            tools=self.tools,
-            prompt=prompt
+        Determine what tools and actions are needed. Consider:
+        1. Does this require scheduling or calendar operations?
+        2. Does this involve creating or managing Bricks/Quantas?
+        3. Does this need resource recommendations?
+        4. What follow-up questions might be needed?
+        
+        User context: {json.dumps(state.get("user_context", {}), default=str)}
+        
+        Respond with a brief analysis in 1-2 sentences.
+        """
+        
+        # Analyze with OpenRouter Gemma
+        llm_client = await self._get_llm_client()
+        conversation_messages = [
+            ConversationMessage(role="user", content=analysis_prompt)
+        ]
+        
+        analysis_response = await llm_client.generate_response(
+            messages=conversation_messages,
+            system_prompt=self._create_system_prompt()
         )
         
-        # Create the executor
-        return AgentExecutor(
-            agent=agent,
-            tools=self.tools,
-            memory=self.memory,
-            verbose=settings.debug,
-            max_iterations=settings.agent_max_iterations,
-            max_execution_time=settings.agent_timeout_seconds
+        # Update state with analysis results
+        state["next_action"] = "tools_required"
+        
+        return state
+    
+    async def _execute_tools(self, state: AgentState) -> AgentState:
+        """Execute required tools based on the analysis."""
+        
+        latest_message = state["messages"][-1]
+        user_message = latest_message.content
+        tools_used = []
+        
+        # Determine which tools to use based on message content
+        # This is a simplified heuristic - in practice, you'd use LLM to decide
+        
+        if any(keyword in user_message.lower() for keyword in ["schedule", "plan", "calendar"]):
+            # Use scheduling tools
+            try:
+                schedule_tool = next(t for t in self.tools if t.name == "get_schedule")
+                result = await schedule_tool.arun(
+                    user_id=state["user_id"],
+                    include_details=True
+                )
+                tools_used.append("get_schedule")
+                state["schedule_updated"] = True
+            except Exception as e:
+                logger.error("Error using schedule tool", exc_info=e)
+        
+        if any(keyword in user_message.lower() for keyword in ["create", "add", "new task", "brick"]):
+            # Use brick creation tools
+            try:
+                create_tool = next(t for t in self.tools if t.name == "create_brick")
+                # Extract task details from message (simplified)
+                result = await create_tool.arun(
+                    title="New task from conversation",
+                    description=user_message,
+                    user_id=state["user_id"]
+                )
+                tools_used.append("create_brick")
+                state["bricks_created"].append("new_brick_id")
+            except Exception as e:
+                logger.error("Error using create brick tool", exc_info=e)
+        
+        if any(keyword in user_message.lower() for keyword in ["learn", "resource", "help", "guide"]):
+            # Use resource recommendation tools
+            try:
+                resource_tool = next(t for t in self.tools if t.name == "get_resource_recommendations")
+                result = await resource_tool.arun(
+                    user_id=state["user_id"],
+                    context=user_message[:100]  # First 100 chars as context
+                )
+                tools_used.append("get_resource_recommendations")
+                state["resources_recommended"].append("resource_id")
+            except Exception as e:
+                logger.error("Error using resource tool", exc_info=e)
+        
+        state["tools_used"] = tools_used
+        return state
+    
+    async def _generate_response(self, state: AgentState) -> AgentState:
+        """Generate the final response to the user."""
+        
+        # Prepare context for response generation
+        latest_message = state["messages"][-1]
+        tools_used = state.get("tools_used", [])
+        
+        response_prompt = f"""
+        Generate a helpful, conversational response to the user's request.
+        
+        User message: "{latest_message.content}"
+        Tools used: {tools_used}
+        Schedule updated: {state.get("schedule_updated", False)}
+        Bricks created: {state.get("bricks_created", [])}
+        Resources recommended: {state.get("resources_recommended", [])}
+        
+        Be supportive, specific, and actionable. Use the Bricks and Quantas terminology.
+        Explain what actions were taken and suggest next steps.
+        Keep your response conversational and helpful.
+        """
+        
+        # Generate response with OpenRouter Gemma
+        llm_client = await self._get_llm_client()
+        conversation_messages = [
+            ConversationMessage(role="user", content=response_prompt)
+        ]
+        
+        response_content = await llm_client.generate_response(
+            messages=conversation_messages,
+            system_prompt=self._create_system_prompt()
         )
+        
+        # Add AI response to messages
+        state["messages"].append(AIMessage(content=response_content))
+        
+        return state
+    
+    async def _update_context(self, state: AgentState) -> AgentState:
+        """Update conversation context and state."""
+        
+        # Update conversation context in memory
+        conversation_id = UUID(state["conversation_id"])
+        
+        if conversation_id in self.conversations:
+            context = self.conversations[conversation_id]
+            context.conversation_history.append({
+                "timestamp": datetime.utcnow().isoformat(),
+                "user_message": state["messages"][-2].content,  # User message
+                "agent_response": state["messages"][-1].content,  # AI response
+                "tools_used": state.get("tools_used", [])
+            })
+            
+            if state.get("tools_used"):
+                context.last_action = state["tools_used"][-1]
+        
+        return state
     
     def _create_system_prompt(self) -> str:
         """Create the system prompt for the BeQ agent."""
@@ -230,10 +371,10 @@ Remember: You're not just a scheduler, you're a life optimization partner. Help 
         conversation_id: UUID,
         context: Optional[Dict[str, Any]] = None
     ) -> AgentResponse:
-        """Process a user message and generate a response."""
+        """Process a user message and generate a response using LangGraph workflow."""
         
         self.logger.info(
-            "Processing user message",
+            "Processing user message with LangGraph",
             user_id=str(user_id),
             conversation_id=str(conversation_id),
             message_length=len(message)
@@ -245,26 +386,39 @@ Remember: You're not just a scheduler, you're a life optimization partner. Help 
                 user_id, conversation_id, context
             )
             
-            # Update conversation memory if this is a new conversation
-            if conversation_id not in self.conversations:
-                await self._load_conversation_history(conv_context)
-            
-            # Process the message through the agent
-            response = await self.agent_executor.ainvoke({
-                "input": message,
+            # Create initial state
+            initial_state: AgentState = {
+                "messages": [HumanMessage(content=message)],
                 "user_id": str(user_id),
                 "conversation_id": str(conversation_id),
-                "user_context": json.dumps(conv_context.dict(), default=str)
-            })
+                "user_context": context or {},
+                "tools_used": [],
+                "schedule_updated": False,
+                "bricks_created": [],
+                "bricks_updated": [],
+                "resources_recommended": [],
+                "next_action": None
+            }
             
-            # Extract information from the response
-            agent_response = self._parse_agent_response(response)
+            # Execute the workflow
+            config = {"configurable": {"thread_id": str(conversation_id)}}
+            final_state = await self.workflow.ainvoke(initial_state, config)
             
-            # Update conversation context
-            await self._update_conversation_context(conv_context, message, agent_response)
+            # Extract the AI response
+            ai_message = final_state["messages"][-1]
+            
+            # Create response object
+            agent_response = AgentResponse(
+                response_text=ai_message.content,
+                model_used=settings.default_model,
+                actions_taken=final_state.get("tools_used", []),
+                schedule_updated=final_state.get("schedule_updated", False),
+                bricks_created=[UUID(bid) for bid in final_state.get("bricks_created", []) if bid],
+                resources_recommended=[UUID(rid) for rid in final_state.get("resources_recommended", []) if rid]
+            )
             
             self.logger.info(
-                "User message processed successfully",
+                "User message processed successfully with LangGraph",
                 user_id=str(user_id),
                 conversation_id=str(conversation_id),
                 actions_count=len(agent_response.actions_taken)
@@ -274,7 +428,7 @@ Remember: You're not just a scheduler, you're a life optimization partner. Help 
             
         except Exception as e:
             self.logger.error(
-                "Error processing user message",
+                "Error processing user message with LangGraph",
                 user_id=str(user_id),
                 conversation_id=str(conversation_id),
                 exc_info=e
@@ -310,76 +464,6 @@ Remember: You're not just a scheduler, you're a life optimization partner. Help 
         
         self.conversations[conversation_id] = conv_context
         return conv_context
-    
-    async def _load_conversation_history(self, context: ConversationContext):
-        """Load conversation history into memory."""
-        # TODO: Implement loading conversation history from database
-        pass
-    
-    def _parse_agent_response(self, response: Dict[str, Any]) -> AgentResponse:
-        """Parse the agent response and extract structured information."""
-        
-        # Extract the main response text
-        response_text = response.get("output", "")
-        
-        # Initialize response object
-        agent_response = AgentResponse(
-            response_text=response_text,
-            model_used=settings.default_model
-        )
-        
-        # Extract intermediate steps to understand what tools were used
-        intermediate_steps = response.get("intermediate_steps", [])
-        
-        for step in intermediate_steps:
-            if len(step) >= 2:
-                tool_action = step[0]
-                tool_result = step[1]
-                
-                tool_name = tool_action.tool if hasattr(tool_action, 'tool') else "unknown"
-                agent_response.actions_taken.append(f"Used {tool_name}")
-                
-                # Extract specific information based on tool used
-                if "brick" in tool_name.lower():
-                    if "create" in tool_name.lower():
-                        # Extract created brick IDs from tool result
-                        # TODO: Parse tool result to extract actual IDs
-                        pass
-                    elif "update" in tool_name.lower():
-                        # Extract updated brick IDs
-                        pass
-                
-                elif "schedule" in tool_name.lower():
-                    agent_response.schedule_updated = True
-                
-                elif "resource" in tool_name.lower():
-                    # Extract recommended resource IDs
-                    # TODO: Parse tool result to extract actual resource IDs
-                    pass
-        
-        return agent_response
-    
-    async def _update_conversation_context(
-        self,
-        context: ConversationContext,
-        user_message: str,
-        agent_response: AgentResponse
-    ):
-        """Update conversation context with new message and response."""
-        
-        # Add to conversation history
-        context.conversation_history.append({
-            "timestamp": datetime.utcnow().isoformat(),
-            "user_message": user_message,
-            "agent_response": agent_response.response_text,
-            "actions_taken": agent_response.actions_taken
-        })
-        
-        # Update last action
-        if agent_response.actions_taken:
-            context.last_action = agent_response.actions_taken[-1]
-        
-        # TODO: Persist conversation updates to database
     
     async def clear_conversation(self, conversation_id: UUID):
         """Clear conversation memory and context."""
