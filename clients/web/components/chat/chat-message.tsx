@@ -8,7 +8,7 @@ import remarkGfm from 'remark-gfm';
 interface ChatMessageProps {
   message: {
     id?: string;
-    role: 'user' | 'assistant' | 'system';
+    sender: 'user' | 'assistant' | 'system';
     content: string;
     timestamp?: Date;
     actions?: string[];
@@ -20,8 +20,8 @@ interface ChatMessageProps {
 }
 
 export function ChatMessage({ message, isLast }: ChatMessageProps) {
-  const isUser = message.role === 'user';
-  const isSystem = message.role === 'system';
+  const isUser = message.sender === 'user';
+  const isSystem = message.sender === 'system';
 
   return (
     <motion.div

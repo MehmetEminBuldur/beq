@@ -5,7 +5,7 @@ import { useState } from 'react'
 interface Theme {
   id: string
   name: string
-  color: string
+  color?: string
   gradient?: string
   pattern?: string
 }
@@ -44,8 +44,8 @@ export default function SettingsPage() {
     { id: 'dark', name: 'Dark Mode', color: 'bg-gray-800' },
     { id: 'rose', name: 'Rose', color: 'bg-rose-100' },
     { id: 'mint', name: 'Mint', color: 'bg-teal-100' },
-    { id: 'metallic', name: 'Metallic', gradient: 'bg-gradient-to-br from-gray-400 to-gray-600' },
-    { id: 'bricks', name: 'Bricks', pattern: 'brick-pattern' },
+    { id: 'metallic', name: 'Metallic', color: 'bg-gray-500', gradient: 'bg-gradient-to-br from-gray-400 to-gray-600' },
+    { id: 'bricks', name: 'Bricks', color: 'bg-orange-400', pattern: 'brick-pattern' },
     { id: 'wooden', name: 'Wooden', color: 'bg-amber-600' }
   ]
 

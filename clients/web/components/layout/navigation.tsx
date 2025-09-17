@@ -11,7 +11,7 @@ export function Navigation() {
   const [isOpen, setIsOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const { theme, setTheme } = useTheme();
-  const { user, logout } = useAuth();
+  const { user, signOut } = useAuth();
 
   const navigation = [
     { name: 'Home', href: '/' },
@@ -90,7 +90,7 @@ export function Navigation() {
                 className="flex items-center gap-x-2 rounded-md bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-100 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 transition-colors"
               >
                 <User className="h-4 w-4" />
-                <span>{user.name || user.email}</span>
+                <span>{user?.name || user?.email || 'User'}</span>
               </button>
 
               {isUserMenuOpen && (
@@ -116,7 +116,7 @@ export function Navigation() {
                   </Link>
                   <button
                     onClick={() => {
-                      logout();
+                      signOut();
                       setIsUserMenuOpen(false);
                     }}
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 flex items-center gap-2"
@@ -184,7 +184,7 @@ export function Navigation() {
                   </Link>
                   <button
                     onClick={() => {
-                      logout();
+                      signOut();
                       setIsOpen(false);
                     }}
                     className="-mx-3 block w-full text-left rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50 dark:text-white dark:hover:bg-gray-800"
