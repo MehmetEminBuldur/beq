@@ -1,0 +1,45 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "cd clients/web && npm run build",
+  "devCommand": "cd clients/web && npm run dev", 
+  "installCommand": "cd clients/web && npm install",
+  "outputDirectory": "clients/web/.next",
+  "rootDirectory": "clients/web",
+  "regions": ["iad1"],
+  "functions": {
+    "app/api/**/*.ts": {
+      "runtime": "nodejs18.x"
+    }
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization"
+        }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/orchestrator/(.*)",
+      "destination": "/api/proxy/orchestrator/$1"
+    }
+  ],
+  "env": {
+    "NEXT_PUBLIC_SUPABASE_URL": "@supabase_url",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "@supabase_anon_key",
+    "NEXT_PUBLIC_API_URL": "@api_url",
+    "OPENAI_API_KEY": "@openai_api_key"
+  }
+}
