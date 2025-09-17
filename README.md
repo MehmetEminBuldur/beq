@@ -1,7 +1,7 @@
 # Bricks and Quantas (BeQ): Efficient Life Management
 
 <div align="center">
-
+ 
 ![BeQ Logo](https://via.placeholder.com/200x80/2563eb/ffffff?text=BeQ)
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
