@@ -4,7 +4,6 @@
   "devCommand": "cd clients/web && npm run dev", 
   "installCommand": "cd clients/web && npm install",
   "outputDirectory": "clients/web/.next",
-  "rootDirectory": "clients/web",
   "regions": ["iad1"],
   "functions": {
     "app/api/**/*.ts": {
