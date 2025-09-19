@@ -257,8 +257,8 @@ export async function POST(request: NextRequest) {
     const scheduledTaskIds = new Set(
       aiResult.scheduled_events?.map((event: any) => event.task_id) || []
     );
-    
-    const unscheduledTasks = body.tasks
+
+    const unscheduled_tasks = body.tasks
       .filter(task => !scheduledTaskIds.has(task.id))
       .map(task => task.id);
 
@@ -292,7 +292,7 @@ export async function POST(request: NextRequest) {
       processing_time_seconds: processingTime
     };
 
-    console.log(`Schedule generated for user ${body.user_id}: ${aiResult.scheduled_events?.length || 0} events, ${unscheduledTasks.length} unscheduled`);
+    console.log(`Schedule generated for user ${body.user_id}: ${aiResult.scheduled_events?.length || 0} events, ${unscheduled_tasks.length} unscheduled`);
 
     return NextResponse.json(response, { status: 200 });
 
