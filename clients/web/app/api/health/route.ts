@@ -28,7 +28,12 @@ export async function GET(request: NextRequest) {
       ]
     };
 
-    return NextResponse.json(health, { status: 200 });
+    return NextResponse.json(health, {
+      status: 200,
+      headers: {
+        'Cache-Control': 'public, max-age=30'
+      }
+    });
   } catch (error) {
     console.error('Health check failed:', error);
     

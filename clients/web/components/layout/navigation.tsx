@@ -118,6 +118,18 @@ export function Navigation() {
                     Dashboard
                   </Link>
                   <Link
+                    href="/bricks"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 flex items-center gap-2"
+                  >
+                    Bricks
+                  </Link>
+                  <Link
+                    href="/quantas"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 flex items-center gap-2"
+                  >
+                    Quantas
+                  </Link>
+                  <Link
                     href="/calendar"
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 flex items-center gap-2"
                   >
@@ -199,6 +211,20 @@ export function Navigation() {
                   >
                     Dashboard
                   </Link>
+                    <Link
+                      href="/bricks"
+                      className="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50 dark:text-white dark:hover:bg-gray-800"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      Bricks
+                    </Link>
+                    <Link
+                      href="/quantas"
+                      className="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50 dark:text-white dark:hover:bg-gray-800"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      Quantas
+                    </Link>
                   <Link
                     href="/calendar"
                     className="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50 dark:text-white dark:hover:bg-gray-800"

@@ -67,6 +67,11 @@ services:
       - ./services/orchestrator:/app
     networks:
       - beq-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
 
   scheduler:
     build:
@@ -86,6 +91,11 @@ services:
     restart: unless-stopped
     networks:
       - beq-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
 
   rag-recommender:
     build:
@@ -106,6 +116,11 @@ services:
     restart: unless-stopped
     networks:
       - beq-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
 
   calendar-integration:
     build:
@@ -127,6 +142,11 @@ services:
     restart: unless-stopped
     networks:
       - beq-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
 
   # Frontend application
   web:
@@ -149,6 +169,11 @@ services:
       - /app/node_modules
     networks:
       - beq-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
 
   # Monitoring services (optional, for development)
   prometheus:
