@@ -43,7 +43,13 @@ check_env_file() {
 }
 
 # Check Python installation
-check_python
+if ! command -v python3 &> /dev/null; then
+    echo "❌ Python 3 is not installed. Please install Python 3.8+ first."
+    exit 1
+fi
+
+python_version=$(python3 --version | cut -d' ' -f2 | cut -d'.' -f1,2)
+echo "✅ Found Python $python_version"
 
 echo ""
 echo "🔧 Installing Backend Services Dependencies:"

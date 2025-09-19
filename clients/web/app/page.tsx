@@ -36,18 +36,39 @@ const features = [
 export default function HomePage() {
   const { isAuthenticated, isLoading, user } = useAuthContext();
   const [showChat, setShowChat] = useState(false);
+  const [isClient, setIsClient] = useState(false);
   const router = useRouter();
 
+  // Prevent hydration mismatch by ensuring we only render dynamic content on client
   useEffect(() => {
-    // Redirect to dashboard if authenticated, or to auth if not authenticated
-    if (!isLoading) {
+    setIsClient(true);
+  }, []);
+
+  useEffect(() => {
+    // Only redirect after client-side hydration is complete
+    if (isClient && !isLoading) {
       if (isAuthenticated) {
         router.push('/dashboard');
       } else {
         router.push('/auth');
       }
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [isAuthenticated, isLoading, router, isClient]);
+
+  // Show loading state during SSR and initial hydration
+  if (!isClient || isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navigation />
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="animate-pulse text-center">
+            <div className="w-8 h-8 bg-primary-600 rounded-full mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading BeQ...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Show loading spinner while checking authentication
   if (isLoading) {

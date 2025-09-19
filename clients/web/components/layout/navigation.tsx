@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Menu, X, Sun, Moon, User, Settings, LogOut } from 'lucide-react';
 import { useTheme } from 'next-themes';
@@ -10,8 +10,14 @@ import Link from 'next/link';
 export function Navigation() {
   const [isOpen, setIsOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const { theme, setTheme } = useTheme();
   const { user, signOut } = useAuth();
+
+  // Prevent hydration mismatch for theme
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const navigation = [
     { name: 'Home', href: '/' },
@@ -75,10 +81,14 @@ export function Navigation() {
             className="rounded-md p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"
           >
             <span className="sr-only">Toggle theme</span>
-            {theme === 'dark' ? (
-              <Sun className="h-5 w-5" />
+            {mounted ? (
+              theme === 'dark' ? (
+                <Sun className="h-5 w-5" />
+              ) : (
+                <Moon className="h-5 w-5" />
+              )
             ) : (
-              <Moon className="h-5 w-5" />
+              <div className="h-5 w-5" />
             )}
           </button>
 
@@ -90,7 +100,7 @@ export function Navigation() {
                 className="flex items-center gap-x-2 rounded-md bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-100 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 transition-colors"
               >
                 <User className="h-4 w-4" />
-                <span>{user?.name || user?.email || 'User'}</span>
+                <span>{user?.full_name || user?.email || 'User'}</span>
               </button>
 
               {isUserMenuOpen && (

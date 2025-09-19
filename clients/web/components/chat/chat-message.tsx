@@ -11,7 +11,7 @@ interface ChatMessageProps {
     conversation_id: string;
     content: string;
     response?: string;
-    sender: 'user' | 'assistant';
+    sender: 'user' | 'assistant' | 'system';
     timestamp: Date;
     type?: 'text' | 'schedule' | 'task' | 'resource';
     metadata?: {
