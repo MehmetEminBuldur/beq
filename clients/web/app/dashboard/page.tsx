@@ -2,14 +2,17 @@
 
 import { useState } from 'react';
 import { useAuthContext } from '@/lib/providers/auth-provider';
+import { useDashboard } from '@/lib/hooks/use-dashboard';
 import { Navigation } from '@/components/layout/navigation';
 import { ChatInterface } from '@/components/chat/chat-interface';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { CalendarDays, MessageSquare, Target, TrendingUp, Plus, Clock } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { CalendarDays, MessageSquare, Target, TrendingUp, Plus, Clock, RefreshCw, Brain } from 'lucide-react';
 
 export default function DashboardPage() {
   const { user, signOut } = useAuthContext();
+  const { stats, todaySchedule, aiInsights, isLoading, refreshDashboard } = useDashboard();
   const [activeView, setActiveView] = useState<'overview' | 'chat'>('overview');
 
   if (activeView === 'chat') {
@@ -30,12 +33,26 @@ export default function DashboardPage() {
       <main className="container mx-auto px-4 py-8">
         {/* Welcome Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight">
-            Welcome back, {user?.full_name || user?.email?.split('@')[0]}! 👋
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Here's your life management overview for today.
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">
+                Welcome back, {user?.full_name || user?.email?.split('@')[0]}! 👋
+              </h1>
+              <p className="text-muted-foreground mt-2">
+                Here's your life management overview for today.
+              </p>
+            </div>
+            <Button
+              onClick={refreshDashboard}
+              disabled={isLoading}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
         </div>
 
         {/* Quick Actions */}
@@ -67,9 +84,11 @@ export default function DashboardPage() {
               <Target className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">12</div>
+              <div className="text-2xl font-bold">
+                {isLoading ? '...' : stats.activeBricks}
+              </div>
               <p className="text-xs text-muted-foreground">
-                +2 from last week
+                {stats.pendingBricks > 0 ? `${stats.pendingBricks} pending` : 'All caught up!'}
               </p>
             </CardContent>
           </Card>
@@ -80,9 +99,11 @@ export default function DashboardPage() {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">8</div>
+              <div className="text-2xl font-bold">
+                {isLoading ? '...' : stats.completedToday}
+              </div>
               <p className="text-xs text-muted-foreground">
-                +12% from yesterday
+                {stats.completedThisWeek > 0 ? `${stats.completedThisWeek} this week` : 'Start your day!'}
               </p>
             </CardContent>
           </Card>
@@ -93,9 +114,11 @@ export default function DashboardPage() {
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">6.5h</div>
+              <div className="text-2xl font-bold">
+                {isLoading ? '...' : `${stats.focusTime}h`}
+              </div>
               <p className="text-xs text-muted-foreground">
-                2h above target
+                {stats.averageSessionTime > 0 ? `${stats.averageSessionTime}m avg session` : 'Track your progress'}
               </p>
             </CardContent>
           </Card>
@@ -106,9 +129,11 @@ export default function DashboardPage() {
               <MessageSquare className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">24</div>
+              <div className="text-2xl font-bold">
+                {isLoading ? '...' : stats.aiConversations}
+              </div>
               <p className="text-xs text-muted-foreground">
-                This week
+                Messages sent
               </p>
             </CardContent>
           </Card>
@@ -126,38 +151,66 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="flex items-center gap-4 p-3 border rounded-lg">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <div className="flex-1">
-                    <p className="font-medium">Morning Workout</p>
-                    <p className="text-sm text-muted-foreground">7:00 AM - 8:00 AM</p>
+                {isLoading ? (
+                  <div className="text-center text-muted-foreground py-8">
+                    Loading your schedule...
                   </div>
-                  <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                    Completed
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-4 p-3 border rounded-lg">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                  <div className="flex-1">
-                    <p className="font-medium">Project Planning Session</p>
-                    <p className="text-sm text-muted-foreground">9:00 AM - 10:30 AM</p>
+                ) : todaySchedule.length === 0 ? (
+                  <div className="text-center text-muted-foreground py-8">
+                    <CalendarDays className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p>No events scheduled for today</p>
+                    <p className="text-sm mt-1">Add some bricks or events to get started!</p>
                   </div>
-                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                    In Progress
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-4 p-3 border rounded-lg">
-                  <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
-                  <div className="flex-1">
-                    <p className="font-medium">Team Standup</p>
-                    <p className="text-sm text-muted-foreground">11:00 AM - 11:30 AM</p>
-                  </div>
-                  <span className="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded">
-                    Upcoming
-                  </span>
-                </div>
+                ) : (
+                  todaySchedule.map((item) => (
+                    <div key={item.id} className="flex items-center gap-4 p-3 border rounded-lg">
+                      <div
+                        className={`w-2 h-2 rounded-full ${
+                          item.status === 'completed'
+                            ? 'bg-green-500'
+                            : item.status === 'in_progress'
+                            ? 'bg-blue-500'
+                            : 'bg-gray-300'
+                        }`}
+                      ></div>
+                      <div className="flex-1">
+                        <p className="font-medium">{item.title}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {new Date(item.start_time).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })} - {new Date(item.end_time).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
+                      <Badge
+                        variant={
+                          item.status === 'completed'
+                            ? 'default'
+                            : item.status === 'in_progress'
+                            ? 'secondary'
+                            : 'outline'
+                        }
+                        className={`text-xs ${
+                          item.status === 'completed'
+                            ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                            : item.status === 'in_progress'
+                            ? 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+                            : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                        }`}
+                      >
+                        {item.status === 'completed'
+                          ? 'Completed'
+                          : item.status === 'in_progress'
+                          ? 'In Progress'
+                          : 'Upcoming'
+                        }
+                      </Badge>
+                    </div>
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
@@ -198,28 +251,55 @@ export default function DashboardPage() {
         {/* AI Insights */}
         <Card className="mt-6">
           <CardHeader>
-            <CardTitle>AI Insights</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Brain className="h-5 w-5" />
+              AI Insights
+            </CardTitle>
             <CardDescription>
               Personalized recommendations based on your activity patterns
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="p-4 border rounded-lg">
-                <h4 className="font-medium mb-2">Productivity Pattern</h4>
-                <p className="text-sm text-muted-foreground">
-                  You're most productive between 9 AM - 11 AM. Consider scheduling
-                  your most important tasks during this time.
-                </p>
+            {isLoading ? (
+              <div className="text-center text-muted-foreground py-8">
+                Analyzing your patterns...
               </div>
-              <div className="p-4 border rounded-lg">
-                <h4 className="font-medium mb-2">Break Recommendation</h4>
-                <p className="text-sm text-muted-foreground">
-                  Based on your work patterns, a 15-minute break in 45 minutes
-                  would optimize your focus and energy levels.
-                </p>
+            ) : aiInsights.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8">
+                <Brain className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p>Complete some tasks to see personalized insights!</p>
               </div>
-            </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2">
+                {aiInsights.slice(0, 4).map((insight) => (
+                  <div key={insight.id} className="p-4 border rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <h4 className="font-medium">{insight.title}</h4>
+                      <Badge
+                        variant={
+                          insight.priority === 'high'
+                            ? 'destructive'
+                            : insight.priority === 'medium'
+                            ? 'default'
+                            : 'secondary'
+                        }
+                        className="text-xs"
+                      >
+                        {insight.priority}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {insight.description}
+                    </p>
+                    {insight.actionable && (
+                      <Button variant="outline" size="sm" className="mt-2 text-xs">
+                        Take Action
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </main>
