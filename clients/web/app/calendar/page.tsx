@@ -1,25 +1,36 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useAuthContext } from '@/lib/providers/auth-provider'
+import { useDashboard } from '@/lib/hooks/use-dashboard'
+import { format, startOfDay, endOfDay, isSameDay, isToday, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns'
+import Link from 'next/link'
+import { Navigation } from '@/components/layout/navigation'
 
 interface CalendarEvent {
   id: string
   title: string
   time: string
+  duration?: string
   icon: string
   color: string
   source?: string
+  type: 'brick' | 'quanta' | 'event' | 'meeting'
+  status: 'pending' | 'in_progress' | 'completed' | 'upcoming'
 }
 
 interface DateEvents {
-  [key: number]: CalendarEvent[]
+  [key: string]: CalendarEvent[]
 }
 
 export default function SmartCalendar() {
+  const { user, isAuthenticated, isLoading: authLoading } = useAuthContext()
+  const { stats, todaySchedule, aiInsights, isLoading: dashboardLoading, refreshDashboard } = useDashboard()
+
   const [isClient, setIsClient] = useState(false)
-  const [currentMonth, setCurrentMonth] = useState(9) // October (0-indexed)
-  const [currentYear, setCurrentYear] = useState(2024)
-  const [selectedDate, setSelectedDate] = useState(24)
+  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth())
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear())
+  const [selectedDate, setSelectedDate] = useState(new Date())
   const [searchQuery, setSearchQuery] = useState('')
   const [activeView, setActiveView] = useState('Month')
 
@@ -35,22 +46,93 @@ export default function SmartCalendar() {
 
   const dayNames = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
 
-  // Sample events data
-  const events: DateEvents = {
-    4: [{ id: '1', title: 'Morning Workout', time: '7:00 AM', icon: 'fitness_center', color: 'green' }],
-    5: [{ id: '2', title: 'Doctor Appointment', time: '2:00 PM', icon: 'local_hospital', color: 'blue' }],
-    7: [{ id: '3', title: 'Team Retreat', time: 'All Day', icon: 'groups', color: 'red' }],
-    17: [
-      { id: '4', title: 'Presentation', time: '9:00 AM', icon: 'presentation', color: 'yellow' },
-      { id: '5', title: 'Client Meeting', time: '3:00 PM', icon: 'business', color: 'purple' }
-    ],
-    24: [
-      { id: '6', title: 'Team Meeting', time: '10:00 AM - 11:00 AM', icon: 'groups', color: 'blue', source: 'GCal' },
-      { id: '7', title: 'Project Review', time: '11:30 AM - 12:30 PM', icon: 'work', color: 'green' },
-      { id: '8', title: 'Client Call', time: '2:00 PM - 3:00 PM', icon: 'call', color: 'purple', source: 'Outlook' },
-      { id: '9', title: 'Workout', time: '4:00 PM - 5:00 PM', icon: 'fitness_center', color: 'yellow' }
-    ]
+  // Show loading state while authentication is being checked
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Loading your calendar...</p>
+        </div>
+      </div>
+    )
   }
+
+  // Show login prompt if not authenticated
+  if (!isAuthenticated || !user) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="mb-6">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900 mx-auto mb-4">
+              <svg className="h-8 w-8 text-primary-600 dark:text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Authentication Required</h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">Please sign in to access your calendar</p>
+            <button onClick={() => window.location.href = '/auth'} className="bg-primary-600 text-white px-4 py-2 rounded hover:bg-primary-700">
+              Sign In
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Transform dashboard data into calendar events
+  const getCalendarEvents = (): DateEvents => {
+    const events: DateEvents = {}
+
+    // Add today's schedule events
+    if (todaySchedule && todaySchedule.length > 0) {
+      const today = new Date()
+      const dateKey = format(today, 'yyyy-MM-dd')
+
+      events[dateKey] = todaySchedule.map((item): CalendarEvent => {
+        const start = new Date(item.start_time)
+        const end = new Date(item.end_time)
+
+        return {
+          id: item.id,
+          title: item.title,
+          time: format(start, 'HH:mm'),
+          duration: `${Math.floor((end.getTime() - start.getTime()) / (1000 * 60))}m`,
+          icon: item.type === 'brick' ? 'work' :
+                item.type === 'quanta' ? 'task' :
+                item.type === 'event' ? 'event' : 'schedule',
+          color: item.status === 'completed' ? 'green' :
+                 item.status === 'in_progress' ? 'blue' : 'gray',
+          type: item.type,
+          status: item.status
+        }
+      })
+    }
+
+    // Add sample future events based on user's activity patterns
+    if (stats.activeBricks > 0) {
+      const futureDate = new Date()
+      futureDate.setDate(futureDate.getDate() + 2)
+      const futureKey = format(futureDate, 'yyyy-MM-dd')
+
+      events[futureKey] = [
+        {
+          id: 'future-1',
+          title: 'Continue Active Projects',
+          time: '09:00',
+          duration: '120m',
+          icon: 'work',
+          color: 'blue',
+          type: 'brick',
+          status: 'pending'
+        }
+      ]
+    }
+
+    return events
+  }
+
+  const events = getCalendarEvents()
 
   const getDaysInMonth = (month: number, year: number) => {
     return new Date(year, month + 1, 0).getDate()
@@ -64,7 +146,7 @@ export default function SmartCalendar() {
     const daysInMonth = getDaysInMonth(currentMonth, currentYear)
     const firstDay = getFirstDayOfMonth(currentMonth, currentYear)
     const daysInPrevMonth = getDaysInMonth(currentMonth - 1, currentYear)
-    
+
     const calendarDays = []
 
     // Previous month's trailing days
@@ -79,57 +161,50 @@ export default function SmartCalendar() {
 
     // Current month days
     for (let day = 1; day <= daysInMonth; day++) {
-      const hasEvents = events[day]
-      const isSelected = day === selectedDate
-      const today = new Date()
-      const isToday = isClient &&
-        day === today.getDate() &&
-        currentMonth === today.getMonth() &&
-        currentYear === today.getFullYear()
-      
+      const currentDate = new Date(currentYear, currentMonth, day)
+      const dateKey = format(currentDate, 'yyyy-MM-dd')
+      const hasEvents = events[dateKey]
+      const isSelected = isSameDay(currentDate, selectedDate)
+      const isTodayDate = isToday(currentDate)
+
       let dayClass = "relative bg-white p-2 text-right cursor-pointer hover:bg-gray-50"
-      
-      if (day >= 8 && day <= 11) {
+
+      // Highlight days with events
+      if (hasEvents && hasEvents.length > 0) {
         dayClass = "relative bg-primary-50 p-2 text-right cursor-pointer hover:bg-primary-100"
       }
 
       calendarDays.push(
-        <div 
-          key={day} 
+        <div
+          key={day}
           className={dayClass}
-          onClick={() => setSelectedDate(day)}
+          onClick={() => setSelectedDate(currentDate)}
         >
-          {isToday ? (
+          {isTodayDate ? (
             <span className="font-semibold text-white flex items-center justify-center size-6 rounded-full bg-primary-600">
               {day}
             </span>
           ) : (
-            <span className={`text-sm font-medium ${day >= 8 && day <= 11 ? 'text-primary-800' : 'text-gray-900'}`}>
+            <span className={`text-sm font-medium ${hasEvents ? 'text-primary-800' : 'text-gray-900'}`}>
               {day}
             </span>
           )}
-          
+
           {hasEvents && (
             <div className="mt-1 flex flex-col gap-1">
-              {hasEvents.length === 1 && day === 7 ? (
-                <div className="h-8 rounded-md bg-primary-200 p-1 text-left text-xs text-primary-900">
-                  {hasEvents[0].title}
-                </div>
-              ) : (
-                hasEvents.slice(0, 2).map((event, idx) => (
-                  <div
-                    key={event.id}
-                    className={`h-2 rounded-md ${
-                      event.color === 'blue' ? 'bg-blue-200' :
-                      event.color === 'green' ? 'bg-green-200' :
-                      event.color === 'purple' ? 'bg-purple-200' :
-                      event.color === 'yellow' ? 'bg-yellow-200' :
-                      event.color === 'red' ? 'bg-red-200' :
-                      'bg-gray-200'
-                    }`}
-                  />
-                ))
-              )}
+              {hasEvents.slice(0, 2).map((event, idx) => (
+                <div
+                  key={event.id}
+                  className={`h-2 rounded-md ${
+                    event.color === 'blue' ? 'bg-blue-200' :
+                    event.color === 'green' ? 'bg-green-200' :
+                    event.color === 'purple' ? 'bg-purple-200' :
+                    event.color === 'yellow' ? 'bg-yellow-200' :
+                    event.color === 'red' ? 'bg-red-200' :
+                    'bg-gray-200'
+                  }`}
+                />
+              ))}
             </div>
           )}
         </div>
@@ -194,55 +269,44 @@ export default function SmartCalendar() {
   }
 
   return (
-    <div className="relative flex size-full min-h-screen flex-col bg-white group/design-root">
-      <div className="layout-container flex h-full grow flex-col">
-        <header className="flex items-center justify-between whitespace-nowrap border-b border-gray-200 px-10 py-3">
-          <div className="flex items-center gap-8">
-            <div className="flex items-center gap-3 text-gray-900">
-              <div className="size-8 text-primary-600">
-                <svg fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M4 42.4379C4 42.4379 14.0962 36.0744 24 41.1692C35.0664 46.8624 44 42.2078 44 42.2078L44 7.01134C44 7.01134 35.068 11.6577 24.0031 5.96913C14.0971 0.876274 4 7.27094 4 7.27094L4 42.4379Z" fill="currentColor"></path>
-                </svg>
-              </div>
-              <h2 className="text-gray-900 text-xl font-bold leading-tight tracking-[-0.015em]">BeQ</h2>
+    <div className="min-h-screen bg-background">
+      <Navigation />
+
+      <div className="container mx-auto px-4 py-8">
+
+        {/* Loading overlay */}
+        {dashboardLoading && (
+          <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 shadow-lg flex items-center gap-3">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
+              <span className="text-gray-700">Refreshing calendar data...</span>
             </div>
-            <nav className="flex items-center gap-6">
-              <a className="text-gray-600 hover:text-gray-900 text-sm font-medium leading-normal" href="/dashboard">Dashboard</a>
-              <a className="text-primary-600 text-sm font-semibold leading-normal" href="/calendar">Calendar</a>
-              <a className="text-gray-600 hover:text-gray-900 text-sm font-medium leading-normal" href="/dashboard">Tasks</a>
-              <a className="text-gray-600 hover:text-gray-900 text-sm font-medium leading-normal" href="/chat">Chat</a>
-            </nav>
           </div>
-          <div className="flex items-center gap-4">
-            <label className="relative">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">search</span>
-              <input 
-                className="form-input w-full rounded-lg border-gray-300 bg-white py-2 pl-10 pr-4 text-sm text-gray-900 placeholder:text-gray-500 focus:border-primary-500 focus:ring-primary-500" 
-                placeholder="Search" 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </label>
-            <button className="relative flex size-10 cursor-pointer items-center justify-center rounded-full text-gray-600 hover:bg-gray-100 hover:text-gray-900">
-              <span className="material-symbols-outlined">notifications</span>
-              <div className="absolute right-2 top-2 h-2 w-2 rounded-full bg-primary-600"></div>
-            </button>
-            <button>
-              <div className="bg-gray-300 rounded-full size-10 border-2 border-white shadow-sm flex items-center justify-center">
-                <span className="material-symbols-outlined text-gray-600">person</span>
-              </div>
-            </button>
-          </div>
-        </header>
-        
+        )}
+
         <main className="flex-1 bg-gray-50 p-6 lg:p-8">
           <div className="mx-auto max-w-7xl">
             <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-              <h1 className="text-gray-900 text-3xl font-bold leading-tight">Smart Calendar</h1>
-              <button className="flex cursor-pointer items-center justify-center gap-2 rounded-md bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-700">
-                <span className="material-symbols-outlined">add</span>
-                <span className="truncate">New Event</span>
-              </button>
+              <div>
+                <h1 className="text-gray-900 text-3xl font-bold leading-tight">Smart Calendar</h1>
+                <p className="text-muted-foreground mt-2">
+                  Welcome back, {user?.full_name || user?.email?.split('@')[0] || 'User'}! Here's your schedule overview.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={refreshDashboard}
+                  disabled={dashboardLoading}
+                  className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50"
+                >
+                  <span className="material-symbols-outlined">refresh</span>
+                  <span className="truncate">{dashboardLoading ? 'Refreshing...' : 'Refresh'}</span>
+                </button>
+                <Link href="/bricks" className="flex cursor-pointer items-center justify-center gap-2 rounded-md bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-700">
+                  <span className="material-symbols-outlined">add</span>
+                  <span className="truncate">Add Task</span>
+                </Link>
+              </div>
             </div>
             
             <div className="mb-4 border-b border-gray-200">
@@ -295,10 +359,13 @@ export default function SmartCalendar() {
               
               <div className="space-y-6">
                 <h2 className="text-xl font-bold text-gray-900">
-                  Upcoming on {monthNames[currentMonth]} {selectedDate}
+                  Events on {format(selectedDate, 'EEEE, MMMM d')}
                 </h2>
                 <div className="space-y-4">
-                  {events[selectedDate]?.map((event) => (
+                  {(() => {
+                    const dateKey = format(selectedDate, 'yyyy-MM-dd')
+                    const dayEvents = events[dateKey] || []
+                    return dayEvents.map((event) => (
                     <div key={event.id} className="flex items-start gap-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
                       <div className={`flex size-10 shrink-0 items-center justify-center rounded-full ${getEventColor(event.color)}`}>
                         <span className="material-symbols-outlined">{event.icon}</span>
@@ -316,10 +383,51 @@ export default function SmartCalendar() {
                         <p className="text-gray-500 text-sm leading-normal">{event.time}</p>
                       </div>
                     </div>
-                  )) || (
-                    <div className="text-center text-gray-500 py-8">
-                      <span className="material-symbols-outlined text-4xl mb-2 block">event</span>
-                      <p>No events scheduled for this date</p>
+                  ))
+                  })()}
+
+                  {(() => {
+                    const dateKey = format(selectedDate, 'yyyy-MM-dd')
+                    const dayEvents = events[dateKey] || []
+                    return dayEvents.length === 0 ? (
+                      <div className="text-center text-gray-500 py-8">
+                        <span className="material-symbols-outlined text-4xl mb-2 block">event</span>
+                        <p>No events scheduled for this date</p>
+                        {isSameDay(selectedDate, new Date()) && todaySchedule.length === 0 && (
+                          <p className="text-sm mt-2">Add some bricks or tasks to see them here!</p>
+                        )}
+                      </div>
+                    ) : null
+                  })()}
+                </div>
+
+                {/* Calendar Stats */}
+                <div className="bg-white rounded-lg border border-gray-200 p-4">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3">Calendar Overview</h3>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <div className="text-2xl font-bold text-primary-600">
+                        {stats.activeBricks}
+                      </div>
+                      <div className="text-gray-500">Active Projects</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-green-600">
+                        {stats.completedToday}
+                      </div>
+                      <div className="text-gray-500">Completed Today</div>
+                    </div>
+                  </div>
+
+                  {aiInsights.length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-gray-100">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="material-symbols-outlined text-primary-600">lightbulb</span>
+                        <span className="text-sm font-medium text-gray-900">AI Insight</span>
+                      </div>
+                      <p className="text-sm text-gray-600">
+                        {aiInsights[0]?.title}
+                      </p>
                     </div>
                   )}
                 </div>

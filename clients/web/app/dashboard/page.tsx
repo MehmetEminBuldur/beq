@@ -12,9 +12,43 @@ import { Badge } from '@/components/ui/badge';
 import { CalendarDays, MessageSquare, Target, TrendingUp, Plus, Clock, RefreshCw, Brain } from 'lucide-react';
 
 export default function DashboardPage() {
-  const { user, signOut } = useAuthContext();
-  const { stats, todaySchedule, aiInsights, isLoading, refreshDashboard } = useDashboard();
+  const { user, isAuthenticated, isLoading: authLoading, signOut } = useAuthContext();
+  const { stats, todaySchedule, aiInsights, isLoading: dashboardLoading, refreshDashboard } = useDashboard();
   const [activeView, setActiveView] = useState<'overview' | 'chat'>('overview');
+
+  // Show loading state while authentication is being checked
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login prompt if not authenticated
+  if (!isAuthenticated || !user) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="mb-6">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900 mx-auto mb-4">
+              <svg className="h-8 w-8 text-primary-600 dark:text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Authentication Required</h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">Please sign in to access your dashboard</p>
+            <Button onClick={() => window.location.href = '/auth'} className="mr-4">
+              Sign In
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (activeView === 'chat') {
     return (
@@ -45,12 +79,12 @@ export default function DashboardPage() {
             </div>
             <Button
               onClick={refreshDashboard}
-              disabled={isLoading}
+              disabled={dashboardLoading}
               variant="outline"
               size="sm"
               className="flex items-center gap-2"
             >
-              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-4 w-4 ${dashboardLoading ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
           </div>
@@ -61,7 +95,7 @@ export default function DashboardPage() {
           stats={stats}
           todaySchedule={todaySchedule}
           aiInsights={aiInsights}
-          isLoading={isLoading}
+          isLoading={dashboardLoading}
           onChatClick={() => setActiveView('chat')}
         />
 
@@ -74,7 +108,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent suppressHydrationWarning>
               <div className="text-2xl font-bold">
-                {isLoading ? '...' : stats.activeBricks}
+                {dashboardLoading ? '...' : stats.activeBricks}
               </div>
               <p className="text-xs text-muted-foreground">
                 {stats.pendingBricks > 0 ? `${stats.pendingBricks} pending` : 'All caught up!'}
@@ -89,7 +123,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent suppressHydrationWarning>
               <div className="text-2xl font-bold">
-                {isLoading ? '...' : stats.completedToday}
+                {dashboardLoading ? '...' : stats.completedToday}
               </div>
               <p className="text-xs text-muted-foreground">
                 {stats.completedThisWeek > 0 ? `${stats.completedThisWeek} this week` : 'Start your day!'}
@@ -104,7 +138,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent suppressHydrationWarning>
               <div className="text-2xl font-bold">
-                {isLoading ? '...' : `${stats.focusTime}h`}
+                {dashboardLoading ? '...' : `${stats.focusTime}h`}
               </div>
               <p className="text-xs text-muted-foreground">
                 {stats.averageSessionTime > 0 ? `${stats.averageSessionTime}m avg session` : 'Track your progress'}
@@ -119,7 +153,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent suppressHydrationWarning>
               <div className="text-2xl font-bold">
-                {isLoading ? '...' : stats.aiConversations}
+                {dashboardLoading ? '...' : stats.aiConversations}
               </div>
               <p className="text-xs text-muted-foreground">
                 Messages sent
@@ -140,7 +174,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent suppressHydrationWarning>
               <div className="space-y-4">
-                {isLoading ? (
+                {dashboardLoading ? (
                   <div className="text-center text-muted-foreground py-8">
                     Loading your schedule...
                   </div>
@@ -264,7 +298,7 @@ export default function DashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent suppressHydrationWarning>
-            {isLoading ? (
+            {dashboardLoading ? (
               <div className="text-center text-muted-foreground py-8">
                 Analyzing your patterns...
               </div>
