@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { getUserSettings, updateUserSettings, UserSettings } from '../../lib/default-settings'
 
 interface Theme {
   id: string
@@ -11,7 +12,7 @@ interface Theme {
 }
 
 interface NotificationSetting {
-  id: string
+  id: keyof UserSettings['notifications']
   title: string
   description: string
   icon: string
@@ -19,25 +20,45 @@ interface NotificationSetting {
 }
 
 export default function SettingsPage() {
-  const [selectedTheme, setSelectedTheme] = useState('default')
-  const [workStart, setWorkStart] = useState('09:00')
-  const [workEnd, setWorkEnd] = useState('17:00')
-  const [notifications, setNotifications] = useState<NotificationSetting[]>([
-    {
-      id: 'events',
-      title: 'Event Reminders',
-      description: 'Receive reminders for upcoming events and tasks.',
-      icon: 'notifications',
-      enabled: true
-    },
-    {
-      id: 'tasks',
-      title: 'Task Reminders',
-      description: 'Get notified when tasks are due or overdue.',
-      icon: 'task_alt',
-      enabled: false
-    }
-  ])
+  const [settings, setSettings] = useState<UserSettings | null>(null)
+  const [notifications, setNotifications] = useState<NotificationSetting[]>([])
+
+  useEffect(() => {
+    const userSettings = getUserSettings()
+    setSettings(userSettings)
+    setNotifications([
+      {
+        id: 'events',
+        title: 'Event Reminders',
+        description: 'Receive reminders for upcoming events and tasks.',
+        icon: 'notifications',
+        enabled: userSettings.notifications.events
+      },
+      {
+        id: 'tasks',
+        title: 'Task Reminders',
+        description: 'Get notified when tasks are due or overdue.',
+        icon: 'task_alt',
+        enabled: userSettings.notifications.tasks
+      },
+      {
+        id: 'breaks',
+        title: 'Break Reminders',
+        description: 'Get reminders to take breaks during work hours.',
+        icon: 'coffee',
+        enabled: userSettings.notifications.breaks
+      },
+      {
+        id: 'weeklyReview',
+        title: 'Weekly Review',
+        description: 'Weekly summary of your productivity and goals.',
+        icon: 'analytics',
+        enabled: userSettings.notifications.weeklyReview
+      }
+    ])
+  }, [])
+
+  if (!settings) return null
 
   const themes: Theme[] = [
     { id: 'default', name: 'Default', color: 'bg-gray-100' },
@@ -50,11 +71,34 @@ export default function SettingsPage() {
   ]
 
   const handleThemeSelect = (themeId: string) => {
-    setSelectedTheme(themeId)
-    localStorage.setItem('beq-theme', themeId)
+    const updated = { ...settings, theme: themeId }
+    setSettings(updated)
+    updateUserSettings(updated)
   }
 
-  const handleNotificationToggle = (notificationId: string) => {
+  const handleWorkHoursChange = (type: 'start' | 'end', value: string) => {
+    const updated = {
+      ...settings,
+      workHours: {
+        ...settings.workHours,
+        [type]: value
+      }
+    }
+    setSettings(updated)
+    updateUserSettings(updated)
+  }
+
+  const handleNotificationToggle = (notificationId: keyof UserSettings['notifications']) => {
+    const updated = {
+      ...settings,
+      notifications: {
+        ...settings.notifications,
+        [notificationId]: !settings.notifications[notificationId]
+      }
+    }
+    setSettings(updated)
+    updateUserSettings(updated)
+
     setNotifications(prev => prev.map(notif =>
       notif.id === notificationId
         ? { ...notif, enabled: !notif.enabled }
@@ -64,20 +108,6 @@ export default function SettingsPage() {
 
   const handleCalendarConnect = () => {
     console.log('Opening calendar connection dialog')
-    // This would typically open a calendar integration modal
-  }
-
-  const handleSaveChanges = () => {
-    const settings = {
-      theme: selectedTheme,
-      workHours: { start: workStart, end: workEnd },
-      notifications: notifications.reduce((acc, notif) => ({
-        ...acc,
-        [notif.id]: notif.enabled
-      }), {})
-    }
-    localStorage.setItem('beq-settings', JSON.stringify(settings))
-    console.log('Settings saved:', settings)
   }
 
   const renderThemePreview = (theme: Theme) => {
@@ -152,7 +182,7 @@ export default function SettingsPage() {
                       key={theme.id}
                       onClick={() => handleThemeSelect(theme.id)}
                       className={`cursor-pointer rounded-lg border-2 p-4 text-center transition-all hover:border-blue-500 ${
-                        selectedTheme === theme.id
+                        settings.theme === theme.id
                           ? 'border-blue-500'
                           : 'border-gray-200 bg-white'
                       }`}
@@ -233,8 +263,8 @@ export default function SettingsPage() {
                         className="form-input mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                         id="work-start"
                         type="time"
-                        value={workStart}
-                        onChange={(e) => setWorkStart(e.target.value)}
+                        value={settings.workHours.start}
+                        onChange={(e) => handleWorkHoursChange('start', e.target.value)}
                       />
                     </div>
                     <div>
@@ -245,22 +275,210 @@ export default function SettingsPage() {
                         className="form-input mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                         id="work-end"
                         type="time"
-                        value={workEnd}
-                        onChange={(e) => setWorkEnd(e.target.value)}
+                        value={settings.workHours.end}
+                        onChange={(e) => handleWorkHoursChange('end', e.target.value)}
                       />
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Save Button */}
-              <div className="mt-8 flex justify-end">
-                <button 
-                  onClick={handleSaveChanges}
-                  className="h-10 rounded-md bg-blue-600 px-6 text-sm font-bold text-white hover:bg-blue-700 transition-colors"
-                >
-                  Save Changes
-                </button>
+              {/* AI Preferences */}
+              <div className="mt-8">
+                <h2 className="text-2xl font-bold text-gray-800">AI Assistance</h2>
+                <div className="mt-4 space-y-4 rounded-lg border border-gray-200 bg-white">
+                  <div className="flex items-center justify-between p-6">
+                    <div className="flex items-center gap-4">
+                      <div className="flex size-12 items-center justify-center rounded-lg bg-gray-100 text-gray-600">
+                        <span className="material-symbols-outlined">psychology</span>
+                      </div>
+                      <div>
+                        <p className="text-base font-medium text-gray-800">Smart Suggestions</p>
+                        <p className="text-sm text-gray-600">Let BeQ provide intelligent task and scheduling suggestions.</p>
+                      </div>
+                    </div>
+                    <label className="relative flex h-[31px] w-[51px] cursor-pointer items-center rounded-full bg-gray-200 p-0.5 has-[:checked]:bg-blue-600 has-[:checked]:justify-end">
+                      <div className="h-full w-[27px] rounded-full bg-white shadow-md transition-transform"></div>
+                      <input
+                        checked={settings.ai.suggestionsEnabled}
+                        onChange={() => {
+                          const updated = {
+                            ...settings,
+                            ai: { ...settings.ai, suggestionsEnabled: !settings.ai.suggestionsEnabled }
+                          }
+                          setSettings(updated)
+                          updateUserSettings(updated)
+                        }}
+                        className="invisible absolute"
+                        type="checkbox"
+                      />
+                    </label>
+                  </div>
+                  <hr className="border-gray-200"/>
+                  <div className="flex items-center justify-between p-6">
+                    <div className="flex items-center gap-4">
+                      <div className="flex size-12 items-center justify-center rounded-lg bg-gray-100 text-gray-600">
+                        <span className="material-symbols-outlined">smart_toy</span>
+                      </div>
+                      <div>
+                        <p className="text-base font-medium text-gray-800">Smart Prioritization</p>
+                        <p className="text-sm text-gray-600">Automatically prioritize tasks based on deadlines and importance.</p>
+                      </div>
+                    </div>
+                    <label className="relative flex h-[31px] w-[51px] cursor-pointer items-center rounded-full bg-gray-200 p-0.5 has-[:checked]:bg-blue-600 has-[:checked]:justify-end">
+                      <div className="h-full w-[27px] rounded-full bg-white shadow-md transition-transform"></div>
+                      <input
+                        checked={settings.ai.smartPrioritization}
+                        onChange={() => {
+                          const updated = {
+                            ...settings,
+                            ai: { ...settings.ai, smartPrioritization: !settings.ai.smartPrioritization }
+                          }
+                          setSettings(updated)
+                          updateUserSettings(updated)
+                        }}
+                        className="invisible absolute"
+                        type="checkbox"
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Privacy Settings */}
+              <div className="mt-8">
+                <h2 className="text-2xl font-bold text-gray-800">Privacy & Data</h2>
+                <div className="mt-4 space-y-4 rounded-lg border border-gray-200 bg-white">
+                  <div className="flex items-center justify-between p-6">
+                    <div className="flex items-center gap-4">
+                      <div className="flex size-12 items-center justify-center rounded-lg bg-gray-100 text-gray-600">
+                        <span className="material-symbols-outlined">analytics</span>
+                      </div>
+                      <div>
+                        <p className="text-base font-medium text-gray-800">Analytics</p>
+                        <p className="text-sm text-gray-600">Help improve BeQ by sharing anonymous usage data.</p>
+                      </div>
+                    </div>
+                    <label className="relative flex h-[31px] w-[51px] cursor-pointer items-center rounded-full bg-gray-200 p-0.5 has-[:checked]:bg-blue-600 has-[:checked]:justify-end">
+                      <div className="h-full w-[27px] rounded-full bg-white shadow-md transition-transform"></div>
+                      <input
+                        checked={settings.privacy.analyticsEnabled}
+                        onChange={() => {
+                          const updated = {
+                            ...settings,
+                            privacy: { ...settings.privacy, analyticsEnabled: !settings.privacy.analyticsEnabled }
+                          }
+                          setSettings(updated)
+                          updateUserSettings(updated)
+                        }}
+                        className="invisible absolute"
+                        type="checkbox"
+                      />
+                    </label>
+                  </div>
+                  <hr className="border-gray-200"/>
+                  <div className="flex items-center justify-between p-6">
+                    <div className="flex items-center gap-4">
+                      <div className="flex size-12 items-center justify-center rounded-lg bg-gray-100 text-gray-600">
+                        <span className="material-symbols-outlined">database</span>
+                      </div>
+                      <div>
+                        <p className="text-base font-medium text-gray-800">Data Collection</p>
+                        <p className="text-sm text-gray-600">Allow BeQ to collect data to personalize your experience.</p>
+                      </div>
+                    </div>
+                    <label className="relative flex h-[31px] w-[51px] cursor-pointer items-center rounded-full bg-gray-200 p-0.5 has-[:checked]:bg-blue-600 has-[:checked]:justify-end">
+                      <div className="h-full w-[27px] rounded-full bg-white shadow-md transition-transform"></div>
+                      <input
+                        checked={settings.privacy.dataCollection}
+                        onChange={() => {
+                          const updated = {
+                            ...settings,
+                            privacy: { ...settings.privacy, dataCollection: !settings.privacy.dataCollection }
+                          }
+                          setSettings(updated)
+                          updateUserSettings(updated)
+                        }}
+                        className="invisible absolute"
+                        type="checkbox"
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Account Management */}
+              <div className="mt-8">
+                <h2 className="text-2xl font-bold text-gray-800">Account Management</h2>
+                <div className="mt-4 space-y-4 rounded-lg border border-gray-200 bg-white">
+                  <div className="flex items-center justify-between p-6">
+                    <div className="flex items-center gap-4">
+                      <div className="flex size-12 items-center justify-center rounded-lg bg-gray-100 text-gray-600">
+                        <span className="material-symbols-outlined">person</span>
+                      </div>
+                      <div>
+                        <p className="text-base font-medium text-gray-800">Profile Settings</p>
+                        <p className="text-sm text-gray-600">Update your name, email, and profile picture.</p>
+                      </div>
+                    </div>
+                    <button className="h-10 rounded-md bg-gray-100 px-4 text-sm font-medium text-gray-800 hover:bg-gray-200 transition-colors">
+                      Edit Profile
+                    </button>
+                  </div>
+                  <hr className="border-gray-200"/>
+                  <div className="flex items-center justify-between p-6">
+                    <div className="flex items-center gap-4">
+                      <div className="flex size-12 items-center justify-center rounded-lg bg-gray-100 text-gray-600">
+                        <span className="material-symbols-outlined">key</span>
+                      </div>
+                      <div>
+                        <p className="text-base font-medium text-gray-800">Change Password</p>
+                        <p className="text-sm text-gray-600">Update your account password for security.</p>
+                      </div>
+                    </div>
+                    <button className="h-10 rounded-md bg-gray-100 px-4 text-sm font-medium text-gray-800 hover:bg-gray-200 transition-colors">
+                      Change
+                    </button>
+                  </div>
+                  <hr className="border-gray-200"/>
+                  <div className="flex items-center justify-between p-6">
+                    <div className="flex items-center gap-4">
+                      <div className="flex size-12 items-center justify-center rounded-lg bg-gray-100 text-gray-600">
+                        <span className="material-symbols-outlined">download</span>
+                      </div>
+                      <div>
+                        <p className="text-base font-medium text-gray-800">Export Data</p>
+                        <p className="text-sm text-gray-600">Download a copy of all your BeQ data.</p>
+                      </div>
+                    </div>
+                    <button className="h-10 rounded-md bg-gray-100 px-4 text-sm font-medium text-gray-800 hover:bg-gray-200 transition-colors">
+                      Export
+                    </button>
+                  </div>
+                  <hr className="border-gray-200"/>
+                  <div className="flex items-center justify-between p-6">
+                    <div className="flex items-center gap-4">
+                      <div className="flex size-12 items-center justify-center rounded-lg bg-red-100 text-red-600">
+                        <span className="material-symbols-outlined">delete_forever</span>
+                      </div>
+                      <div>
+                        <p className="text-base font-medium text-gray-800">Delete Account</p>
+                        <p className="text-sm text-gray-600">Permanently delete your BeQ account and all data.</p>
+                      </div>
+                    </div>
+                    <button className="h-10 rounded-md bg-red-600 px-4 text-sm font-medium text-white hover:bg-red-700 transition-colors">
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Auto-Save Notice */}
+              <div className="mt-8 rounded-lg bg-green-50 border border-green-200 p-4">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-green-600">check_circle</span>
+                  <p className="text-sm text-green-700">Settings are automatically saved as you make changes.</p>
+                </div>
               </div>
             </div>
           </div>

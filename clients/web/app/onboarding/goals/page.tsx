@@ -2,11 +2,18 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { ProgressIndicator } from '../../../components/onboarding/progress-indicator'
 
 export default function OnboardingGoalSetting() {
   const router = useRouter()
   const [goalInput, setGoalInput] = useState('')
   const [selectedGoals, setSelectedGoals] = useState<string[]>([])
+
+  const steps = [
+    { id: 'welcome', title: 'Welcome', completed: true, current: false },
+    { id: 'goals', title: 'Goals', completed: false, current: true },
+    { id: 'calendar', title: 'Calendar', completed: false, current: false }
+  ]
 
   const suggestionGoals = [
     { icon: 'fitness_center', label: 'Exercise' },
@@ -54,6 +61,7 @@ export default function OnboardingGoalSetting() {
         </header>
         <main className="flex flex-1 justify-center py-12 px-4 sm:px-6 lg:px-8">
           <div className="w-full max-w-lg space-y-8">
+            <ProgressIndicator steps={steps} currentStep={1} />
             <div className="text-center">
               <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
                 What would you like to add to your life?

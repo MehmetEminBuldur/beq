@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { ProgressIndicator } from '../../../components/onboarding/progress-indicator'
+import { initializeDefaultSettings } from '../../../lib/default-settings'
 
 interface CalendarConnection {
   id: string
@@ -17,6 +19,12 @@ export default function OnboardingCalendarIntegration() {
     { id: '2', name: 'Microsoft Outlook', provider: 'microsoft', connected: false }
   ])
   const [isConnecting, setIsConnecting] = useState<string | null>(null)
+
+  const steps = [
+    { id: 'welcome', title: 'Welcome', completed: true, current: false },
+    { id: 'goals', title: 'Goals', completed: true, current: false },
+    { id: 'calendar', title: 'Calendar', completed: false, current: true }
+  ]
 
   const handleConnect = async (connectionId: string) => {
     setIsConnecting(connectionId)
@@ -46,15 +54,19 @@ export default function OnboardingCalendarIntegration() {
   }
 
   const handleContinue = () => {
+    // Initialize default settings for the user
+    initializeDefaultSettings()
     // Save onboarding completion status
     localStorage.setItem('onboarding-completed', 'true')
-    router.push('/')
+    router.push('/dashboard')
   }
 
   const handleSkip = () => {
+    // Initialize default settings even when skipping
+    initializeDefaultSettings()
     // Allow users to skip calendar integration
     localStorage.setItem('onboarding-completed', 'true')
-    router.push('/')
+    router.push('/dashboard')
   }
 
   const getProviderIcon = (provider: 'google' | 'microsoft') => {
@@ -95,6 +107,7 @@ export default function OnboardingCalendarIntegration() {
         
         <div className="px-10 flex flex-1 justify-center items-center py-5">
           <div className="flex flex-col w-full max-w-md text-center">
+            <ProgressIndicator steps={steps} currentStep={2} />
             <div className="mb-8">
               <span className="material-symbols-outlined text-6xl text-blue-600">
                 calendar_month

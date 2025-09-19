@@ -1,18 +1,30 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { SignInForm } from '@/components/auth/sign-in-form';
 import { SignUpForm } from '@/components/auth/sign-up-form';
 import { ResetPasswordForm } from '@/components/auth/reset-password-form';
+import { toast } from 'react-hot-toast';
 
 type AuthMode = 'signin' | 'signup' | 'reset';
 
 export default function AuthPage() {
   const [mode, setMode] = useState<AuthMode>('signin');
+  const searchParams = useSearchParams();
 
   const switchToSignIn = () => setMode('signin');
   const switchToSignUp = () => setMode('signup');
   const switchToResetPassword = () => setMode('reset');
+
+  useEffect(() => {
+    // Handle email verification redirect
+    const verified = searchParams?.get('verified');
+    if (verified === 'true') {
+      toast.success('Email verified successfully! You can now sign in to your account.');
+      setMode('signin');
+    }
+  }, [searchParams]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">

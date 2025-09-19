@@ -46,9 +46,10 @@ export function SignUpForm({ onSwitchToSignIn }: SignUpFormProps) {
   const onSubmit = async (data: SignUpForm) => {
     const result = await signUp(data.email, data.password, data.fullName);
     if (!result.error) {
-      // Note: Supabase signup sends confirmation email, so we don't redirect immediately
-      // The user will need to confirm their email first
-      // router.push('/dashboard'); // Uncomment if you want to redirect immediately
+      // Show success message and redirect to login
+      setTimeout(() => {
+        onSwitchToSignIn();
+      }, 2000); // Give time for the success toast to be seen
     }
   };
 

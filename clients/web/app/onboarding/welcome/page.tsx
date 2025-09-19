@@ -1,6 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { ProgressIndicator } from '../../../components/onboarding/progress-indicator'
 
 export default function OnboardingWelcome() {
   const router = useRouter()
@@ -9,11 +10,18 @@ export default function OnboardingWelcome() {
     router.push('/onboarding/goals')
   }
 
+  const steps = [
+    { id: 'welcome', title: 'Welcome', completed: false, current: true },
+    { id: 'goals', title: 'Goals', completed: false, current: false },
+    { id: 'calendar', title: 'Calendar', completed: false, current: false }
+  ]
+
   return (
     <div className="relative flex size-full min-h-screen flex-col bg-white group/design-root overflow-x-hidden">
       <div className="flex-1">
         <div className="flex flex-col items-center justify-center min-h-[calc(100vh-100px)] px-4 py-12 sm:px-6 lg:px-8">
           <div className="w-full max-w-md space-y-8">
+            <ProgressIndicator steps={steps} currentStep={0} />
             <div className="flex justify-center">
               <div className="h-16 w-16 text-primary-700">
                 <svg fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
