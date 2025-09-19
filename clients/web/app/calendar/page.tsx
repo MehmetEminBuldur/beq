@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 interface CalendarEvent {
   id: string
@@ -16,11 +16,17 @@ interface DateEvents {
 }
 
 export default function SmartCalendar() {
+  const [isClient, setIsClient] = useState(false)
   const [currentMonth, setCurrentMonth] = useState(9) // October (0-indexed)
   const [currentYear, setCurrentYear] = useState(2024)
   const [selectedDate, setSelectedDate] = useState(24)
   const [searchQuery, setSearchQuery] = useState('')
   const [activeView, setActiveView] = useState('Month')
+
+  // Prevent hydration mismatch by ensuring we only render dynamic content on client
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
 
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -75,7 +81,11 @@ export default function SmartCalendar() {
     for (let day = 1; day <= daysInMonth; day++) {
       const hasEvents = events[day]
       const isSelected = day === selectedDate
-      const isToday = day === 24 // Simulated current day
+      const today = new Date()
+      const isToday = isClient &&
+        day === today.getDate() &&
+        currentMonth === today.getMonth() &&
+        currentYear === today.getFullYear()
       
       let dayClass = "relative bg-white p-2 text-right cursor-pointer hover:bg-gray-50"
       
@@ -107,9 +117,16 @@ export default function SmartCalendar() {
                 </div>
               ) : (
                 hasEvents.slice(0, 2).map((event, idx) => (
-                  <div 
-                    key={event.id} 
-                    className={`h-2 rounded-md bg-${event.color}-200`}
+                  <div
+                    key={event.id}
+                    className={`h-2 rounded-md ${
+                      event.color === 'blue' ? 'bg-blue-200' :
+                      event.color === 'green' ? 'bg-green-200' :
+                      event.color === 'purple' ? 'bg-purple-200' :
+                      event.color === 'yellow' ? 'bg-yellow-200' :
+                      event.color === 'red' ? 'bg-red-200' :
+                      'bg-gray-200'
+                    }`}
                   />
                 ))
               )}
@@ -162,6 +179,20 @@ export default function SmartCalendar() {
     return colors[color as keyof typeof colors] || 'bg-gray-100 text-gray-600'
   }
 
+  // Show loading state during SSR and initial hydration
+  if (!isClient) {
+    return (
+      <div className="relative flex size-full min-h-screen flex-col bg-white group/design-root">
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-pulse text-center">
+            <div className="w-8 h-8 bg-primary-600 rounded-full mx-auto mb-4"></div>
+            <p className="text-gray-500">Loading Calendar...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="relative flex size-full min-h-screen flex-col bg-white group/design-root">
       <div className="layout-container flex h-full grow flex-col">
@@ -176,9 +207,9 @@ export default function SmartCalendar() {
               <h2 className="text-gray-900 text-xl font-bold leading-tight tracking-[-0.015em]">BeQ</h2>
             </div>
             <nav className="flex items-center gap-6">
-              <a className="text-gray-600 hover:text-gray-900 text-sm font-medium leading-normal" href="/">Dashboard</a>
+              <a className="text-gray-600 hover:text-gray-900 text-sm font-medium leading-normal" href="/dashboard">Dashboard</a>
               <a className="text-primary-600 text-sm font-semibold leading-normal" href="/calendar">Calendar</a>
-              <a className="text-gray-600 hover:text-gray-900 text-sm font-medium leading-normal" href="#">Tasks</a>
+              <a className="text-gray-600 hover:text-gray-900 text-sm font-medium leading-normal" href="/dashboard">Tasks</a>
               <a className="text-gray-600 hover:text-gray-900 text-sm font-medium leading-normal" href="/chat">Chat</a>
             </nav>
           </div>
@@ -197,7 +228,9 @@ export default function SmartCalendar() {
               <div className="absolute right-2 top-2 h-2 w-2 rounded-full bg-primary-600"></div>
             </button>
             <button>
-              <div className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border-2 border-white shadow-sm" style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuARdVFdzXdRjZUm59BdigcO3szpYWuGDMFsaVP11v0Jk6Uim_OW5_pZwiYGBp15DUK8v1-9hbbK9WfyRraSq6OPS2f5yik0ZPGPFWZSXnzLNYMOnkCFwxzoj7X1ika74GFbUu96ih9VvsSWMFtVqpLBAJzjx5TQ6UTfh0L6LdVYdpOEQGusD3hIJ_ibUdt2cKZjiiKwYn-0DFXllFCW5Cvn96Qq8TOTnbS7WA-e29UiYhFwV_mSHG3D5UiufwhHKHmRACYdms1b4RuP")'}}></div>
+              <div className="bg-gray-300 rounded-full size-10 border-2 border-white shadow-sm flex items-center justify-center">
+                <span className="material-symbols-outlined text-gray-600">person</span>
+              </div>
             </button>
           </div>
         </header>

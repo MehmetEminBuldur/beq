@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Menu, X, Sun, Moon, User, Settings, LogOut } from 'lucide-react';
+import { Menu, X, Sun, Moon, User, Settings, LogOut, Calendar, MessageSquare } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/lib/hooks/use-auth';
 import Link from 'next/link';
@@ -118,6 +118,20 @@ export function Navigation() {
                     Dashboard
                   </Link>
                   <Link
+                    href="/calendar"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 flex items-center gap-2"
+                  >
+                    <Calendar className="h-4 w-4" />
+                    Calendar
+                  </Link>
+                  <Link
+                    href="/chat"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 flex items-center gap-2"
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                    Chat
+                  </Link>
+                  <Link
                     href="/settings"
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 flex items-center gap-2"
                   >
@@ -140,13 +154,13 @@ export function Navigation() {
           ) : (
             <div className="flex items-center gap-x-4">
               <Link
-                href="/login"
+                href="/auth"
                 className="text-sm font-semibold leading-6 text-gray-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
               >
                 Log in
               </Link>
               <Link
-                href="/signup"
+                href="/auth"
                 className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 transition-colors"
               >
                 Sign up
@@ -186,6 +200,20 @@ export function Navigation() {
                     Dashboard
                   </Link>
                   <Link
+                    href="/calendar"
+                    className="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50 dark:text-white dark:hover:bg-gray-800"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    Calendar
+                  </Link>
+                  <Link
+                    href="/chat"
+                    className="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50 dark:text-white dark:hover:bg-gray-800"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    Chat
+                  </Link>
+                  <Link
                     href="/settings"
                     className="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50 dark:text-white dark:hover:bg-gray-800"
                     onClick={() => setIsOpen(false)}
@@ -205,14 +233,14 @@ export function Navigation() {
               ) : (
                 <div className="space-y-2">
                   <Link
-                    href="/login"
+                    href="/auth"
                     className="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50 dark:text-white dark:hover:bg-gray-800"
                     onClick={() => setIsOpen(false)}
                   >
                     Log in
                   </Link>
                   <Link
-                    href="/signup"
+                    href="/auth"
                     className="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-white bg-primary-600 hover:bg-primary-500"
                     onClick={() => setIsOpen(false)}
                   >

@@ -95,10 +95,10 @@ export default function DetailPane() {
           </div>
           <div className="flex flex-1 justify-end gap-4">
             <nav className="flex items-center gap-6">
-              <a className="text-gray-600 hover:text-gray-900 text-sm font-medium leading-normal" href="/">Home</a>
+              <a className="text-gray-600 hover:text-gray-900 text-sm font-medium leading-normal" href="/dashboard">Dashboard</a>
               <a className="text-gray-600 hover:text-gray-900 text-sm font-medium leading-normal" href="/calendar">Calendar</a>
-              <a className="text-gray-600 hover:text-gray-900 text-sm font-medium leading-normal" href="#">Bricks</a>
-              <a className="text-gray-600 hover:text-gray-900 text-sm font-medium leading-normal" href="#">Quanta</a>
+              <a className="text-gray-600 hover:text-gray-900 text-sm font-medium leading-normal" href="/dashboard">Bricks</a>
+              <a className="text-gray-600 hover:text-gray-900 text-sm font-medium leading-normal" href="/dashboard">Quanta</a>
             </nav>
             <div className="flex items-center gap-4">
               <button className="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 w-10 bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900">

@@ -114,15 +114,15 @@ export default function SettingsPage() {
                 <h1 className="text-[#111418] text-base font-medium leading-normal">Sophia Carter</h1>
               </div>
               <div className="flex flex-col gap-1 mt-4">
-                <a className="flex items-center gap-3 rounded-md px-3 py-2 text-gray-700 hover:bg-gray-100" href="/">
+                <a className="flex items-center gap-3 rounded-md px-3 py-2 text-gray-700 hover:bg-gray-100" href="/dashboard">
                   <span className="material-symbols-outlined text-gray-600">home</span>
-                  <p className="text-sm font-medium">Home</p>
+                  <p className="text-sm font-medium">Dashboard</p>
                 </a>
                 <a className="flex items-center gap-3 rounded-md px-3 py-2 text-gray-700 hover:bg-gray-100" href="/calendar">
                   <span className="material-symbols-outlined text-gray-600">calendar_today</span>
                   <p className="text-sm font-medium">Calendar</p>
                 </a>
-                <a className="flex items-center gap-3 rounded-md px-3 py-2 text-gray-700 hover:bg-gray-100" href="#">
+                <a className="flex items-center gap-3 rounded-md px-3 py-2 text-gray-700 hover:bg-gray-100" href="/dashboard">
                   <span className="material-symbols-outlined text-gray-600">check_box</span>
                   <p className="text-sm font-medium">Tasks</p>
                 </a>
