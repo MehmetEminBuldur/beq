@@ -1,13 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { MessageCircle, Calendar, Target, Brain, Sparkles } from 'lucide-react';
 import { ChatInterface } from '@/components/chat/chat-interface';
 import { Hero } from '@/components/landing/hero';
 import { FeatureCard } from '@/components/landing/feature-card';
 import { Navigation } from '@/components/layout/navigation';
-import { useAuth } from '@/lib/hooks/use-auth';
+import { useAuthContext } from '@/lib/providers/auth-provider';
 
 const features = [
   {
@@ -33,18 +34,37 @@ const features = [
 ];
 
 export default function HomePage() {
-  const { user, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuthContext();
   const [showChat, setShowChat] = useState(false);
+  const router = useRouter();
 
+  useEffect(() => {
+    // Redirect to dashboard if authenticated, or to auth if not authenticated
+    if (!isLoading) {
+      if (isAuthenticated) {
+        router.push('/dashboard');
+      } else {
+        router.push('/auth');
+      }
+    }
+  }, [isAuthenticated, isLoading, router]);
+
+  // Show loading spinner while checking authentication
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
 
-  if (user && showChat) {
+  // Don't render anything if not authenticated (will redirect)
+  if (!isAuthenticated) {
+    return null;
+  }
+
+  // Show chat interface if authenticated and chat is requested
+  if (showChat) {
     return (
       <div className="flex h-screen flex-col">
         <Navigation />

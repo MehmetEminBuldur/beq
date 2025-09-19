@@ -7,14 +7,24 @@ import remarkGfm from 'remark-gfm';
 
 interface ChatMessageProps {
   message: {
-    id?: string;
-    sender: 'user' | 'assistant' | 'system';
+    id: string;
+    conversation_id: string;
     content: string;
-    timestamp?: Date;
-    actions?: string[];
-    suggestions?: string[];
-    bricks_created?: string[];
-    resources_recommended?: string[];
+    response?: string;
+    sender: 'user' | 'assistant';
+    timestamp: Date;
+    type?: 'text' | 'schedule' | 'task' | 'resource';
+    metadata?: {
+      model_used?: string;
+      confidence_score?: number;
+      processing_time_ms?: number;
+      actions_taken?: string[];
+      suggestions?: string[];
+      schedule_updated?: boolean;
+      bricks_created?: string[];
+      bricks_updated?: string[];
+      resources_recommended?: string[];
+    };
   };
   isLast?: boolean;
 }
@@ -90,7 +100,7 @@ export function ChatMessage({ message, isLast }: ChatMessageProps) {
         </div>
 
         {/* Actions and metadata */}
-        {!isUser && message.actions && message.actions.length > 0 && (
+        {!isUser && message.metadata?.actions_taken && message.metadata.actions_taken.length > 0 && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -99,13 +109,28 @@ export function ChatMessage({ message, isLast }: ChatMessageProps) {
           >
             <div className="flex items-center gap-2">
               <Target className="h-3 w-3" />
-              <span>Actions: {message.actions.join(', ')}</span>
+              <span>Actions: {message.metadata.actions_taken.join(', ')}</span>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Schedule Updated */}
+        {!isUser && message.metadata?.schedule_updated && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+            className="mt-3 rounded-lg bg-purple-50 border border-purple-200 p-3 dark:bg-purple-900/20 dark:border-purple-800"
+          >
+            <div className="flex items-center gap-2 text-purple-800 dark:text-purple-200">
+              <Calendar className="h-4 w-4" />
+              <span className="text-sm font-medium">Schedule Updated</span>
             </div>
           </motion.div>
         )}
 
         {/* Created Bricks */}
-        {!isUser && message.bricks_created && message.bricks_created.length > 0 && (
+        {!isUser && message.metadata?.bricks_created && message.metadata.bricks_created.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -114,20 +139,28 @@ export function ChatMessage({ message, isLast }: ChatMessageProps) {
           >
             <div className="flex items-center gap-2 text-green-800 dark:text-green-200">
               <Target className="h-4 w-4" />
-              <span className="text-sm font-medium">New Bricks Created</span>
+              <span className="text-sm font-medium">New Bricks Created ({message.metadata.bricks_created.length})</span>
             </div>
-            <ul className="mt-2 space-y-1">
-              {message.bricks_created.map((brick, index) => (
-                <li key={index} className="text-sm text-green-700 dark:text-green-300">
-                  • {brick}
-                </li>
-              ))}
-            </ul>
+          </motion.div>
+        )}
+
+        {/* Updated Bricks */}
+        {!isUser && message.metadata?.bricks_updated && message.metadata.bricks_updated.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35 }}
+            className="mt-3 rounded-lg bg-orange-50 border border-orange-200 p-3 dark:bg-orange-900/20 dark:border-orange-800"
+          >
+            <div className="flex items-center gap-2 text-orange-800 dark:text-orange-200">
+              <Target className="h-4 w-4" />
+              <span className="text-sm font-medium">Bricks Updated ({message.metadata.bricks_updated.length})</span>
+            </div>
           </motion.div>
         )}
 
         {/* Recommended Resources */}
-        {!isUser && message.resources_recommended && message.resources_recommended.length > 0 && (
+        {!isUser && message.metadata?.resources_recommended && message.metadata.resources_recommended.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -136,27 +169,44 @@ export function ChatMessage({ message, isLast }: ChatMessageProps) {
           >
             <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
               <ExternalLink className="h-4 w-4" />
-              <span className="text-sm font-medium">Recommended Resources</span>
+              <span className="text-sm font-medium">Recommended Resources ({message.metadata.resources_recommended.length})</span>
             </div>
-            <ul className="mt-2 space-y-1">
-              {message.resources_recommended.map((resource, index) => (
-                <li key={index} className="text-sm text-blue-700 dark:text-blue-300">
-                  • {resource}
-                </li>
-              ))}
-            </ul>
+          </motion.div>
+        )}
+
+        {/* AI Metadata */}
+        {!isUser && message.metadata && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.45 }}
+            className="mt-2 text-xs text-gray-400 dark:text-gray-500"
+          >
+            {message.metadata.model_used && (
+              <span>Model: {message.metadata.model_used}</span>
+            )}
+            {message.metadata.processing_time_ms && (
+              <span className="ml-2">
+                Time: {(message.metadata.processing_time_ms / 1000).toFixed(1)}s
+              </span>
+            )}
+            {message.metadata.confidence_score && (
+              <span className="ml-2">
+                Confidence: {(message.metadata.confidence_score * 100).toFixed(0)}%
+              </span>
+            )}
           </motion.div>
         )}
 
         {/* Suggestions */}
-        {!isUser && message.suggestions && message.suggestions.length > 0 && (
+        {!isUser && message.metadata?.suggestions && message.metadata.suggestions.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
             className="mt-3 flex flex-wrap gap-2"
           >
-            {message.suggestions.map((suggestion, index) => (
+            {message.metadata.suggestions.map((suggestion, index) => (
               <button
                 key={index}
                 className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700 hover:bg-gray-200 transition-colors dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
