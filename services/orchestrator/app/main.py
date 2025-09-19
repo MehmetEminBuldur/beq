@@ -19,8 +19,21 @@ from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_
 
 from .core.config import get_settings
 from .core.logging import setup_logging
+from .core.telemetry import get_telemetry_collector
 from .api.v1.router import api_v1_router
 from .api.health import health_router
+from .llm.openrouter_client import (
+    get_openrouter_conversational_client,
+    cleanup_openrouter_conversational_client,
+)
+from .clients.scheduler_client import (
+    get_scheduler_client,
+    cleanup_scheduler_client,
+)
+from .clients.calendar_client import (
+    get_calendar_client,
+    cleanup_calendar_client,
+)
 
 # Prometheus metrics
 REQUEST_COUNT = Counter('beq_orchestrator_requests_total', 'Total requests', ['method', 'endpoint', 'status'])
@@ -39,7 +52,40 @@ async def lifespan(app: FastAPI):
     # Initialize services here
     # TODO: Initialize database connections
     # TODO: Initialize Redis connections
-    # TODO: Initialize AI clients
+    # Initialize AI clients
+    try:
+        llm_client = await get_openrouter_conversational_client()
+        app.state.llm_client = llm_client
+        logger.info(
+            "OpenRouter LLM client initialized",
+            model=getattr(llm_client, "model", None),
+        )
+    except Exception as e:
+        logger.error("Failed to initialize OpenRouter LLM client", error=str(e))
+
+    # Initialize service clients
+    try:
+        scheduler_client = await get_scheduler_client()
+        app.state.scheduler_client = scheduler_client
+        logger.info("Scheduler client initialized")
+    except Exception as e:
+        logger.error("Failed to initialize scheduler client", error=str(e))
+
+    # Initialize calendar client
+    try:
+        calendar_client = await get_calendar_client()
+        app.state.calendar_client = calendar_client
+        logger.info("Calendar client initialized")
+    except Exception as e:
+        logger.error("Failed to initialize calendar client", error=str(e))
+
+    # Initialize telemetry
+    try:
+        telemetry_collector = get_telemetry_collector()
+        app.state.telemetry_collector = telemetry_collector
+        logger.info("Telemetry collector initialized")
+    except Exception as e:
+        logger.error("Failed to initialize telemetry collector", error=str(e))
     # TODO: Load ML models if needed
     
     yield
@@ -50,7 +96,26 @@ async def lifespan(app: FastAPI):
     # Cleanup resources here
     # TODO: Close database connections
     # TODO: Close Redis connections
-    # TODO: Cleanup AI clients
+    # Cleanup AI clients
+    try:
+        await cleanup_openrouter_conversational_client()
+        logger.info("OpenRouter LLM client closed")
+    except Exception as e:
+        logger.warning("Error closing OpenRouter LLM client", error=str(e))
+
+    # Cleanup service clients
+    try:
+        await cleanup_scheduler_client()
+        logger.info("Scheduler client closed")
+    except Exception as e:
+        logger.warning("Error closing scheduler client", error=str(e))
+
+    # Cleanup calendar client
+    try:
+        await cleanup_calendar_client()
+        logger.info("Calendar client closed")
+    except Exception as e:
+        logger.warning("Error closing calendar client", error=str(e))
 
 
 def create_app() -> FastAPI:

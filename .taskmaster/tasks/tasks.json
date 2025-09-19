@@ -1,0 +1,368 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Setup Project Repository",
+        "description": "Initialize the project repository with the necessary configurations and dependencies.",
+        "details": "Create a new Git repository and set up the initial folder structure. Include a README file and configure ESLint and Prettier for code quality. Initialize a Next.js 14 project with TypeScript and Tailwind CSS.",
+        "testStrategy": "Verify repository setup by cloning it and ensuring all configurations are correctly applied.",
+        "priority": "medium",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 2,
+        "title": "Configure Environment and Configuration Files",
+        "description": "Set up environment variables and configuration files for the application.",
+        "details": "Create a `.env` file for environment variables and configure settings for Supabase, OpenRouter, and other services. Ensure that sensitive information is not hardcoded and is managed through environment variables.",
+        "testStrategy": "Check that the application can read environment variables and that they are correctly set up for local development.",
+        "priority": "medium",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 3,
+        "title": "Initialize Supabase Schema",
+        "description": "Set up the database schema in Supabase according to the data models defined in the PRD.",
+        "details": "Use the provided SUPABASE_SCHEMA.sql to initialize the database schema in Supabase. Create tables for User, Profile, Preferences, Brick, Quanta, ScheduleBlock, ChatMessage, and Recommendation.",
+        "testStrategy": "Run SQL migrations and verify that all tables are created with the correct structure and relationships.",
+        "priority": "medium",
+        "dependencies": [
+          2
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 4,
+        "title": "Bootstrap Microservices",
+        "description": "Set up the FastAPI microservices for orchestrator, scheduler, RAG recommender, and calendar integration.",
+        "details": "Create separate FastAPI applications for each microservice. Implement basic endpoints for each service and ensure they can run independently using Docker Compose.",
+        "testStrategy": "Test each microservice by running them locally and accessing their endpoints to ensure they respond correctly.",
+        "priority": "medium",
+        "dependencies": [
+          3
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 5,
+        "title": "Implement Authentication Flows",
+        "description": "Develop authentication flows including signup, login, and password reset with protected routes.",
+        "details": "Use Supabase Auth for managing user authentication. Implement routes for signup, login, and password reset, ensuring that protected routes require authentication.",
+        "testStrategy": "Write integration tests to verify that authentication flows work correctly and that protected routes are inaccessible without authentication.",
+        "priority": "high",
+        "dependencies": [
+          4
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 6,
+        "title": "Develop Chat Interface",
+        "description": "Create a chat interface that connects to the backend for conversational AI interactions.",
+        "details": "Implement a chat UI using React components that allows users to send and receive messages. Connect the chat interface to the backend using REST APIs to handle chat messages.",
+        "testStrategy": "Test the chat interface by sending messages and verifying that they are correctly processed and displayed.",
+        "priority": "high",
+        "dependencies": [
+          5
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 7,
+        "title": "Implement Schedule View with CRUD Operations",
+        "description": "Create a schedule view that allows users to create, read, update, and delete schedule blocks.",
+        "details": "Develop a calendar view using a library like react-big-calendar. Implement CRUD operations for schedule blocks and allow users to drag and drop schedule items.",
+        "testStrategy": "Perform manual testing to ensure that CRUD operations work as expected and that the calendar updates in real-time.",
+        "priority": "high",
+        "dependencies": [
+          6
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 8,
+        "title": "Create Bricks & Quantas Management",
+        "description": "Implement functionality to create and manage Bricks and Quantas, including progress tracking.",
+        "details": "Develop forms and UI components for creating and managing Bricks and Quantas. Implement backend APIs to handle CRUD operations and progress tracking.",
+        "testStrategy": "Write unit tests for the backend APIs and perform manual testing on the UI to ensure that all functionalities work correctly.",
+        "priority": "high",
+        "dependencies": [
+          7
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 9,
+        "title": "Connect Chat to LLM via OpenRouter",
+        "description": "Integrate the chat interface with the OpenRouter to utilize the LLM for conversational assistance.",
+        "details": "Implement the connection to OpenRouter using the provided API. Ensure that chat messages are sent to the LLM and responses are returned to the user.",
+        "testStrategy": "Test the integration by sending various prompts and verifying that the LLM responds appropriately.",
+        "priority": "high",
+        "dependencies": [
+          8
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Initialize LLM Client",
+            "description": "Set up the LLM client in the orchestrator to ensure it is ready for use during the chat flow.",
+            "dependencies": [],
+            "details": "Modify services/orchestrator/app/main.py to initialize the LLM client from openrouter_client.py during the orchestrator's startup.",
+            "status": "done",
+            "testStrategy": "Verify that the LLM client is properly initialized and can be accessed by other components."
+          },
+          {
+            "id": 2,
+            "title": "Expose Chat API Endpoint",
+            "description": "Create an API endpoint in the orchestrator to handle chat messages and interact with the LLM.",
+            "dependencies": [],
+            "details": "Implement the /api/v1/chat/message endpoint in services/orchestrator/app/agent/orchestrator_agent.py to process incoming chat messages.",
+            "status": "done",
+            "testStrategy": "Test the endpoint by sending sample chat messages and checking the responses from the LLM."
+          },
+          {
+            "id": 3,
+            "title": "Update Frontend to Call Orchestrator",
+            "description": "Modify the frontend chat interface to send messages to the orchestrator instead of directly to OpenRouter.",
+            "dependencies": [],
+            "details": "Update clients/web/app/api/v1/chat/message/route.ts to route chat messages through the orchestrator's API.",
+            "status": "done",
+            "testStrategy": "Ensure that the chat UI correctly sends messages to the orchestrator and displays the responses."
+          },
+          {
+            "id": 4,
+            "title": "Configure Environment Variables",
+            "description": "Set up necessary environment variables for API keys and configurations required by the LLM client.",
+            "dependencies": [],
+            "details": "Add environment variables in the .env file for OpenRouter API keys and any other required configurations.",
+            "status": "done",
+            "testStrategy": "Verify that the application can access the environment variables and that they are correctly used in the code."
+          },
+          {
+            "id": 5,
+            "title": "Implement Basic Telemetry and Error Handling",
+            "description": "Add telemetry and error handling mechanisms to monitor the chat interactions and handle potential errors.",
+            "dependencies": [],
+            "details": "Integrate logging and error handling in services/orchestrator/app/agent/orchestrator_agent.py to capture errors and performance metrics.",
+            "status": "done",
+            "testStrategy": "Simulate errors and verify that they are logged correctly and that telemetry data is collected."
+          },
+          {
+            "id": 6,
+            "title": "Create End-to-End Tests",
+            "description": "Develop end-to-end tests to ensure the entire chat flow works as expected from the frontend to the LLM.",
+            "dependencies": [],
+            "details": "Write E2E tests using a testing framework to simulate user interactions and validate the responses from the LLM.",
+            "status": "in-progress",
+            "testStrategy": "Run the E2E tests and confirm that all scenarios pass without errors."
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "Implement AI-Powered Suggestions",
+        "description": "Develop AI-powered suggestions for Bricks and Quantas based on user input and context.",
+        "details": "Utilize the RAG recommender service to provide suggestions for Bricks and Quantas. Implement logic to analyze user goals and preferences to generate relevant suggestions.",
+        "testStrategy": "Test the suggestion logic by simulating user inputs and verifying that the suggestions align with user goals.",
+        "priority": "medium",
+        "dependencies": [
+          9
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 11,
+        "title": "Polish User Experience",
+        "description": "Enhance the user experience with an onboarding wizard and settings/preferences management.",
+        "details": "Create an onboarding wizard that guides users through setting goals, preferences, and calendar connections. Implement a settings page for managing user preferences.",
+        "testStrategy": "Conduct user testing to gather feedback on the onboarding process and settings management.",
+        "priority": "medium",
+        "dependencies": [
+          10
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 12,
+        "title": "Conduct Testing and Prepare for Deployment",
+        "description": "Perform integration tests, performance checks, and prepare the application for deployment.",
+        "details": "Write integration tests for all major functionalities, check performance metrics, and set up CI/CD pipelines for deployment to Vercel.",
+        "testStrategy": "Run all tests and verify that the application meets performance benchmarks before deploying to production.",
+        "priority": "high",
+        "dependencies": [
+          11
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 13,
+        "title": "Implement Schedule Optimization End-to-End",
+        "description": "Wire orchestrator to scheduler service, expose /api/v1/schedule/optimize using services/scheduler/app/solver/simple_scheduler.py; add data contracts and client in web app; add tests.",
+        "details": "1. Integrate the orchestrator with the scheduler service to enable communication between them. 2. Implement the endpoint /api/v1/schedule/optimize in the scheduler service, utilizing the logic defined in simple_scheduler.py. 3. Define data contracts for the API to ensure consistent data exchange between the client and server. 4. Update the web application to include a client that interacts with the new API endpoint, ensuring that the user interface allows users to trigger schedule optimization. 5. Write unit tests for the new API endpoint and integration tests to verify the end-to-end functionality of the schedule optimization feature.",
+        "testStrategy": "1. Verify that the /api/v1/schedule/optimize endpoint is accessible and returns the expected response. 2. Test the integration between the orchestrator and scheduler service by simulating requests and checking the responses. 3. Ensure that the client in the web app correctly interacts with the API and displays the results to the user. 4. Run unit tests for the API and integration tests to confirm that the entire flow works as intended.",
+        "status": "pending",
+        "dependencies": [
+          7,
+          8
+        ],
+        "priority": "high",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Integrate Orchestrator with Scheduler Service",
+            "description": "Establish communication between the orchestrator and the scheduler service to enable data exchange.",
+            "dependencies": [],
+            "details": "Ensure that the orchestrator can send requests to the scheduler service and receive responses correctly.",
+            "status": "done",
+            "testStrategy": "Verify that the orchestrator can successfully call the scheduler service and handle responses."
+          },
+          {
+            "id": 2,
+            "title": "Implement API Endpoint for Schedule Optimization",
+            "description": "Create the /api/v1/schedule/optimize endpoint in the scheduler service using the logic from simple_scheduler.py.",
+            "dependencies": [
+              "13.1"
+            ],
+            "details": "Utilize the existing algorithms in simple_scheduler.py to process optimization requests.",
+            "status": "done",
+            "testStrategy": "Test the endpoint to ensure it returns the expected results for various input scenarios."
+          },
+          {
+            "id": 3,
+            "title": "Define Data Contracts for API",
+            "description": "Create request and response schemas for the /api/v1/schedule/optimize endpoint to ensure consistent data exchange.",
+            "dependencies": [
+              "13.2"
+            ],
+            "details": "Document the expected input and output formats for the API to facilitate client development.",
+            "status": "done",
+            "testStrategy": "Review the schemas against actual API calls to ensure compliance."
+          },
+          {
+            "id": 4,
+            "title": "Develop Client for Web Application",
+            "description": "Implement a client in the web app that interacts with the /api/v1/schedule/optimize endpoint.",
+            "dependencies": [
+              "13.3"
+            ],
+            "details": "Ensure that the user interface allows users to trigger schedule optimization and displays results.",
+            "status": "done",
+            "testStrategy": "Conduct user testing to verify that the client correctly interacts with the API and displays results."
+          },
+          {
+            "id": 5,
+            "title": "Write Unit and Integration Tests",
+            "description": "Create unit tests for the new API endpoint and integration tests to verify end-to-end functionality.",
+            "dependencies": [
+              "13.4"
+            ],
+            "details": "Ensure that all components work together as expected and that edge cases are handled.",
+            "status": "done",
+            "testStrategy": "Run tests to confirm that all functionalities are working correctly and that the system behaves as expected."
+          },
+          {
+            "id": 6,
+            "title": "Implement Feature Flag and Telemetry",
+            "description": "Add feature flags to control the rollout of the schedule optimization feature and implement telemetry for monitoring.",
+            "dependencies": [
+              "13.5"
+            ],
+            "details": "Ensure that the feature can be toggled on or off and that usage data is collected for analysis.",
+            "status": "done",
+            "testStrategy": "Test the feature flag functionality and verify that telemetry data is being recorded accurately."
+          }
+        ]
+      },
+      {
+        "id": 14,
+        "title": "Implement Google Calendar OAuth & Sync (MVP)",
+        "description": "Implement OAuth for Google via calendar-integration service, store tokens securely, add basic event read/write sync with conflict detection; expose endpoints and wire from orchestrator; add minimal UI entry points.",
+        "details": "1. Integrate Google OAuth using the calendar-integration service to authenticate users. 2. Securely store OAuth tokens in the database, ensuring they are encrypted. 3. Implement basic event synchronization functionality, allowing users to read and write events to their Google Calendar. 4. Add conflict detection logic to handle overlapping events. 5. Expose necessary API endpoints for the frontend to interact with the calendar service. 6. Wire the new functionality into the orchestrator to ensure seamless integration. 7. Create minimal UI components for users to initiate OAuth and view their calendar events.",
+        "testStrategy": "1. Verify that the OAuth flow works correctly by testing the login and token storage. 2. Test the event synchronization by creating, updating, and deleting events in Google Calendar and ensuring they reflect in the application. 3. Check conflict detection by attempting to create overlapping events and verifying the response. 4. Ensure that the API endpoints return the expected data and handle errors appropriately. 5. Conduct manual testing of the UI components to ensure they function as intended and provide a good user experience.",
+        "status": "pending",
+        "dependencies": [
+          4,
+          5
+        ],
+        "priority": "high",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Integrate Google OAuth",
+            "description": "Implement Google OAuth using the calendar-integration service to authenticate users.",
+            "dependencies": [],
+            "details": "Set up OAuth credentials in Google Developer Console and integrate the authentication flow using the calendar-integration service.",
+            "status": "done",
+            "testStrategy": "Verify that the OAuth flow works correctly by testing the login process."
+          },
+          {
+            "id": 2,
+            "title": "Secure Token Storage",
+            "description": "Securely store OAuth tokens in the database, ensuring they are encrypted.",
+            "dependencies": [],
+            "details": "Implement a secure storage mechanism for OAuth tokens, ensuring encryption at rest and in transit.",
+            "status": "pending",
+            "testStrategy": "Test the token storage by verifying that tokens are encrypted and can be retrieved securely."
+          },
+          {
+            "id": 3,
+            "title": "Implement Event Synchronization",
+            "description": "Implement basic event synchronization functionality, allowing users to read and write events to their Google Calendar.",
+            "dependencies": [],
+            "details": "Develop functionality to create, read, update, and delete events in the user's Google Calendar.",
+            "status": "pending",
+            "testStrategy": "Test the event synchronization by creating, updating, and deleting events in Google Calendar and ensuring they reflect in the application."
+          },
+          {
+            "id": 4,
+            "title": "Add Conflict Detection Logic",
+            "description": "Add conflict detection logic to handle overlapping events.",
+            "dependencies": [],
+            "details": "Implement logic to detect overlapping events and notify users of conflicts during event creation.",
+            "status": "done",
+            "testStrategy": "Check conflict detection by attempting to create overlapping events and verifying that the system handles them appropriately."
+          },
+          {
+            "id": 5,
+            "title": "Expose API Endpoints",
+            "description": "Expose necessary API endpoints for the frontend to interact with the calendar service.",
+            "dependencies": [],
+            "details": "Create RESTful API endpoints for event management and OAuth token handling.",
+            "status": "pending",
+            "testStrategy": "Verify that the API endpoints are accessible and return the expected responses."
+          },
+          {
+            "id": 6,
+            "title": "Wire Functionality into Orchestrator",
+            "description": "Wire the new functionality into the orchestrator to ensure seamless integration.",
+            "dependencies": [],
+            "details": "Integrate the calendar service with the orchestrator to enable communication and data flow.",
+            "status": "done",
+            "testStrategy": "Test the integration by simulating requests through the orchestrator and checking the responses."
+          }
+        ]
+      }
+    ],
+    "metadata": {
+      "created": "2025-09-19T20:22:52.329Z",
+      "updated": "2025-09-19T21:26:06.769Z",
+      "description": "Tasks for master context"
+    }
+  }
+}

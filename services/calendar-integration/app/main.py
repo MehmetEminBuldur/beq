@@ -18,9 +18,24 @@ async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     # Startup
     logger.info("Starting BeQ Calendar Integration Service", version="0.1.0")
-    
-    # Initialize services here
-    # TODO: Initialize OAuth clients for Google and Microsoft
+
+    # Initialize OAuth clients
+    try:
+        from .core.oauth.google_oauth import GoogleOAuthClient
+        from .core.oauth.token_storage import TokenStorage
+        from .core.calendar.google_calendar import GoogleCalendarClient
+
+        # Make clients available globally for API routes
+        app.state.google_oauth = GoogleOAuthClient()
+        app.state.token_storage = TokenStorage()
+        app.state.google_calendar = GoogleCalendarClient()
+
+        logger.info("OAuth and Calendar clients initialized successfully")
+
+    except Exception as e:
+        logger.error("Failed to initialize OAuth/Calendar clients", error=str(e))
+        raise
+
     # TODO: Setup calendar sync background tasks
     # TODO: Initialize webhook handlers
     
@@ -80,12 +95,21 @@ def create_app() -> FastAPI:
             ]
         }
     
-    # TODO: Add API routes for:
-    # - OAuth authentication flows
-    # - Calendar event sync (bidirectional)
-    # - Webhook receivers for real-time updates
-    # - Calendar provider management
-    # - Event conflict detection and resolution
+    # Include API routes
+    from .api.v1.auth import router as auth_router
+    from .api.v1.calendar import router as calendar_router
+
+    app.include_router(
+        auth_router,
+        prefix="/api/v1/auth",
+        tags=["authentication", "oauth"]
+    )
+
+    app.include_router(
+        calendar_router,
+        prefix="/api/v1/calendar",
+        tags=["calendar", "events"]
+    )
     
     return app
 

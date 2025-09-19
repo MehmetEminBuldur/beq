@@ -1,0 +1,121 @@
+# Bricks & Quantas (BeQ) — Product Requirements Document (PRD)
+
+<context>
+# Overview  
+BeQ is an AI‑powered life management application centered around the Bricks & Quantas system. It blends conversational assistance, smart scheduling, and curated resources to help users pursue goals while maintaining well‑being.
+
+- Problem: Traditional planners are rigid and context‑blind. Users struggle to balance ambition and health.
+- For: Busy professionals, students, and lifelong learners seeking structured progress with balance.
+- Value: AI‑assisted planning, intelligent scheduling, and proactive recommendations deliver a calm, purposeful workflow.
+
+# Core Features  
+- Bricks & Quantas
+  - Bricks: projects/goals (e.g., "Learn Spanish").
+  - Quantas: actionable sub‑units/time blocks within a Brick.
+- Conversational AI
+  - Natural language chat powered by open‑source LLMs via OpenRouter.
+  - Context retention and goal‑oriented guidance.
+- Smart Calendar Integration
+  - Google/Microsoft Outlook/Teams sync.
+  - Conflict detection and on‑the‑fly re‑optimization.
+- Local‑First Caching & Offline
+  - Browser local storage caching, service worker, background sync, compression.
+- Resource Intelligence
+  - RAG‑powered content suggestions and learning pathways.
+- Holistic Optimization
+  - Sleep/rest awareness, habit formation, work‑life balance.
+
+# User Experience  
+Personas:  
+- "Goal‑oriented Professional": limited time, needs reliable structure.  
+- "Student/Learner": consistent practice and resource guidance.  
+- "Well‑being Seeker": balance productivity with recovery.
+
+Key Flows:  
+1) Onboarding → set goals, preferences, calendar connections.  
+2) Add a Brick → decompose into Quantas → schedule.  
+3) Chat guidance → refine plan → accept suggestions → auto‑sync calendar.  
+4) Iterate as life changes → conflicts resolved proactively.
+</context>
+
+<PRD>
+# Technical Architecture  
+- Clients
+  - Next.js 14 web app (TypeScript, Tailwind, App Router)
+- Services (FastAPI microservices)
+  - Orchestrator (LangGraph pipelines, AI tools)
+  - Scheduler (constraint solver + LLM heuristics)
+  - RAG Recommender (vector DB, semantic search)
+  - Calendar Integration (Google/Microsoft)
+- Backend Platform
+  - Supabase (PostgreSQL, Auth, Realtime)
+- Infra
+  - Docker Compose for local; Vercel for frontend deploy
+  - Monitoring: Prometheus, Grafana (optional)
+- AI
+  - OpenRouter with Gemma 3 27B IT as primary model
+
+Data Models (high‑level):  
+- User, Profile, Preferences  
+- Brick (id, title, description, status, progress)  
+- Quanta (id, brickId, duration, status, schedule window)  
+- ScheduleBlock (start, end, resource, source)  
+- ChatMessage (role, content, timestamp, threadId)  
+- Recommendation (type, metadata, source)
+
+APIs & Integrations:  
+- REST endpoints across services (`/api/v1/...`)  
+- Calendar OAuth + sync webhooks  
+- Supabase client in web for auth/session and realtime
+
+# Development Roadmap  
+MVP‑first scope distilled from README and roadmap. Phases focus on atomic increments that compose into visible value quickly.
+
+Phase 1 — Core Infrastructure (complete in repo, verify)  
+- Env/config scaffolding  
+- Supabase schema initialization  
+- Microservices bootstrapped (orchestrator, scheduler, RAG, calendar)  
+- Frontend deps and styling configured
+
+Phase 2 — Core Features (baseline present, verify and harden)  
+- Auth flows (signup/login/reset) with protected routes  
+- Chat interface connected to backend  
+- Schedule view with CRUD and DnD  
+- Bricks & Quantas CRUD and progress tracking
+
+Phase 3 — AI Intelligence (targeted MVP scope)  
+- Connect chat to LLM via OpenRouter  
+- Conversation context management  
+- AI‑powered Brick/Quanta suggestions  
+- Prompt strategies for life management  
+- Initial schedule optimization flow (heuristic + constraints)
+
+Phase 4 — UX Polish  
+- Onboarding wizard (goals, calendar, defaults)  
+- Settings & preferences  
+- Responsive improvements and touch optimization
+
+Phase 5 — Testing & Deployment  
+- Integration tests across auth/chat/schedule  
+- Performance checks (bundle, API latency)  
+- CI/CD and production deployment  
+- Health checks and logging
+
+# Logical Dependency Chain  
+1) Foundation: env, schema, services boot  
+2) Visible MVP: auth + chat + schedule + bricks/quantas end‑to‑end  
+3) Intelligence: connect LLM, recommendations, scheduling optimization  
+4) UX polish + responsiveness  
+5) Tests → performance → deploy
+
+# Risks and Mitigations  
+- Calendar API complexity → start with one provider (Google), abstract adapters, add tests.  
+- LLM variability → deterministic prompts + guardrails, instrument for telemetry, allow quick model swaps.  
+- Data consistency across services → strict contracts, pydantic models in shared package, integration tests.  
+- Performance on low‑end devices → local caching, virtualization, lazy loading, workerized heavy tasks.
+
+# Appendix  
+- Tech stack: Next.js 14, TypeScript, Tailwind, FastAPI, Supabase, OpenRouter, Qdrant (RAG)  
+- Monitoring: Prometheus/Grafana (optional)  
+- References: project README, SUPABASE_SCHEMA.sql, services/*/requirements.txt
+</PRD>

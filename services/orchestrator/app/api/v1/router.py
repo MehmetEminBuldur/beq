@@ -12,6 +12,8 @@ from .chat import router as chat_router
 from .schedule import router as schedule_router
 from .bricks import router as bricks_router
 from .users import router as users_router
+from .features import router as features_router
+from .calendar import router as calendar_router
 
 # Create main API v1 router
 api_v1_router = APIRouter()
@@ -39,4 +41,16 @@ api_v1_router.include_router(
     users_router,
     prefix="/users",
     tags=["users", "profiles"]
+)
+
+api_v1_router.include_router(
+    features_router,
+    prefix="/features",
+    tags=["features", "configuration"]
+)
+
+api_v1_router.include_router(
+    calendar_router,
+    prefix="/calendar-integration/calendar",
+    tags=["calendar", "integration"]
 )

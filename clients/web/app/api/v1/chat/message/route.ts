@@ -31,69 +31,24 @@ interface ChatMessageResponse {
   timestamp: string;
 }
 
-// OpenRouter API client
-async function callOpenRouter(message: string, userId: string, conversationId: string) {
-  const openRouterApiKey = process.env.OPENROUTER_API_KEY;
-  const model = process.env.OPENROUTER_MODEL || 'google/gemma-2-27b-it';
-
-  if (!openRouterApiKey) {
-    throw new Error('OpenRouter API key not configured');
-  }
-
-  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+// Forwarder to orchestrator chat endpoint
+async function callOrchestrator(body: ChatMessageRequest) {
+  const baseURL = process.env.NEXT_PUBLIC_ORCHESTRATOR_API_URL || 'http://localhost:8000';
+  const response = await fetch(`${baseURL}/api/v1/chat/message`, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${openRouterApiKey}`,
       'Content-Type': 'application/json',
-      'HTTP-Referer': process.env.VERCEL_URL || 'https://beq.app',
-      'X-Title': 'BeQ - AI Life Management'
     },
-    body: JSON.stringify({
-      model,
-      messages: [
-        {
-          role: 'system',
-          content: `You are BeQ's AI assistant, an advanced life management system that helps users organize their tasks, schedule activities, and optimize their daily routines.
-
-Core Concepts:
-- Bricks: Main tasks or projects that users work on
-- Quantas: Sub-tasks within Bricks for detailed planning
-- Holistic optimization: Balancing work, personal life, and well-being
-
-Your capabilities:
-1. Task and project management (create, update, organize Bricks and Quantas)
-2. Smart scheduling and time optimization
-3. Resource and learning recommendations
-4. Calendar integration and conflict resolution
-5. Goal setting and progress tracking
-
-Context:
-- User ID: ${userId}
-- Conversation ID: ${conversationId}
-- Current time: ${new Date().toISOString()}
-
-Respond naturally and helpfully. When appropriate, suggest specific actions like creating Bricks, scheduling tasks, or optimizing routines. Always prioritize the user's well-being and work-life balance.`
-        },
-        {
-          role: 'user',
-          content: message
-        }
-      ],
-      temperature: 0.7,
-      max_tokens: 1000,
-      top_p: 1,
-      frequency_penalty: 0,
-      presence_penalty: 0
-    })
+    body: JSON.stringify(body),
+    // Note: If auth required, consider forwarding Supabase JWT in Authorization header
   });
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`OpenRouter API error: ${response.status} - ${error}`);
+    const errorText = await response.text();
+    throw new Error(`Orchestrator API error: ${response.status} - ${errorText}`);
   }
 
-  const data = await response.json();
-  return data;
+  return response.json();
 }
 
 // Main POST handler
@@ -140,11 +95,16 @@ export async function POST(request: NextRequest) {
       console.log('Could not fetch user profile:', error);
     }
 
-    // Call OpenRouter for AI response
-    const aiResponse = await callOpenRouter(message, user_id, finalConversationId);
-    
-    const responseText = aiResponse.choices?.[0]?.message?.content || 'Sorry, I could not process your request.';
-    const modelUsed = aiResponse.model || 'google/gemma-2-27b-it';
+    // Call orchestrator for AI response
+    const orchestratorResponse = await callOrchestrator({
+      message,
+      user_id,
+      conversation_id: finalConversationId,
+      context: context || {}
+    });
+
+    const responseText = orchestratorResponse.response || 'Sorry, I could not process your request.';
+    const modelUsed = orchestratorResponse.model_used || 'google/gemma-2-27b-it';
 
     // Calculate processing time
     const processingTimeMs = Date.now() - startTime;

@@ -82,6 +82,32 @@ jest.mock('framer-motion', () => ({
   AnimatePresence: ({ children }) => children,
 }))
 
+// Mock ESM-only markdown libs that Jest can't parse by default
+jest.mock('react-markdown', () => ({
+  __esModule: true,
+  default: ({ children }) => <div>{children}</div>,
+}))
+jest.mock('rehype-highlight', () => ({ __esModule: true, default: () => (tree) => tree }))
+jest.mock('remark-gfm', () => ({ __esModule: true, default: () => (tree) => tree }))
+
+// Mock next-themes ThemeProvider to a passthrough
+jest.mock('next-themes', () => ({
+  ThemeProvider: ({ children }) => <>{children}</>,
+}))
+
+// Mock ServiceWorker hooks to avoid window APIs in tests
+jest.mock('@/lib/hooks/use-service-worker', () => ({
+  useOfflineDetection: () => ({ isOnline: true, isOffline: false })
+}))
+
+// Mock Providers wrappers that require browser/runtime features
+jest.mock('@/lib/providers/query-provider', () => ({
+  QueryProvider: ({ children }) => <>{children}</>
+}))
+jest.mock('@/lib/providers/app-state-provider', () => ({
+  AppStateProviderWrapper: ({ children }) => <>{children}</>
+}))
+
 // Setup environment variables for testing
 process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co'
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key'

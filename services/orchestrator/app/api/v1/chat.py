@@ -11,6 +11,7 @@ from uuid import UUID, uuid4
 
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
+from prometheus_client import Counter, Histogram
 import structlog
 
 from ...agent.orchestrator_agent import OrchestratorAgent, get_orchestrator_agent
@@ -19,6 +20,16 @@ from ...core.logging import LoggerMixin
 router = APIRouter()
 logger = structlog.get_logger(__name__)
 
+# Metrics
+CHAT_REQUEST_COUNT = Counter(
+    'beq_chat_requests_total',
+    'Total chat requests processed',
+    ['status']
+)
+CHAT_REQUEST_DURATION = Histogram(
+    'beq_chat_request_duration_seconds',
+    'Duration of chat request processing'
+)
 
 class ChatMessageRequest(BaseModel):
     """Request model for chat messages."""
@@ -124,6 +135,10 @@ class ChatService(LoggerMixin):
                 resources_recommended=agent_response.resources_recommended
             )
             
+            # Metrics
+            CHAT_REQUEST_COUNT.labels(status="success").inc()
+            CHAT_REQUEST_DURATION.observe(processing_time_ms / 1000.0)
+
             self.logger.info(
                 "Chat message processed successfully",
                 user_id=str(user_id),
@@ -136,18 +151,27 @@ class ChatService(LoggerMixin):
             return response
             
         except Exception as e:
+            processing_time_ms = int(
+                (datetime.utcnow() - start_time).total_seconds() * 1000
+            )
+            # Metrics
+            CHAT_REQUEST_COUNT.labels(status="error").inc()
+            CHAT_REQUEST_DURATION.observe(processing_time_ms / 1000.0)
+
             self.logger.error(
                 "Error processing chat message",
                 user_id=str(user_id),
                 conversation_id=str(conversation_id),
                 message_id=str(message_id),
-                exc_info=e
+                processing_time_ms=processing_time_ms,
+                error=str(e)
             )
             raise HTTPException(
                 status_code=500,
                 detail={
                     "error": "Failed to process message",
-                    "message": "An error occurred while processing your message. Please try again."
+                    "message": "An error occurred while processing your message. Please try again.",
+                    "processing_time_ms": processing_time_ms
                 }
             )
 
