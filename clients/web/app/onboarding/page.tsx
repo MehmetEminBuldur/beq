@@ -2,8 +2,9 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { AuthGuard } from '@/components/auth/auth-guard'
 
-export default function OnboardingIndex() {
+function OnboardingIndexContent() {
   const router = useRouter()
 
   useEffect(() => {
@@ -18,5 +19,13 @@ export default function OnboardingIndex() {
         <p className="mt-4 text-gray-600">Starting your onboarding journey...</p>
       </div>
     </div>
+  )
+}
+
+export default function OnboardingIndex() {
+  return (
+    <AuthGuard>
+      <OnboardingIndexContent />
+    </AuthGuard>
   )
 }

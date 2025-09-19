@@ -27,7 +27,7 @@ export function Navigation() {
   ];
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-gray-200 bg-white/80 backdrop-blur-lg dark:border-gray-800 dark:bg-gray-900/80">
+    <header className="sticky top-0 z-50 w-full border-b border-gray-200 bg-white/80 backdrop-blur-lg dark:border-gray-800 dark:bg-gray-900/80" suppressHydrationWarning>
       <nav className="mx-auto flex max-w-7xl items-center justify-between p-6 lg:px-8" aria-label="Global">
         {/* Logo */}
         <div className="flex lg:flex-1">
@@ -98,9 +98,12 @@ export function Navigation() {
               <button
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                 className="flex items-center gap-x-2 rounded-md bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-100 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 transition-colors"
+                suppressHydrationWarning
               >
                 <User className="h-4 w-4" />
-                <span>{user?.full_name || user?.email || 'User'}</span>
+                <span suppressHydrationWarning>
+                  {user?.full_name || user?.email?.split('@')[0] || 'User'}
+                </span>
               </button>
 
               {isUserMenuOpen && (
@@ -189,6 +192,7 @@ export function Navigation() {
           animate={{ opacity: 1, height: 'auto' }}
           exit={{ opacity: 0, height: 0 }}
           className="lg:hidden"
+          suppressHydrationWarning
         >
           <div className="space-y-2 px-6 pb-6 pt-2">
             {navigation.map((item) => (

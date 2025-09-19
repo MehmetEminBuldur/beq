@@ -4,13 +4,16 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:clean": "../../scripts/cleanup-dev.sh && npm run dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:ci": "jest --ci --coverage --watchAll=false"
+    "test:ci": "jest --ci --coverage --watchAll=false",
+    "cleanup": "../../scripts/cleanup-dev.sh",
+    "kill-port": "npx kill-port"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.2",

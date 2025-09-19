@@ -1,7 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useAuthContext } from '@/lib/providers/auth-provider'
+import { supabase } from '@/lib/supabase/client'
 import { ProgressIndicator } from '../../../components/onboarding/progress-indicator'
 import { initializeDefaultSettings } from '../../../lib/default-settings'
 
@@ -12,13 +14,33 @@ interface CalendarConnection {
   connected: boolean
 }
 
-export default function OnboardingCalendarIntegration() {
+function OnboardingCalendarIntegrationContent() {
   const router = useRouter()
+  const { user } = useAuthContext()
   const [connections, setConnections] = useState<CalendarConnection[]>([
     { id: '1', name: 'Google Calendar', provider: 'google', connected: false },
     { id: '2', name: 'Microsoft Outlook', provider: 'microsoft', connected: false }
   ])
   const [isConnecting, setIsConnecting] = useState<string | null>(null)
+
+  // Load existing calendar connections from localStorage
+  useEffect(() => {
+    const savedConnections = localStorage.getItem('onboarding-calendar-connections')
+    if (savedConnections) {
+      try {
+        const parsedConnections = JSON.parse(savedConnections)
+        if (Array.isArray(parsedConnections)) {
+          // Update connection states based on saved data
+          setConnections(prev => prev.map(conn => ({
+            ...conn,
+            connected: parsedConnections.includes(conn.provider)
+          })))
+        }
+      } catch (error) {
+        console.error('Error loading saved calendar connections:', error)
+      }
+    }
+  }, [])
 
   const steps = [
     { id: 'welcome', title: 'Welcome', completed: true, current: false },
@@ -53,20 +75,109 @@ export default function OnboardingCalendarIntegration() {
     }
   }
 
-  const handleContinue = () => {
-    // Initialize default settings for the user
-    initializeDefaultSettings()
-    // Save onboarding completion status
-    localStorage.setItem('onboarding-completed', 'true')
-    router.push('/dashboard')
+  const handleContinue = async () => {
+    try {
+      // Initialize default settings for the user
+      initializeDefaultSettings()
+
+      // Consolidate all onboarding data
+      const onboardingData = {
+        goals: JSON.parse(localStorage.getItem('onboarding-goals') || '[]'),
+        calendarConnections: JSON.parse(localStorage.getItem('onboarding-calendar-connections') || '[]'),
+        completedAt: new Date().toISOString(),
+        completed: true
+      }
+
+      // Save onboarding completion to database
+      if (user?.id) {
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            onboarding_completed: true,
+            preferences: {
+              ...((await supabase
+                .from('profiles')
+                .select('preferences')
+                .eq('id', user.id)
+                .single()).data?.preferences || {}),
+              onboarding_data: onboardingData
+            }
+          })
+          .eq('id', user.id)
+
+        if (error) {
+          console.error('Error saving onboarding completion:', error)
+          // Continue anyway - localStorage will preserve the data
+        }
+      }
+
+      // Save to localStorage as backup
+      localStorage.setItem('onboarding-completed', 'true')
+      localStorage.setItem('onboarding-data', JSON.stringify(onboardingData))
+
+      // Clear temporary onboarding data
+      localStorage.removeItem('onboarding-goals')
+      localStorage.removeItem('onboarding-calendar-connections')
+
+      router.push('/dashboard')
+    } catch (error) {
+      console.error('Error completing onboarding:', error)
+      // Still navigate even if saving fails
+      localStorage.setItem('onboarding-completed', 'true')
+      router.push('/dashboard')
+    }
   }
 
-  const handleSkip = () => {
-    // Initialize default settings even when skipping
-    initializeDefaultSettings()
-    // Allow users to skip calendar integration
-    localStorage.setItem('onboarding-completed', 'true')
-    router.push('/dashboard')
+  const handleSkip = async () => {
+    try {
+      // Initialize default settings even when skipping
+      initializeDefaultSettings()
+
+      // Save onboarding completion (without calendar connections)
+      const onboardingData = {
+        goals: JSON.parse(localStorage.getItem('onboarding-goals') || '[]'),
+        calendarConnections: [],
+        completedAt: new Date().toISOString(),
+        completed: true,
+        skippedCalendar: true
+      }
+
+      // Save to database
+      if (user?.id) {
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            onboarding_completed: true,
+            preferences: {
+              ...((await supabase
+                .from('profiles')
+                .select('preferences')
+                .eq('id', user.id)
+                .single()).data?.preferences || {}),
+              onboarding_data: onboardingData
+            }
+          })
+          .eq('id', user.id)
+
+        if (error) {
+          console.error('Error saving onboarding completion:', error)
+        }
+      }
+
+      // Save to localStorage
+      localStorage.setItem('onboarding-completed', 'true')
+      localStorage.setItem('onboarding-data', JSON.stringify(onboardingData))
+
+      // Clear temporary data
+      localStorage.removeItem('onboarding-goals')
+      localStorage.removeItem('onboarding-calendar-connections')
+
+      router.push('/dashboard')
+    } catch (error) {
+      console.error('Error skipping onboarding:', error)
+      localStorage.setItem('onboarding-completed', 'true')
+      router.push('/dashboard')
+    }
   }
 
   const getProviderIcon = (provider: 'google' | 'microsoft') => {
@@ -183,5 +294,15 @@ export default function OnboardingCalendarIntegration() {
         </div>
       </div>
     </div>
+  )
+}
+
+import { AuthGuard } from '@/components/auth/auth-guard'
+
+export default function OnboardingCalendarIntegration() {
+  return (
+    <AuthGuard>
+      <OnboardingCalendarIntegrationContent />
+    </AuthGuard>
   )
 }

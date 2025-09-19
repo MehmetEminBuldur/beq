@@ -27,7 +27,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background" suppressHydrationWarning>
       <Navigation />
 
       <main className="container mx-auto px-4 py-8">
@@ -35,8 +35,8 @@ export default function DashboardPage() {
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">
-                Welcome back, {user?.full_name || user?.email?.split('@')[0]}! 👋
+              <h1 className="text-3xl font-bold tracking-tight" suppressHydrationWarning>
+                Welcome back, {user?.full_name || user?.email?.split('@')[0] || 'User'}! 👋
               </h1>
               <p className="text-muted-foreground mt-2">
                 Here's your life management overview for today.
@@ -83,7 +83,7 @@ export default function DashboardPage() {
               <CardTitle className="text-sm font-medium">Active Bricks</CardTitle>
               <Target className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
+            <CardContent suppressHydrationWarning>
               <div className="text-2xl font-bold">
                 {isLoading ? '...' : stats.activeBricks}
               </div>
@@ -98,7 +98,7 @@ export default function DashboardPage() {
               <CardTitle className="text-sm font-medium">Completed Today</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
+            <CardContent suppressHydrationWarning>
               <div className="text-2xl font-bold">
                 {isLoading ? '...' : stats.completedToday}
               </div>
@@ -113,7 +113,7 @@ export default function DashboardPage() {
               <CardTitle className="text-sm font-medium">Focus Time</CardTitle>
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
+            <CardContent suppressHydrationWarning>
               <div className="text-2xl font-bold">
                 {isLoading ? '...' : `${stats.focusTime}h`}
               </div>
@@ -128,7 +128,7 @@ export default function DashboardPage() {
               <CardTitle className="text-sm font-medium">AI Conversations</CardTitle>
               <MessageSquare className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
+            <CardContent suppressHydrationWarning>
               <div className="text-2xl font-bold">
                 {isLoading ? '...' : stats.aiConversations}
               </div>
@@ -149,7 +149,7 @@ export default function DashboardPage() {
                 Your AI-optimized schedule for maximum productivity
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent suppressHydrationWarning>
               <div className="space-y-4">
                 {isLoading ? (
                   <div className="text-center text-muted-foreground py-8">
@@ -175,14 +175,17 @@ export default function DashboardPage() {
                       ></div>
                       <div className="flex-1">
                         <p className="font-medium">{item.title}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(item.start_time).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })} - {new Date(item.end_time).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
+                        <p className="text-sm text-muted-foreground" suppressHydrationWarning>
+                          {(() => {
+                            const start = new Date(item.start_time);
+                            const end = new Date(item.end_time);
+                            const formatTime = (date: Date) => {
+                              const hours = date.getHours().toString().padStart(2, '0');
+                              const minutes = date.getMinutes().toString().padStart(2, '0');
+                              return `${hours}:${minutes}`;
+                            };
+                            return `${formatTime(start)} - ${formatTime(end)}`;
+                          })()}
                         </p>
                       </div>
                       <Badge
@@ -259,7 +262,7 @@ export default function DashboardPage() {
               Personalized recommendations based on your activity patterns
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent suppressHydrationWarning>
             {isLoading ? (
               <div className="text-center text-muted-foreground py-8">
                 Analyzing your patterns...

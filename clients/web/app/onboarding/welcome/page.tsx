@@ -1,10 +1,54 @@
 'use client'
 
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useAuthContext } from '@/lib/providers/auth-provider'
+import { supabase } from '@/lib/supabase/client'
 import { ProgressIndicator } from '../../../components/onboarding/progress-indicator'
+import { AuthGuard } from '@/components/auth/auth-guard'
 
-export default function OnboardingWelcome() {
+function OnboardingWelcomeContent() {
   const router = useRouter()
+  const { user } = useAuthContext()
+
+  useEffect(() => {
+    // Check if user has already completed onboarding
+    const checkOnboardingStatus = async () => {
+      if (!user?.id) return
+
+      try {
+        // Check database first
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('onboarding_completed')
+          .eq('id', user.id)
+          .single()
+
+        if (!error && profile?.onboarding_completed) {
+          // User has completed onboarding, redirect to dashboard
+          router.replace('/dashboard')
+          return
+        }
+
+        // Check localStorage as fallback
+        const localOnboardingCompleted = localStorage.getItem('onboarding-completed')
+        if (localOnboardingCompleted === 'true') {
+          // Update database with localStorage value
+          await supabase
+            .from('profiles')
+            .update({ onboarding_completed: true })
+            .eq('id', user.id)
+          router.replace('/dashboard')
+          return
+        }
+      } catch (error) {
+        console.error('Error checking onboarding status:', error)
+        // Continue with onboarding if there's an error
+      }
+    }
+
+    checkOnboardingStatus()
+  }, [user?.id, router])
 
   const handleGetStarted = () => {
     router.push('/onboarding/goals')
@@ -29,7 +73,7 @@ export default function OnboardingWelcome() {
                 </svg>
               </div>
             </div>
-            
+
             <div className="text-center">
               <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
                 Welcome to <span className="text-primary-700">Bricks & Quantas</span>
@@ -38,7 +82,7 @@ export default function OnboardingWelcome() {
                 Your intelligent assistant for effortless life management. Let's get you set up.
               </p>
             </div>
-            
+
             <div className="mt-8 space-y-6">
               <div className="rounded-md bg-white p-6 shadow border border-gray-200">
                 <div className="flex items-start space-x-4">
@@ -52,7 +96,7 @@ export default function OnboardingWelcome() {
                     </p>
                   </div>
                 </div>
-                
+
                 <div className="mt-6 flex items-start space-x-4">
                   <div className="flex-shrink-0">
                     <span className="material-symbols-outlined text-3xl text-primary-700">calendar_view_month</span>
@@ -64,7 +108,7 @@ export default function OnboardingWelcome() {
                     </p>
                   </div>
                 </div>
-                
+
                 <div className="mt-6 flex items-start space-x-4">
                   <div className="flex-shrink-0">
                     <span className="material-symbols-outlined text-3xl text-primary-700">psychology</span>
@@ -77,9 +121,9 @@ export default function OnboardingWelcome() {
                   </div>
                 </div>
               </div>
-              
+
               <div>
-                <button 
+                <button
                   onClick={handleGetStarted}
                   className="group relative flex w-full justify-center rounded-md border border-transparent bg-primary-700 px-4 py-3 text-base font-semibold text-white shadow-sm transition-all duration-200 ease-in-out hover:bg-primary-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
                 >
@@ -94,5 +138,13 @@ export default function OnboardingWelcome() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function OnboardingWelcome() {
+  return (
+    <AuthGuard>
+      <OnboardingWelcomeContent />
+    </AuthGuard>
   )
 }

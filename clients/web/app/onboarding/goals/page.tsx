@@ -1,11 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useAuthContext } from '@/lib/providers/auth-provider'
+import { supabase } from '@/lib/supabase/client'
 import { ProgressIndicator } from '../../../components/onboarding/progress-indicator'
 
-export default function OnboardingGoalSetting() {
+function OnboardingGoalSettingContent() {
   const router = useRouter()
+  const { user } = useAuthContext()
   const [goalInput, setGoalInput] = useState('')
   const [selectedGoals, setSelectedGoals] = useState<string[]>([])
 
@@ -14,6 +17,21 @@ export default function OnboardingGoalSetting() {
     { id: 'goals', title: 'Goals', completed: false, current: true },
     { id: 'calendar', title: 'Calendar', completed: false, current: false }
   ]
+
+  // Load existing goals from localStorage on mount
+  useEffect(() => {
+    const savedGoals = localStorage.getItem('onboarding-goals')
+    if (savedGoals) {
+      try {
+        const parsedGoals = JSON.parse(savedGoals)
+        if (Array.isArray(parsedGoals)) {
+          setSelectedGoals(parsedGoals)
+        }
+      } catch (error) {
+        console.error('Error loading saved goals:', error)
+      }
+    }
+  }, [])
 
   const suggestionGoals = [
     { icon: 'fitness_center', label: 'Exercise' },
@@ -41,11 +59,40 @@ export default function OnboardingGoalSetting() {
     }
   }
 
-  const handleNext = () => {
-    // Store goals in localStorage or pass to next step
-    localStorage.setItem('onboarding-goals', JSON.stringify(selectedGoals))
-    // Navigate to calendar integration
-    router.push('/onboarding/calendar')
+  const handleNext = async () => {
+    try {
+      // Store goals in localStorage
+      localStorage.setItem('onboarding-goals', JSON.stringify(selectedGoals))
+
+      // Save goals to database if user is authenticated
+      if (user?.id && selectedGoals.length > 0) {
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            preferences: {
+              onboarding_goals: selectedGoals,
+              learning_goals: selectedGoals.filter(goal =>
+                goal.toLowerCase().includes('learn') ||
+                goal.toLowerCase().includes('language') ||
+                goal.toLowerCase().includes('read')
+              )
+            }
+          })
+          .eq('id', user.id)
+
+        if (error) {
+          console.error('Error saving goals to database:', error)
+          // Continue anyway - localStorage will preserve the data
+        }
+      }
+
+      // Navigate to calendar integration
+      router.push('/onboarding/calendar')
+    } catch (error) {
+      console.error('Error in handleNext:', error)
+      // Still navigate even if saving fails
+      router.push('/onboarding/calendar')
+    }
   }
 
   return (
@@ -152,5 +199,15 @@ export default function OnboardingGoalSetting() {
         </main>
       </div>
     </div>
+  )
+}
+
+import { AuthGuard } from '@/components/auth/auth-guard'
+
+export default function OnboardingGoalSetting() {
+  return (
+    <AuthGuard>
+      <OnboardingGoalSettingContent />
+    </AuthGuard>
   )
 }
