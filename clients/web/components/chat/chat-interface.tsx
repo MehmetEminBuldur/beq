@@ -4,17 +4,120 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Bot, User, Loader2, Calendar, Target, Lightbulb } from 'lucide-react';
 import { useChat } from '@/lib/hooks/use-chat';
+import { useDashboard } from '@/lib/hooks/use-dashboard';
+import { useAuthContext } from '@/lib/providers/auth-provider';
 import { ChatMessage } from './chat-message';
 import { SuggestedActions } from './suggested-actions';
 import { ScheduleView } from './schedule-view';
+import { AiInsightsSidebar } from './ai-insights-sidebar';
 
 export function ChatInterface() {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [sidebarView, setSidebarView] = useState<'schedule' | 'insights'>('schedule');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  
+
+  const { user } = useAuthContext();
+  const { stats, todaySchedule, aiInsights } = useDashboard();
   const { messages, sendMessage, isLoading } = useChat();
+
+  // Generate dynamic welcome message based on user state
+  const getDynamicWelcomeMessage = () => {
+    if (!user) return "Welcome to BeQ! 👋";
+
+    const firstName = user.full_name?.split(' ')[0] || user.email?.split('@')[0] || 'there';
+
+    if (stats.activeBricks === 0) {
+      return `Welcome to BeQ, ${firstName}! 👋`;
+    }
+
+    if (stats.completedToday > 0) {
+      return `Great work today, ${firstName}! 🎉`;
+    }
+
+    if (todaySchedule.length > 0) {
+      const inProgressTasks = todaySchedule.filter(t => t.status === 'in_progress');
+      if (inProgressTasks.length > 0) {
+        return `Ready to continue, ${firstName}? 🚀`;
+      }
+    }
+
+    return `Welcome back, ${firstName}! 👋`;
+  };
+
+  // Generate dynamic description based on user state
+  const getDynamicDescription = () => {
+    if (stats.activeBricks === 0) {
+      return "I'm here to help you organize your life using the Bricks and Quantas system. Let's get you started!";
+    }
+
+    if (stats.completedToday > 0) {
+      return `You've completed ${stats.completedToday} task${stats.completedToday > 1 ? 's' : ''} today. What would you like to work on next?`;
+    }
+
+    if (stats.pendingBricks > 0) {
+      return `You have ${stats.pendingBricks} pending task${stats.pendingBricks > 1 ? 's' : ''} waiting. How can I help you tackle them?`;
+    }
+
+    return `You have ${stats.activeBricks} active project${stats.activeBricks > 1 ? 's' : ''}. Tell me about your goals or ask me anything!`;
+  };
+
+  // Generate dynamic suggested actions based on user context
+  const getDynamicSuggestions = () => {
+    const suggestions = [];
+
+    // Based on active bricks
+    if (stats.activeBricks > 0) {
+      suggestions.push(`Help me work on my ${stats.activeBricks} active project${stats.activeBricks > 1 ? 's' : ''}`);
+    } else {
+      suggestions.push("Help me create my first project");
+    }
+
+    // Based on today's schedule
+    if (todaySchedule.length > 0) {
+      const inProgressTasks = todaySchedule.filter(t => t.status === 'in_progress');
+      const upcomingTasks = todaySchedule.filter(t => t.status === 'upcoming');
+
+      if (inProgressTasks.length > 0) {
+        suggestions.push(`Help me continue working on "${inProgressTasks[0].title}"`);
+      } else if (upcomingTasks.length > 0) {
+        suggestions.push(`What's next after "${upcomingTasks[0].title}"?`);
+      }
+    } else {
+      suggestions.push("Help me plan my day");
+    }
+
+    // Based on AI insights
+    if (aiInsights.length > 0) {
+      const highPriorityInsights = aiInsights.filter(i => i.priority === 'high');
+      if (highPriorityInsights.length > 0) {
+        suggestions.push(`Address: "${highPriorityInsights[0].title}"`);
+      }
+    }
+
+    // Based on productivity patterns
+    if (stats.completedToday === 0 && stats.activeBricks > 0) {
+      suggestions.push("Help me get started on my tasks today");
+    }
+
+    // Always include some general suggestions
+    if (suggestions.length < 4) {
+      const generalSuggestions = [
+        "Help me learn Spanish - I'm a complete beginner",
+        "I need to prepare for a presentation next week",
+        "Create a morning routine that includes meditation",
+        "Help me organize my work schedule better"
+      ];
+
+      // Add general suggestions to fill up to 4
+      for (let i = suggestions.length; i < 4 && i < generalSuggestions.length; i++) {
+        suggestions.push(generalSuggestions[i]);
+      }
+    }
+
+    return suggestions.slice(0, 4); // Return max 4 suggestions
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -89,20 +192,14 @@ export function ChatInterface() {
                     </div>
                   </div>
                   <h2 className="mb-4 text-xl font-semibold text-gray-900 dark:text-white">
-                    Welcome to BeQ! 👋
+                    {getDynamicWelcomeMessage()}
                   </h2>
                   <p className="mb-8 text-gray-600 dark:text-gray-300">
-                    I'm here to help you organize your life using the Bricks and Quantas system. 
-                    Tell me about your goals, schedule, or ask me anything!
+                    {getDynamicDescription()}
                   </p>
-                  
+
                   <SuggestedActions
-                    suggestions={[
-                      "I work 9-5 and want to add workout sessions to my schedule",
-                      "Help me learn Spanish - I'm a complete beginner",
-                      "I need to prepare for a presentation next week",
-                      "Create a morning routine that includes meditation"
-                    ]}
+                    suggestions={getDynamicSuggestions()}
                     onSelect={handleSuggestedAction}
                   />
                 </motion.div>
@@ -185,9 +282,42 @@ export function ChatInterface() {
           </div>
         </div>
 
-        {/* Sidebar - Schedule view */}
-        <div className="hidden w-80 border-l border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-800 lg:block">
-          <ScheduleView />
+        {/* Sidebar */}
+        <div className="hidden w-80 border-l border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-800 lg:flex lg:flex-col">
+          {/* Sidebar tabs */}
+          <div className="flex border-b border-gray-200 dark:border-gray-700">
+            <button
+              onClick={() => setSidebarView('schedule')}
+              className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                sidebarView === 'schedule'
+                  ? 'text-primary-600 border-b-2 border-primary-600 dark:text-primary-400 dark:border-primary-400'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+              }`}
+            >
+              <Calendar className="h-4 w-4 inline mr-2" />
+              Schedule
+            </button>
+            <button
+              onClick={() => setSidebarView('insights')}
+              className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                sidebarView === 'insights'
+                  ? 'text-primary-600 border-b-2 border-primary-600 dark:text-primary-400 dark:border-primary-400'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+              }`}
+            >
+              <Lightbulb className="h-4 w-4 inline mr-2" />
+              Insights
+            </button>
+          </div>
+
+          {/* Sidebar content */}
+          <div className="flex-1 overflow-hidden">
+            {sidebarView === 'schedule' ? (
+              <ScheduleView />
+            ) : (
+              <AiInsightsSidebar />
+            )}
+          </div>
         </div>
       </div>
     </div>

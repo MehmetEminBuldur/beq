@@ -5,6 +5,7 @@ import { useAuthContext } from '@/lib/providers/auth-provider';
 import { useDashboard } from '@/lib/hooks/use-dashboard';
 import { Navigation } from '@/components/layout/navigation';
 import { ChatInterface } from '@/components/chat/chat-interface';
+import { DynamicQuickActions } from '@/components/dashboard/dynamic-quick-actions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -55,26 +56,14 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="mb-8">
-          <div className="flex gap-4">
-            <Button
-              onClick={() => setActiveView('chat')}
-              className="flex items-center gap-2"
-            >
-              <MessageSquare className="h-4 w-4" />
-              Start Chat
-            </Button>
-            <Button variant="outline" className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              New Brick
-            </Button>
-            <Button variant="outline" className="flex items-center gap-2">
-              <CalendarDays className="h-4 w-4" />
-              Schedule Task
-            </Button>
-          </div>
-        </div>
+        {/* Dynamic Quick Actions */}
+        <DynamicQuickActions
+          stats={stats}
+          todaySchedule={todaySchedule}
+          aiInsights={aiInsights}
+          isLoading={isLoading}
+          onChatClick={() => setActiveView('chat')}
+        />
 
         {/* Stats Grid */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
@@ -235,15 +224,27 @@ export default function DashboardPage() {
                 <MessageSquare className="mr-2 h-4 w-4" />
                 Ask AI Assistant
               </Button>
-              <Button variant="outline" className="w-full justify-start">
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => window.location.href = '/bricks'}
+              >
                 <Plus className="mr-2 h-4 w-4" />
-                Create New Brick
+                {stats.activeBricks === 0 ? 'Create New Brick' : 'Manage Projects'}
               </Button>
-              <Button variant="outline" className="w-full justify-start">
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => window.location.href = '/calendar'}
+              >
                 <CalendarDays className="mr-2 h-4 w-4" />
-                View Calendar
+                {todaySchedule.length === 0 ? 'Plan Your Day' : 'View Calendar'}
               </Button>
-              <Button variant="outline" className="w-full justify-start">
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => window.location.href = '/settings'}
+              >
                 <TrendingUp className="mr-2 h-4 w-4" />
                 View Analytics
               </Button>
@@ -252,7 +253,7 @@ export default function DashboardPage() {
         </div>
 
         {/* AI Insights */}
-        <Card className="mt-6">
+        <Card className="mt-6" data-ai-insights>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Brain className="h-5 w-5" />

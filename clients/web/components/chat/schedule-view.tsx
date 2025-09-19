@@ -4,51 +4,60 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, Clock, Target, Plus, ChevronRight } from 'lucide-react';
 import { format, startOfWeek, addDays, isSameDay, isToday } from 'date-fns';
+import { useDashboard } from '@/lib/hooks/use-dashboard';
 
 interface ScheduleEvent {
   id: string;
   title: string;
   time: string;
   duration: string;
-  type: 'brick' | 'quanta' | 'event';
-  status: 'pending' | 'in_progress' | 'completed';
+  type: 'brick' | 'quanta' | 'event' | 'meeting';
+  status: 'pending' | 'in_progress' | 'upcoming' | 'completed';
   color: string;
 }
 
-const mockEvents: ScheduleEvent[] = [
-  {
-    id: '1',
-    title: 'Morning Workout',
-    time: '07:00',
-    duration: '1h',
-    type: 'brick',
-    status: 'completed',
-    color: 'bg-green-500',
-  },
-  {
-    id: '2',
-    title: 'Spanish Learning',
-    time: '19:30',
-    duration: '30m',
-    type: 'quanta',
-    status: 'pending',
-    color: 'bg-blue-500',
-  },
-  {
-    id: '3',
-    title: 'Team Meeting',
-    time: '14:00',
-    duration: '1h',
-    type: 'event',
-    status: 'pending',
-    color: 'bg-purple-500',
-  },
-];
-
 export function ScheduleView() {
+  const { stats, todaySchedule } = useDashboard();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const startDate = startOfWeek(selectedDate, { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(startDate, i));
+
+  // Transform dashboard schedule data to ScheduleEvent format
+  const getEventsForDate = (date: Date) => {
+    if (isSameDay(date, new Date())) {
+      return todaySchedule.map((item): ScheduleEvent => {
+        const start = new Date(item.start_time);
+        const end = new Date(item.end_time);
+        const durationMs = end.getTime() - start.getTime();
+        const durationHours = Math.floor(durationMs / (1000 * 60 * 60));
+        const durationMinutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+
+        let duration = '';
+        if (durationHours > 0) {
+          duration = `${durationHours}h`;
+          if (durationMinutes > 0) duration += ` ${durationMinutes}m`;
+        } else {
+          duration = `${durationMinutes}m`;
+        }
+
+        return {
+          id: item.id,
+          title: item.title,
+          time: format(start, 'HH:mm'),
+          duration,
+          type: item.type === 'brick' ? 'brick' : item.type === 'quanta' ? 'quanta' : 'event',
+          status: item.status,
+          color: item.status === 'completed' ? 'bg-green-500' :
+                 item.status === 'in_progress' ? 'bg-blue-500' : 'bg-gray-400'
+        };
+      });
+    }
+
+    // For other dates, show empty array (could be enhanced to show scheduled items)
+    return [];
+  };
+
+  const eventsForSelectedDate = getEventsForDate(selectedDate);
 
   return (
     <div className="flex h-full flex-col">
@@ -103,11 +112,20 @@ export function ScheduleView() {
               {format(selectedDate, 'EEEE, MMMM d')}
             </h3>
             <span className="text-xs text-gray-500 dark:text-gray-400">
-              {mockEvents.length} events
+              {eventsForSelectedDate.length} events
             </span>
           </div>
 
-          {mockEvents.map((event, index) => (
+          {eventsForSelectedDate.length === 0 ? (
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+              <Calendar className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <p className="text-sm">No events scheduled</p>
+              {isSameDay(selectedDate, new Date()) && (
+                <p className="text-xs mt-1">Add some bricks or events to get started!</p>
+              )}
+            </div>
+          ) : (
+            eventsForSelectedDate.map((event, index) => (
             <motion.div
               key={event.id}
               initial={{ opacity: 0, x: 20 }}
@@ -157,7 +175,8 @@ export function ScheduleView() {
                   : 'bg-gray-300 dark:bg-gray-600'
               }`} />
             </motion.div>
-          ))}
+          ))
+          )}
 
           {/* Add new event */}
           <motion.button
@@ -176,26 +195,28 @@ export function ScheduleView() {
         <div className="grid grid-cols-3 gap-3 text-center">
           <div>
             <div className="text-lg font-semibold text-gray-900 dark:text-white">
-              5
+              {stats.activeBricks}
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400">
-              Bricks
+              Active Bricks
             </div>
           </div>
           <div>
             <div className="text-lg font-semibold text-gray-900 dark:text-white">
-              12
+              {stats.completedToday}
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400">
-              Quantas
+              Completed Today
             </div>
           </div>
           <div>
-            <div className="text-lg font-semibold text-green-600 dark:text-green-400">
-              85%
+            <div className={`text-lg font-semibold ${
+              stats.aiConversations > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500'
+            }`}>
+              {stats.aiConversations}
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400">
-              Complete
+              AI Conversations
             </div>
           </div>
         </div>
