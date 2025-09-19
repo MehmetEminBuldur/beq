@@ -18,7 +18,7 @@ RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Install Python dependencies
-COPY requirements.txt .
+COPY services/orchestrator/requirements.txt requirements.txt
 RUN pip install --upgrade pip && \
     pip install -r requirements.txt
 
@@ -46,13 +46,13 @@ COPY --from=builder /opt/venv /opt/venv
 WORKDIR /app
 
 # Copy shared models package
-COPY ../../packages/shared-models /tmp/shared-models
+COPY packages/shared-models /tmp/shared-models
 
 # Install shared models package
 RUN pip install -e /tmp/shared-models
 
 # Copy application code
-COPY . .
+COPY services/orchestrator /app
 
 # Change ownership to non-root user
 RUN chown -R beq:beq /app

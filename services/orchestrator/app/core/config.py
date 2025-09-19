@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     reload: bool = Field(False, description="Auto-reload on code changes")
     
     # Security settings
-    secret_key: str = Field(..., description="Secret key for JWT tokens")
+    secret_key: str = Field("dev-secret-key", description="Secret key for JWT tokens")
     algorithm: str = Field("HS256", description="JWT algorithm")
     access_token_expire_minutes: int = Field(30, description="Access token expiration time")
     

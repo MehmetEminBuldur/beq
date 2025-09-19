@@ -224,7 +224,7 @@ class OrchestratorAgent(LoggerMixin):
                     include_details=True
                 )
                 tools_used.append("get_schedule")
-                state["schedule_updated"] = True
+                # Getting the schedule does not imply an update
             except Exception as e:
                 logger.error("Error using schedule tool", exc_info=e)
         
@@ -293,6 +293,27 @@ class OrchestratorAgent(LoggerMixin):
         
         # Add AI response to messages
         state["messages"].append(AIMessage(content=response_content))
+        
+        # Heuristic suggestions based on actions/results
+        suggestions: List[str] = []
+        if state.get("schedule_updated"):
+            suggestions.append("Review today's schedule and adjust any conflicts")
+            suggestions.append("Would you like me to add reminders for key blocks?")
+        if state.get("bricks_created"):
+            suggestions.append("Break the new Brick into Quantas for actionable steps")
+            suggestions.append("Should I schedule the first Quanta this week?")
+        if state.get("resources_recommended"):
+            suggestions.append("Save recommended resources to your learning list")
+        if not suggestions:
+            suggestions.append("Would you like me to create a Brick for this?")
+            suggestions.append("Should I check your calendar for available time blocks?")
+        
+        # Store suggestions for downstream consumption
+        state["next_action"] = state.get("next_action") or "respond"
+        state["tools_used"] = state.get("tools_used", [])
+        state.setdefault("user_context", {})
+        # Persist on state via context updates key if needed later
+        state["user_context"].update({"last_suggestions": suggestions})
         
         return state
     
@@ -412,6 +433,7 @@ Remember: You're not just a scheduler, you're a life optimization partner. Help 
                 response_text=ai_message.content,
                 model_used=settings.default_model,
                 actions_taken=final_state.get("tools_used", []),
+                suggestions=final_state.get("user_context", {}).get("last_suggestions", []),
                 schedule_updated=final_state.get("schedule_updated", False),
                 bricks_created=[UUID(bid) for bid in final_state.get("bricks_created", []) if bid],
                 resources_recommended=[UUID(rid) for rid in final_state.get("resources_recommended", []) if rid]

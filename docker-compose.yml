@@ -44,8 +44,8 @@ services:
   # BeQ Microservices
   orchestrator:
     build:
-      context: ./services/orchestrator
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/orchestrator/Dockerfile
     container_name: beq-orchestrator
     environment:
       - ENVIRONMENT=development
@@ -70,8 +70,8 @@ services:
 
   scheduler:
     build:
-      context: ./services/scheduler
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/scheduler/Dockerfile
     container_name: beq-scheduler
     environment:
       - ENVIRONMENT=development
@@ -89,8 +89,8 @@ services:
 
   rag-recommender:
     build:
-      context: ./services/rag-recommender
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/rag-recommender/Dockerfile
     container_name: beq-rag-recommender
     environment:
       - ENVIRONMENT=development
@@ -137,8 +137,8 @@ services:
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:8000
       - NEXT_PUBLIC_ENVIRONMENT=development
-      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
-      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - NEXT_PUBLIC_SUPABASE_URL=https://ncuqhnggwiayzqvrelql.supabase.co
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5jdXFobmdnd2lheXpxdnJlbHFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgyODkwODcsImV4cCI6MjA3Mzg2NTA4N30.EQG8bwa0uhYv3u8TkH5bHiTJoJupcG8m_ETDLUuos9I
     ports:
       - "3000:3000"
     depends_on:

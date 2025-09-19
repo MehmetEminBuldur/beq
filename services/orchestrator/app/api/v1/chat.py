@@ -169,7 +169,8 @@ async def send_message(
     return await chat_service.process_message(
         message=request.message,
         user_id=request.user_id,
-        conversation_id=request.conversation_id
+        conversation_id=request.conversation_id,
+        context=request.context or {}
     )
 
 
