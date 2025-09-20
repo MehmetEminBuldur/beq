@@ -23,8 +23,8 @@ from .core.telemetry import get_telemetry_collector
 from .api.v1.router import api_v1_router
 from .api.health import health_router
 from .llm.openrouter_client import (
-    get_openrouter_conversational_client,
-    cleanup_openrouter_conversational_client,
+    get_openai_conversational_client,
+    cleanup_openai_conversational_client,
 )
 from .clients.scheduler_client import (
     get_scheduler_client,
@@ -54,14 +54,14 @@ async def lifespan(app: FastAPI):
     # TODO: Initialize Redis connections
     # Initialize AI clients
     try:
-        llm_client = await get_openrouter_conversational_client()
+        llm_client = await get_openai_conversational_client()
         app.state.llm_client = llm_client
         logger.info(
-            "OpenRouter LLM client initialized",
+            "OpenAI LLM client initialized",
             model=getattr(llm_client, "model", None),
         )
     except Exception as e:
-        logger.error("Failed to initialize OpenRouter LLM client", error=str(e))
+        logger.error("Failed to initialize OpenAI LLM client", error=str(e))
 
     # Initialize service clients
     try:
@@ -98,10 +98,10 @@ async def lifespan(app: FastAPI):
     # TODO: Close Redis connections
     # Cleanup AI clients
     try:
-        await cleanup_openrouter_conversational_client()
-        logger.info("OpenRouter LLM client closed")
+        await cleanup_openai_conversational_client()
+        logger.info("OpenAI LLM client closed")
     except Exception as e:
-        logger.warning("Error closing OpenRouter LLM client", error=str(e))
+        logger.warning("Error closing OpenAI LLM client", error=str(e))
 
     # Cleanup service clients
     try:

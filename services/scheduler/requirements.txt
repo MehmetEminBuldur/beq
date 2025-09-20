@@ -4,8 +4,9 @@ uvicorn[standard]==0.24.0
 pydantic==2.5.0
 pydantic-settings==2.1.0
 
-# LLM and AI scheduling (Open Source Only)
-httpx==0.24.0  # For OpenRouter HTTP client
+# LLM and AI scheduling
+openai==1.3.0  # For OpenAI API integration
+httpx==0.24.0  # For HTTP client
 python-dateutil==2.8.2
 pytz==2023.3
 numpy==1.26.2

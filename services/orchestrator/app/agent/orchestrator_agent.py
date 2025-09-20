@@ -21,9 +21,9 @@ import structlog
 from ..core.config import get_settings
 from ..core.logging import LoggerMixin
 from ..llm.openrouter_client import (
-    OpenRouterConversationalClient,
+    OpenAIConversationalClient,
     ConversationMessage,
-    get_openrouter_conversational_client
+    get_openai_conversational_client
 )
 from ..tools.scheduling_tools import (
     ScheduleBrickTool, 
@@ -108,10 +108,10 @@ class OrchestratorAgent(LoggerMixin):
         self.checkpointer = MemorySaver()
         self.conversations: Dict[UUID, ConversationContext] = {}
     
-    async def _get_llm_client(self) -> OpenRouterConversationalClient:
-        """Get the OpenRouter LLM client (async initialization)."""
+    async def _get_llm_client(self) -> OpenAIConversationalClient:
+        """Get the OpenAI LLM client (async initialization)."""
         if self.openrouter_client is None:
-            self.openrouter_client = await get_openrouter_conversational_client()
+            self.openrouter_client = await get_openai_conversational_client()
         return self.openrouter_client
     
     def _initialize_tools(self) -> List[BaseTool]:
@@ -189,7 +189,7 @@ class OrchestratorAgent(LoggerMixin):
         Respond with a brief analysis in 1-2 sentences.
         """
         
-        # Analyze with OpenRouter Gemma
+        # Analyze with OpenAI
         llm_client = await self._get_llm_client()
         conversation_messages = [
             ConversationMessage(role="user", content=analysis_prompt)
@@ -280,7 +280,7 @@ class OrchestratorAgent(LoggerMixin):
         Keep your response conversational and helpful.
         """
         
-        # Generate response with OpenRouter Gemma
+        # Generate response with OpenAI
         llm_client = await self._get_llm_client()
         conversation_messages = [
             ConversationMessage(role="user", content=response_prompt)

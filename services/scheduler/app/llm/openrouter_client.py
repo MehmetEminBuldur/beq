@@ -1,8 +1,8 @@
 """
-OpenRouter LLM Client for BeQ Scheduling.
+OpenAI LLM Client for BeQ Scheduling.
 
-This module provides integration with OpenRouter API to use
-Gemma 3 27B IT model for intelligent scheduling decisions.
+This module provides integration with OpenAI API for
+intelligent scheduling decisions.
 """
 
 import os
@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 import asyncio
 from dataclasses import dataclass
 
-import httpx
+from openai import AsyncOpenAI
 from tenacity import retry, stop_after_attempt, wait_exponential
 import structlog
 
@@ -37,26 +37,21 @@ class SchedulingResult:
     alternative_suggestions: List[str]
     warnings: List[str]
 
-class OpenRouterClient:
-    """Client for OpenRouter API with Gemma 3 27B IT model."""
-    
+class OpenAIClient:
+    """Client for OpenAI API for scheduling."""
+
     def __init__(self):
-        self.api_key = os.getenv("OPENROUTER_API_KEY")
-        self.base_url = "https://openrouter.ai/api/v1"
-        self.model = "google/gemma-2-27b-it"  # Gemma 3 27B IT model
+        self.api_key = os.getenv("OPENAI_API_KEY")
+        self.model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
         self.max_tokens = 4096
         self.temperature = 0.7
-        
+
         if not self.api_key:
-            raise ValueError("OPENROUTER_API_KEY environment variable is required")
-        
-        self.client = httpx.AsyncClient(
-            timeout=httpx.Timeout(60.0),
-            headers={
-                "Authorization": f"Bearer {self.api_key}",
-                "HTTP-Referer": "https://beq.app",
-                "X-Title": "BeQ Life Management"
-            }
+            raise ValueError("OPENAI_API_KEY environment variable is required")
+
+        self.client = AsyncOpenAI(
+            api_key=self.api_key,
+            timeout=60.0
         )
     
     @retry(
@@ -64,14 +59,33 @@ class OpenRouterClient:
         wait=wait_exponential(multiplier=1, min=4, max=10)
     )
     async def generate_schedule(self, context: SchedulingContext) -> SchedulingResult:
-        """Generate an optimized schedule using Gemma 3 27B IT."""
-        
+        """Generate an optimized schedule using OpenAI."""
+
         prompt = self._create_scheduling_prompt(context)
-        
+
         try:
-            response = await self._make_api_call(prompt)
-            result = self._parse_scheduling_response(response)
-            
+            response = await self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": self._get_system_prompt()
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                max_tokens=self.max_tokens,
+                temperature=self.temperature,
+                top_p=0.9,
+                frequency_penalty=0.1,
+                presence_penalty=0.1
+            )
+
+            content = response.choices[0].message.content
+            result = self._parse_scheduling_response({"choices": [{"message": {"content": content}}]})
+
             logger.info(
                 "LLM scheduling completed",
                 model=self.model,
@@ -79,42 +93,13 @@ class OpenRouterClient:
                 scheduled_count=len(result.scheduled_events),
                 confidence=result.confidence_score
             )
-            
+
             return result
-            
+
         except Exception as e:
             logger.error("Error in LLM scheduling", exc_info=e)
             return self._create_fallback_schedule(context)
     
-    async def _make_api_call(self, prompt: str) -> Dict[str, Any]:
-        """Make API call to OpenRouter."""
-        
-        payload = {
-            "model": self.model,
-            "messages": [
-                {
-                    "role": "system",
-                    "content": self._get_system_prompt()
-                },
-                {
-                    "role": "user", 
-                    "content": prompt
-                }
-            ],
-            "max_tokens": self.max_tokens,
-            "temperature": self.temperature,
-            "top_p": 0.9,
-            "frequency_penalty": 0.1,
-            "presence_penalty": 0.1
-        }
-        
-        response = await self.client.post(
-            f"{self.base_url}/chat/completions",
-            json=payload
-        )
-        
-        response.raise_for_status()
-        return response.json()
     
     def _get_system_prompt(self) -> str:
         """Get the system prompt for scheduling."""
@@ -277,25 +262,25 @@ Please generate the schedule now.
     
     async def close(self):
         """Close the HTTP client."""
-        await self.client.aclose()
+        await self.client.close()
 
 
 # Global client instance
-_openrouter_client: Optional[OpenRouterClient] = None
+_openai_client: Optional[OpenAIClient] = None
 
-async def get_openrouter_client() -> OpenRouterClient:
-    """Get the global OpenRouter client instance."""
-    global _openrouter_client
-    
-    if _openrouter_client is None:
-        _openrouter_client = OpenRouterClient()
-    
-    return _openrouter_client
+async def get_openai_client() -> OpenAIClient:
+    """Get the global OpenAI client instance."""
+    global _openai_client
 
-async def cleanup_openrouter_client():
-    """Cleanup the global OpenRouter client."""
-    global _openrouter_client
-    
-    if _openrouter_client is not None:
-        await _openrouter_client.close()
-        _openrouter_client = None
+    if _openai_client is None:
+        _openai_client = OpenAIClient()
+
+    return _openai_client
+
+async def cleanup_openai_client():
+    """Cleanup the global OpenAI client."""
+    global _openai_client
+
+    if _openai_client is not None:
+        await _openai_client.close()
+        _openai_client = None

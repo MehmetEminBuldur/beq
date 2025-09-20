@@ -36,7 +36,7 @@ copy_env_file "clients/web/.env.local.example" "clients/web/.env.local" "Fronten
 echo ""
 echo "🎯 Next Steps:"
 echo "1. Edit each .env file and replace placeholder values with real ones"
-echo "2. Get your OpenRouter API key from https://openrouter.ai/keys"
+echo "2. Get your OpenAI API key from https://platform.openai.com/api-keys"
 echo "3. Set up your Supabase project and get the keys"
 echo "4. Generate secure SECRET_KEY values using: python -c \"import secrets; print(secrets.token_hex(32))\""
 echo ""

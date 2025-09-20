@@ -1,8 +1,8 @@
 """
 BeQ LLM Scheduler Service
 
-This service provides AI-powered scheduling optimization using 
-Gemma 3 27B IT model via OpenRouter for intelligent task scheduling.
+This service provides AI-powered scheduling optimization using
+OpenAI models for intelligent task scheduling.
 """
 
 from contextlib import asynccontextmanager
@@ -16,11 +16,11 @@ import structlog
 import asyncio
 
 from .llm.openrouter_client import (
-    OpenRouterClient, 
-    SchedulingContext, 
+    OpenAIClient,
+    SchedulingContext,
     SchedulingResult,
-    get_openrouter_client,
-    cleanup_openrouter_client
+    get_openai_client,
+    cleanup_openai_client
 )
 
 logger = structlog.get_logger(__name__)
@@ -94,18 +94,18 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting BeQ LLM Scheduler Service", version="2.0.0", model="gemma-3-27b-it")
     
-    # Initialize OpenRouter client
+    # Initialize OpenAI client
     try:
-        client = await get_openrouter_client()
-        logger.info("OpenRouter client initialized successfully")
+        client = await get_openai_client()
+        logger.info("OpenAI client initialized successfully")
     except Exception as e:
-        logger.error("Failed to initialize OpenRouter client", exc_info=e)
+        logger.error("Failed to initialize OpenAI client", exc_info=e)
     
     yield
     
     # Shutdown
     logger.info("Shutting down BeQ LLM Scheduler Service")
-    await cleanup_openrouter_client()
+    await cleanup_openai_client()
 
 
 def create_app() -> FastAPI:
@@ -113,7 +113,7 @@ def create_app() -> FastAPI:
     
     app = FastAPI(
         title="BeQ LLM Scheduler Service",
-        description="AI-powered scheduling optimization using Gemma 3 27B IT via OpenRouter",
+        description="AI-powered scheduling optimization using OpenAI models",
         version="2.0.0",
         docs_url="/docs",
         redoc_url="/redoc",
@@ -136,11 +136,11 @@ def create_app() -> FastAPI:
             "status": "healthy",
             "service": "beq-llm-scheduler",
             "version": "2.0.0",
-            "ai_model": "gemma-3-27b-it",
-            "provider": "openrouter",
+            "ai_model": "gpt-4o-mini",
+            "provider": "openai",
             "capabilities": [
                 "llm_scheduling",
-                "contextual_optimization", 
+                "contextual_optimization",
                 "natural_language_reasoning",
                 "adaptive_scheduling"
             ]
@@ -153,8 +153,8 @@ def create_app() -> FastAPI:
             "service": "BeQ LLM Scheduler Service",
             "version": "2.0.0",
             "status": "operational",
-            "ai_model": "google/gemma-2-27b-it",
-            "provider": "OpenRouter",
+            "ai_model": "gpt-4o-mini",
+            "provider": "OpenAI",
             "features": [
                 "AI-powered schedule optimization",
                 "Natural language reasoning",
@@ -166,7 +166,7 @@ def create_app() -> FastAPI:
     
     @app.post("/api/v1/schedule", response_model=ScheduleResponse)
     async def generate_schedule(request: ScheduleRequest):
-        """Generate an optimized schedule using Gemma 3 27B IT."""
+        """Generate an optimized schedule using OpenAI."""
         
         start_time = datetime.now()
         
@@ -178,8 +178,8 @@ def create_app() -> FastAPI:
                 planning_horizon=request.planning_horizon_days
             )
             
-            # Get OpenRouter client
-            client = await get_openrouter_client()
+            # Get OpenAI client
+            client = await get_openai_client()
             
             # Prepare scheduling context
             context = SchedulingContext(
@@ -293,13 +293,13 @@ def create_app() -> FastAPI:
     @app.get("/api/v1/models/status")
     async def get_model_status():
         """Get the status of the AI model."""
-        
+
         try:
-            client = await get_openrouter_client()
-            
+            client = await get_openai_client()
+
             return {
-                "model": "google/gemma-2-27b-it",
-                "provider": "OpenRouter",
+                "model": "gpt-4o-mini",
+                "provider": "OpenAI",
                 "status": "operational",
                 "max_tokens": client.max_tokens,
                 "temperature": client.temperature,
@@ -310,12 +310,12 @@ def create_app() -> FastAPI:
                     "Preference learning"
                 ]
             }
-            
+
         except Exception as e:
             logger.error("Failed to get model status", exc_info=e)
             return {
-                "model": "google/gemma-2-27b-it",
-                "provider": "OpenRouter",
+                "model": "gpt-4o-mini",
+                "provider": "OpenAI",
                 "status": "unavailable",
                 "error": str(e)
             }

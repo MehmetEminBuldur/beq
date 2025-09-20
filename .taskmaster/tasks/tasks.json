@@ -22,7 +22,7 @@
         "dependencies": [
           1
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": []
       },
       {
@@ -357,11 +357,26 @@
             "testStrategy": "Test the integration by simulating requests through the orchestrator and checking the responses."
           }
         ]
+      },
+      {
+        "id": 15,
+        "title": "Migrate Services to OpenAI GPT-4o",
+        "description": "Successfully migrate all services from OpenRouter to OpenAI GPT-4o, updating orchestrator, scheduler, and RAG recommender services to utilize the OpenAI API with the GPT-4o model.",
+        "details": "1. Update the orchestrator service to replace OpenRouter API calls with OpenAI API calls, ensuring that the new endpoints are correctly integrated. 2. Modify the scheduler service to utilize the OpenAI API for scheduling tasks, ensuring that the logic aligns with the new model's capabilities. 3. Update the RAG recommender service to fetch recommendations using the OpenAI API, ensuring that the data contracts are maintained. 4. Test the integration of all services with the OpenAI API, ensuring that they function as expected and handle errors gracefully. 5. Document any changes made to the API endpoints and update the configuration files to reflect the new environment variables for OpenAI API access.",
+        "testStrategy": "1. Verify that the orchestrator, scheduler, and RAG recommender services can successfully communicate with the OpenAI API. 2. Test each service's functionality to ensure that they return the expected results when interacting with the OpenAI API. 3. Conduct integration tests to ensure that the services work together seamlessly after the migration. 4. Check the logs for any errors or warnings related to the new API integration.",
+        "status": "done",
+        "dependencies": [
+          2,
+          4,
+          10
+        ],
+        "priority": "medium",
+        "subtasks": []
       }
     ],
     "metadata": {
       "created": "2025-09-19T20:22:52.329Z",
-      "updated": "2025-09-20T20:22:46.227Z",
+      "updated": "2025-09-20T21:56:20.578Z",
       "description": "Tasks for master context"
     }
   }

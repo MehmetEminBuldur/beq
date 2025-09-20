@@ -52,8 +52,8 @@ services:
       - SCHEDULER_SERVICE_URL=http://scheduler:8001
       - RAG_SERVICE_URL=http://rag-recommender:8002
       - CALENDAR_SERVICE_URL=http://calendar-integration:8003
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - OPENROUTER_MODEL=${OPENROUTER_MODEL:-google/gemma-2-27b-it}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o}
       - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
       - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
@@ -81,8 +81,8 @@ services:
     environment:
       - ENVIRONMENT=development
       - DATABASE_URL=postgresql+asyncpg://beq:beq_password@postgres:5432/beq_scheduler
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - OPENROUTER_MODEL=${OPENROUTER_MODEL:-google/gemma-2-27b-it}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o}
     ports:
       - "8001:8001"
     depends_on:

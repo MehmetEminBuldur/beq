@@ -2,21 +2,21 @@
 LLM-based scheduling module for BeQ.
 
 This module provides AI-powered scheduling capabilities using
-large language models via OpenRouter.
+large language models via OpenAI.
 """
 
 from .openrouter_client import (
-    OpenRouterClient,
+    OpenAIClient,
     SchedulingContext,
     SchedulingResult,
-    get_openrouter_client,
-    cleanup_openrouter_client
+    get_openai_client,
+    cleanup_openai_client
 )
 
 __all__ = [
-    "OpenRouterClient",
-    "SchedulingContext", 
+    "OpenAIClient",
+    "SchedulingContext",
     "SchedulingResult",
-    "get_openrouter_client",
-    "cleanup_openrouter_client"
+    "get_openai_client",
+    "cleanup_openai_client"
 ]

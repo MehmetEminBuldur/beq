@@ -1,20 +1,20 @@
 """
-LLM module for BeQ Orchestrator using OpenRouter and Gemma 3 27B IT.
+LLM module for BeQ Orchestrator using OpenAI.
 
 This module provides conversational AI capabilities using
-100% open source models via OpenRouter.
+OpenAI models.
 """
 
 from .openrouter_client import (
-    OpenRouterConversationalClient,
+    OpenAIConversationalClient,
     ConversationMessage,
-    get_openrouter_conversational_client,
-    cleanup_openrouter_conversational_client
+    get_openai_conversational_client,
+    cleanup_openai_conversational_client
 )
 
 __all__ = [
-    "OpenRouterConversationalClient",
+    "OpenAIConversationalClient",
     "ConversationMessage",
-    "get_openrouter_conversational_client",
-    "cleanup_openrouter_conversational_client"
+    "get_openai_conversational_client",
+    "cleanup_openai_conversational_client"
 ]

@@ -4,8 +4,9 @@ uvicorn[standard]==0.24.0
 pydantic==2.5.0
 pydantic-settings==2.1.0
 
-# LLM and AI dependencies (Open Source Only)
-httpx==0.24.0  # For OpenRouter HTTP client
+# LLM and AI dependencies
+openai==1.3.0  # For OpenAI API integration
+httpx==0.24.0  # For HTTP client
 langgraph==0.0.62
 langchain-core==0.2.0
 tiktoken==0.5.2  # For token counting
