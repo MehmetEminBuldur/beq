@@ -372,11 +372,107 @@
         ],
         "priority": "medium",
         "subtasks": []
+      },
+      {
+        "id": 16,
+        "title": "Implement AI-Powered Brick/Quanta Suggestions Using RAG Recommender Service",
+        "description": "Develop AI-powered suggestions for breaking down projects into actionable units based on user goals and preferences using the RAG recommender service.",
+        "details": "1. Integrate the RAG recommender service into the application architecture. 2. Implement logic to analyze user goals and preferences, which may involve collecting user input through forms or interactions. 3. Create algorithms to generate relevant suggestions for Bricks and Quantas based on the analyzed data. 4. Ensure that the suggestions are contextually relevant and actionable, allowing users to easily break down their projects. 5. Implement necessary API endpoints to expose the suggestion functionality to the frontend. 6. Collaborate with the UI/UX team to design how suggestions will be presented to users in the application.",
+        "testStrategy": "1. Simulate various user inputs and preferences to verify that the RAG recommender service generates appropriate suggestions. 2. Conduct user testing sessions to gather feedback on the relevance and usefulness of the suggestions provided. 3. Ensure that the suggestions can be successfully integrated into the existing workflow for creating and managing Bricks and Quantas. 4. Write unit tests for the suggestion algorithms to ensure they function correctly under different scenarios.",
+        "status": "pending",
+        "dependencies": [
+          10,
+          8
+        ],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 17,
+        "title": "Develop Prompt Strategies for Life Management Guidance",
+        "description": "Create deterministic prompts with guardrails for goal-oriented conversations and habit formation support in chat interactions.",
+        "details": "1. Research and define the types of prompts that can guide users in life management, focusing on goal setting and habit formation. 2. Develop a set of deterministic prompts that can be used in the chat interface, ensuring they are clear and actionable. 3. Implement guardrails to ensure that the prompts lead to constructive conversations, avoiding ambiguity and confusion. 4. Integrate the prompt strategies into the existing chat interface, ensuring that they can be triggered based on user input and context. 5. Collaborate with the AI-powered suggestions task to ensure that the prompts align with the suggestions provided to users. 6. Document the prompt strategies and provide guidelines for future enhancements.",
+        "testStrategy": "1. Conduct user testing sessions to evaluate the effectiveness of the prompts in guiding conversations. 2. Monitor user interactions to ensure that the prompts are being triggered appropriately and leading to desired outcomes. 3. Gather feedback from users on the clarity and usefulness of the prompts, making adjustments as necessary. 4. Verify that the integration with the chat interface works seamlessly and that prompts are displayed correctly in response to user inputs.",
+        "status": "pending",
+        "dependencies": [
+          6,
+          10
+        ],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 18,
+        "title": "Implement Local-First Caching with Browser Storage and Service Worker",
+        "description": "Implement local-first caching with browser local storage, service worker, background sync, and compression to enable offline functionality and improve performance on low-end devices.",
+        "details": "1. Set up browser local storage for caching application data and user preferences. 2. Implement a service worker for background sync and offline functionality. 3. Add data compression to reduce storage requirements and improve performance. 4. Ensure the application can function offline and sync data when connectivity is restored. 5. Optimize for low-end devices by implementing lazy loading and virtualization where appropriate.",
+        "testStrategy": "1. Test offline functionality by disconnecting from the internet and verifying core features work. 2. Verify data sync works when connectivity is restored. 3. Monitor performance improvements on low-end devices. 4. Test compression effectiveness and storage usage.",
+        "status": "pending",
+        "dependencies": [
+          8
+        ],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 19,
+        "title": "Add Sleep/Rest Awareness and Work-Life Balance Features",
+        "description": "Implement holistic optimization features including sleep/rest awareness, habit formation support, and work-life balance in the scheduling system.",
+        "details": "1. Add sleep tracking and rest period scheduling to prevent burnout. 2. Implement work-life balance algorithms that ensure adequate rest time between tasks. 3. Create habit formation prompts and tracking within the scheduling system. 4. Add configurable preferences for work hours, rest periods, and personal boundaries. 5. Integrate health metrics and well-being indicators into the scheduling optimization.",
+        "testStrategy": "1. Test scheduling algorithms ensure proper rest periods between intensive tasks. 2. Verify sleep awareness prevents scheduling tasks during preferred sleep hours. 3. Conduct user testing to ensure work-life balance features improve overall well-being. 4. Monitor habit formation tracking and success rates.",
+        "status": "pending",
+        "dependencies": [
+          13,
+          7
+        ],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 20,
+        "title": "Implement Microsoft Outlook/Teams Calendar Integration",
+        "description": "Add Microsoft Outlook and Teams calendar sync capabilities in addition to Google Calendar integration.",
+        "details": "1. Implement Microsoft OAuth flow for Outlook/Teams authentication. 2. Create calendar sync functionality for Microsoft services. 3. Add conflict detection and resolution for Microsoft calendar events. 4. Ensure seamless integration with existing calendar abstraction layer. 5. Add Microsoft-specific features like Teams meeting integration.",
+        "testStrategy": "1. Test OAuth authentication flow for Microsoft accounts. 2. Verify calendar event synchronization works bidirectionally. 3. Test conflict detection with existing Google Calendar integration. 4. Ensure Microsoft Teams meeting integration functions properly.",
+        "status": "pending",
+        "dependencies": [
+          14
+        ],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 21,
+        "title": "Implement RAG-Powered Learning Pathways and Content Suggestions",
+        "description": "Extend the RAG recommender service to provide learning pathways and curated content suggestions beyond basic Brick/Quanta recommendations.",
+        "details": "1. Enhance the RAG recommender service to generate comprehensive learning pathways. 2. Implement content curation algorithms for educational resources. 3. Add personalized learning recommendations based on user progress and goals. 4. Integrate with external educational platforms and content sources. 5. Create progressive learning sequences that build upon completed Bricks and Quantas.",
+        "testStrategy": "1. Test learning pathway generation for various skill domains. 2. Verify content suggestions are relevant and high-quality. 3. Monitor user engagement with recommended learning materials. 4. Ensure learning pathways adapt to user progress and feedback.",
+        "status": "pending",
+        "dependencies": [
+          16,
+          10
+        ],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 22,
+        "title": "Implement Comprehensive Onboarding Wizard",
+        "description": "Create a detailed onboarding wizard that guides users through goal setting, preference configuration, and calendar connections.",
+        "details": "1. Design multi-step onboarding flow covering all essential setup areas. 2. Implement goal-setting interface with guided prompts. 3. Add preference configuration for scheduling, notifications, and personalization. 4. Integrate calendar connection setup with OAuth flows. 5. Include tutorial elements and tooltips for key features. 6. Ensure onboarding adapts based on user responses and preferences.",
+        "testStrategy": "1. Test complete onboarding flow from start to finish. 2. Verify user preferences are correctly saved and applied. 3. Monitor user completion rates and drop-off points. 4. Conduct usability testing to ensure the wizard is intuitive and engaging.",
+        "status": "pending",
+        "dependencies": [
+          5,
+          14
+        ],
+        "priority": "high",
+        "subtasks": []
       }
     ],
     "metadata": {
       "created": "2025-09-19T20:22:52.329Z",
-      "updated": "2025-09-20T21:56:20.578Z",
+      "updated": "2025-09-20T22:17:16.593Z",
       "description": "Tasks for master context"
     }
   }
