@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useAuthContext } from '@/lib/providers/auth-provider'
 import { useDashboard } from '@/lib/hooks/use-dashboard'
-import { format, startOfDay, endOfDay, isSameDay, isToday, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns'
+import { format, startOfDay, endOfDay, isSameDay, isToday } from 'date-fns'
 import Link from 'next/link'
 import { Navigation } from '@/components/layout/navigation'
 
@@ -31,7 +31,6 @@ export default function SmartCalendar() {
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth())
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear())
   const [selectedDate, setSelectedDate] = useState(new Date())
-  const [searchQuery, setSearchQuery] = useState('')
   const [activeView, setActiveView] = useState('Month')
 
   // Prevent hydration mismatch by ensuring we only render dynamic content on client

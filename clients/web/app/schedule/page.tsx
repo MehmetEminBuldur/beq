@@ -2,6 +2,8 @@
  * Schedule Page - Demo of Schedule Optimization Features
  */
 
+'use client';
+
 import React from 'react';
 import { ScheduleOptimizer } from '@/components/schedule/schedule-optimizer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';

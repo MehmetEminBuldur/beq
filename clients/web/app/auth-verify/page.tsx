@@ -187,7 +187,7 @@ export default function AuthVerifyPage() {
                 {testResults.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <Shield className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>Click "Run Tests" to verify your authentication setup</p>
+                    <p>Click &quot;Run Tests&quot; to verify your authentication setup</p>
                   </div>
                 ) : (
                   <div className="space-y-3">

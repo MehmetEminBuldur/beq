@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
+import { validateAndSanitize, SECURITY_HEADERS } from '@/lib/utils/security';
 
 // Types
 interface Brick {
@@ -169,7 +170,14 @@ export async function GET(request: NextRequest) {
         priority
       },
       timestamp: new Date().toISOString()
-    }, { status: 200 });
+    }, {
+      status: 200,
+      headers: {
+        'Cache-Control': 'private, max-age=300', // Cache for 5 minutes
+        'CDN-Cache-Control': 'max-age=60', // CDN cache for 1 minute
+        ...SECURITY_HEADERS
+      }
+    });
 
   } catch (error) {
     console.error('Failed to fetch bricks:', error);
@@ -185,19 +193,43 @@ export async function POST(request: NextRequest) {
   try {
     const body: CreateBrickRequest & { user_id: string } = await request.json();
 
-    // Basic validation
+    // Enhanced security validation
     if (!body.user_id || !body.title) {
       return NextResponse.json(
         { error: 'Missing required fields: user_id and title' },
-        { status: 400 }
+        {
+          status: 400,
+          headers: SECURITY_HEADERS
+        }
       );
     }
 
-    if (body.title.length < 3 || body.title.length > 200) {
+    // Validate and sanitize title
+    const titleValidation = validateAndSanitize(body.title, 'title');
+    if (!titleValidation.isValid) {
       return NextResponse.json(
-        { error: 'Title must be between 3 and 200 characters' },
-        { status: 400 }
+        { error: titleValidation.error || 'Invalid title format' },
+        {
+          status: 400,
+          headers: SECURITY_HEADERS
+        }
       );
+    }
+
+    // Validate and sanitize description if provided
+    let sanitizedDescription = '';
+    if (body.description) {
+      const descValidation = validateAndSanitize(body.description, 'description', 'html');
+      if (!descValidation.isValid) {
+        return NextResponse.json(
+          { error: descValidation.error || 'Invalid description format' },
+          {
+            status: 400,
+            headers: SECURITY_HEADERS
+          }
+        );
+      }
+      sanitizedDescription = descValidation.sanitized;
     }
 
     // Initialize Supabase client
@@ -206,12 +238,12 @@ export async function POST(request: NextRequest) {
     const brickId = crypto.randomUUID();
     const now = new Date().toISOString();
 
-    // Create brick
+    // Create brick with sanitized data
     const brick: Omit<Brick, 'quantas'> = {
       id: brickId,
       user_id: body.user_id,
-      title: body.title.trim(),
-      description: body.description?.trim(),
+      title: titleValidation.sanitized,
+      description: sanitizedDescription || body.description?.trim(),
       category: body.category || 'general',
       priority: body.priority || 'medium',
       status: 'not_started',
@@ -284,7 +316,10 @@ export async function POST(request: NextRequest) {
       brick: fullBrick,
       message: 'Brick created successfully',
       timestamp: new Date().toISOString()
-    }, { status: 201 });
+    }, {
+      status: 201,
+      headers: SECURITY_HEADERS
+    });
 
   } catch (error) {
     console.error('Failed to create brick:', error);

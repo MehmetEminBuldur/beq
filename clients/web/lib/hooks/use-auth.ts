@@ -22,10 +22,17 @@ export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
 
   useEffect(() => {
-    // Get initial session
+    // Get initial session with timeout
     const getInitialSession = async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession();
+        // Add timeout to prevent hanging
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Session check timeout')), 5000)
+        );
+
+        const sessionPromise = supabase.auth.getSession();
+        const { data: { session }, error } = await Promise.race([sessionPromise, timeoutPromise]) as any;
+
         if (error) throw error;
 
         if (session?.user) {
@@ -35,7 +42,10 @@ export function useAuth() {
         }
       } catch (error) {
         console.error('Error getting initial session:', error);
-        toast.error('Failed to load authentication state');
+        // Don't show error toast for timeout/network issues on first load
+        if (!error.message.includes('timeout')) {
+          toast.error('Failed to load authentication state');
+        }
       } finally {
         setIsLoading(false);
       }

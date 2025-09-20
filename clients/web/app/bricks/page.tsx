@@ -8,6 +8,17 @@ import Link from 'next/link';
 
 export default function BricksPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuthContext();
+  const { bricks, isLoading, createBrick, deleteBrick, getBricksByStatus, loadUserData } = useBricks();
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [category, setCategory] = useState('general');
+  const [estimatedMinutes, setEstimatedMinutes] = useState(60);
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      loadUserData();
+    }
+  }, [isAuthenticated, user, loadUserData]);
 
   // Show loading state while authentication is being checked
   if (authLoading) {
@@ -47,15 +58,6 @@ export default function BricksPage() {
       </div>
     );
   }
-  const { bricks, isLoading, createBrick, deleteBrick, getBricksByStatus, loadUserData } = useBricks();
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('general');
-  const [estimatedMinutes, setEstimatedMinutes] = useState(60);
-
-  useEffect(() => {
-    loadUserData();
-  }, [loadUserData]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();

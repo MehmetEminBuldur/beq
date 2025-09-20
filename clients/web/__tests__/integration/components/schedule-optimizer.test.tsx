@@ -7,22 +7,18 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { jest } from '@jest/globals';
 import { ScheduleOptimizer } from '@/components/schedule/schedule-optimizer';
 import { Providers } from '@/components/providers/providers';
-import { useAuthContext } from '@/lib/providers/auth-provider';
+import { useAuthContext, AuthContextType } from '@/lib/providers/auth-provider';
 import { useSchedule } from '@/lib/hooks/use-schedule';
+import { UseScheduleReturn } from '@/lib/types/schedule';
 import {
   ScheduleGenerateResponse,
   ScheduleOptimizeResponse,
   ScheduledEvent,
 } from '@/lib/types/schedule';
 
-// Mock the hooks and providers
-jest.mock('@/lib/providers/auth-provider', () => ({
-  useAuthContext: jest.fn(),
-}));
-
-jest.mock('@/lib/hooks/use-schedule', () => ({
-  useSchedule: jest.fn(),
-}));
+// Mock the hooks and providers with proper typing
+jest.mock('@/lib/providers/auth-provider');
+jest.mock('@/lib/hooks/use-schedule');
 
 // Mock next/dynamic to avoid issues with dynamic imports in tests
 jest.mock('next/dynamic', () => ({
@@ -30,8 +26,8 @@ jest.mock('next/dynamic', () => ({
   default: jest.fn(() => ({ __esModule: true, default: jest.fn(() => <div>Mocked Component</div>) })),
 }));
 
-const mockUseAuthContext = useAuthContext as jest.MockedFunction<typeof useAuthContext>;
-const mockUseSchedule = useSchedule as jest.MockedFunction<typeof useSchedule>;
+const mockUseAuthContext = useAuthContext as jest.MockedFunction<() => AuthContextType>;
+const mockUseSchedule = useSchedule as jest.MockedFunction<() => UseScheduleReturn>;
 
 const mockUser = {
   id: 'test-user-123',
@@ -67,21 +63,21 @@ describe('ScheduleOptimizer Component', () => {
       isAuthenticated: true,
       isLoading: false,
       session: {},
-      signIn: jest.fn(),
-      signUp: jest.fn(),
-      signOut: jest.fn(),
-      resetPassword: jest.fn(),
-      updateProfile: jest.fn(),
+      signIn: jest.fn() as any,
+      signUp: jest.fn() as any,
+      signOut: jest.fn() as any,
+      resetPassword: jest.fn() as any,
+      updateProfile: jest.fn() as any,
     });
 
     mockUseSchedule.mockReturnValue({
       schedule: null,
       isLoading: false,
       error: null,
-      generateSchedule: jest.fn(),
-      optimizeSchedule: jest.fn(),
-      getUserSchedule: jest.fn(),
-      refreshSchedule: jest.fn(),
+      generateSchedule: jest.fn() as any,
+      optimizeSchedule: jest.fn() as any,
+      getUserSchedule: jest.fn() as any,
+      refreshSchedule: jest.fn() as any,
     });
   });
 
@@ -92,11 +88,11 @@ describe('ScheduleOptimizer Component', () => {
         isAuthenticated: false,
         isLoading: false,
         session: null,
-        signIn: jest.fn(),
-        signUp: jest.fn(),
-        signOut: jest.fn(),
-        resetPassword: jest.fn(),
-        updateProfile: jest.fn(),
+        signIn: jest.fn() as any,
+        signUp: jest.fn() as any,
+        signOut: jest.fn() as any,
+        resetPassword: jest.fn() as any,
+        updateProfile: jest.fn() as any,
       });
 
       renderWithProviders(<ScheduleOptimizer />);
@@ -114,25 +110,25 @@ describe('ScheduleOptimizer Component', () => {
 
   describe('Schedule Generation', () => {
     it('should call generateSchedule when Generate Schedule button is clicked', async () => {
-      const mockGenerateSchedule = jest.fn().mockResolvedValue({
+      const mockGenerateSchedule = jest.fn().mockResolvedValue(({
         success: true,
         scheduled_events: mockSchedule.events,
         reasoning: 'Generated optimal schedule',
         confidence_score: 0.85,
-        alternative_suggestions: [],
-        warnings: [],
-        unscheduled_tasks: [],
+        alternative_suggestions: [] as string[],
+        warnings: [] as string[],
+        unscheduled_tasks: [] as string[],
         processing_time_seconds: 1.2,
-      } as ScheduleGenerateResponse);
+      }) as any;
 
       mockUseSchedule.mockReturnValue({
         schedule: null,
         isLoading: false,
         error: null,
         generateSchedule: mockGenerateSchedule,
-        optimizeSchedule: jest.fn(),
-        getUserSchedule: jest.fn(),
-        refreshSchedule: jest.fn(),
+        optimizeSchedule: jest.fn() as any,
+        getUserSchedule: jest.fn() as any,
+        refreshSchedule: jest.fn() as any,
       });
 
       renderWithProviders(<ScheduleOptimizer />);
@@ -158,16 +154,16 @@ describe('ScheduleOptimizer Component', () => {
         resolveGenerate = resolve;
       });
 
-      const mockGenerateSchedule = jest.fn().mockReturnValue(generatePromise);
+      const mockGenerateSchedule = jest.fn().mockReturnValue(generatePromise) as any;
 
       mockUseSchedule.mockReturnValue({
         schedule: null,
         isLoading: true, // Initially loading
         error: null,
         generateSchedule: mockGenerateSchedule,
-        optimizeSchedule: jest.fn(),
-        getUserSchedule: jest.fn(),
-        refreshSchedule: jest.fn(),
+        optimizeSchedule: jest.fn() as any,
+        getUserSchedule: jest.fn() as any,
+        refreshSchedule: jest.fn() as any,
       });
 
       const { rerender } = renderWithProviders(<ScheduleOptimizer />);
@@ -193,9 +189,9 @@ describe('ScheduleOptimizer Component', () => {
         isLoading: false,
         error: null,
         generateSchedule: mockGenerateSchedule,
-        optimizeSchedule: jest.fn(),
-        getUserSchedule: jest.fn(),
-        refreshSchedule: jest.fn(),
+        optimizeSchedule: jest.fn() as any,
+        getUserSchedule: jest.fn() as any,
+        refreshSchedule: jest.fn() as any,
       });
 
       rerender(<Providers><ScheduleOptimizer /></Providers>);
@@ -206,17 +202,17 @@ describe('ScheduleOptimizer Component', () => {
     });
 
     it('should display error message when generation fails', async () => {
-      const mockGenerateSchedule = jest.fn().mockRejectedValue(new Error('Generation failed'));
-      const mockOnError = jest.fn();
+      const mockGenerateSchedule = jest.fn().mockRejectedValue(new Error('Generation failed')) as any;
+      const mockOnError = jest.fn() as any;
 
       mockUseSchedule.mockReturnValue({
         schedule: null,
         isLoading: false,
         error: 'Generation failed',
         generateSchedule: mockGenerateSchedule,
-        optimizeSchedule: jest.fn(),
-        getUserSchedule: jest.fn(),
-        refreshSchedule: jest.fn(),
+        optimizeSchedule: jest.fn() as any,
+        getUserSchedule: jest.fn() as any,
+        refreshSchedule: jest.fn() as any,
       });
 
       renderWithProviders(<ScheduleOptimizer />);
@@ -238,10 +234,10 @@ describe('ScheduleOptimizer Component', () => {
         schedule: mockSchedule,
         isLoading: false,
         error: null,
-        generateSchedule: jest.fn(),
-        optimizeSchedule: jest.fn(),
-        getUserSchedule: jest.fn(),
-        refreshSchedule: jest.fn(),
+        generateSchedule: jest.fn() as any,
+        optimizeSchedule: jest.fn() as any,
+        getUserSchedule: jest.fn() as any,
+        refreshSchedule: jest.fn() as any,
       });
     });
 
@@ -253,7 +249,7 @@ describe('ScheduleOptimizer Component', () => {
     });
 
     it('should call optimizeSchedule when Optimize Schedule button is clicked', async () => {
-      const mockOptimizeSchedule = jest.fn().mockResolvedValue({
+      const mockOptimizeSchedule = jest.fn().mockResolvedValue(({
         success: true,
         optimized_schedule: [
           {
@@ -270,10 +266,10 @@ describe('ScheduleOptimizer Component', () => {
         schedule: mockSchedule,
         isLoading: false,
         error: null,
-        generateSchedule: jest.fn(),
-        optimizeSchedule: mockOptimizeSchedule,
-        getUserSchedule: jest.fn(),
-        refreshSchedule: jest.fn(),
+        generateSchedule: jest.fn() as any,
+        optimizeSchedule: mockOptimizeSchedule as any,
+        getUserSchedule: jest.fn() as any,
+        refreshSchedule: jest.fn() as any,
       });
 
       renderWithProviders(<ScheduleOptimizer />);
@@ -296,10 +292,10 @@ describe('ScheduleOptimizer Component', () => {
         schedule: null,
         isLoading: false,
         error: null,
-        generateSchedule: jest.fn(),
-        optimizeSchedule: jest.fn(),
-        getUserSchedule: jest.fn(),
-        refreshSchedule: jest.fn(),
+        generateSchedule: jest.fn() as any,
+        optimizeSchedule: jest.fn() as any,
+        getUserSchedule: jest.fn() as any,
+        refreshSchedule: jest.fn() as any,
       });
 
       renderWithProviders(<ScheduleOptimizer />);
@@ -323,10 +319,10 @@ describe('ScheduleOptimizer Component', () => {
         schedule: null,
         isLoading: false,
         error: null,
-        generateSchedule: jest.fn(),
-        optimizeSchedule: jest.fn(),
-        getUserSchedule: jest.fn(),
-        refreshSchedule: jest.fn(),
+        generateSchedule: jest.fn() as any,
+        optimizeSchedule: jest.fn() as any,
+        getUserSchedule: jest.fn() as any,
+        refreshSchedule: jest.fn() as any,
       });
 
       renderWithProviders(<ScheduleOptimizer />);
@@ -346,25 +342,25 @@ describe('ScheduleOptimizer Component', () => {
   describe('Event Callbacks', () => {
     it('should call onScheduleGenerated when schedule is generated', async () => {
       const mockOnScheduleGenerated = jest.fn();
-      const mockGenerateSchedule = jest.fn().mockResolvedValue({
+      const mockGenerateSchedule = jest.fn().mockResolvedValue(({
         success: true,
         scheduled_events: mockSchedule.events,
         reasoning: 'Generated optimal schedule',
         confidence_score: 0.85,
-        alternative_suggestions: [],
-        warnings: [],
-        unscheduled_tasks: [],
+        alternative_suggestions: [] as string[],
+        warnings: [] as string[],
+        unscheduled_tasks: [] as string[],
         processing_time_seconds: 1.2,
-      });
+      }) as any;
 
       mockUseSchedule.mockReturnValue({
         schedule: null,
         isLoading: false,
         error: null,
         generateSchedule: mockGenerateSchedule,
-        optimizeSchedule: jest.fn(),
-        getUserSchedule: jest.fn(),
-        refreshSchedule: jest.fn(),
+        optimizeSchedule: jest.fn() as any,
+        getUserSchedule: jest.fn() as any,
+        refreshSchedule: jest.fn() as any,
       });
 
       renderWithProviders(
@@ -382,22 +378,22 @@ describe('ScheduleOptimizer Component', () => {
     it('should call onOptimizationComplete when schedule is optimized', async () => {
       const mockOnOptimizationComplete = jest.fn();
       const optimizedEvents = [{ ...mockSchedule.events[0], title: 'Optimized Meeting' }];
-      const mockOptimizeSchedule = jest.fn().mockResolvedValue({
+      const mockOptimizeSchedule = jest.fn().mockResolvedValue(({
         success: true,
         optimized_schedule: optimizedEvents,
-        improvements: ['Reduced overlap'],
+        improvements: ['Reduced overlap'] as string[],
         confidence_score: 0.91,
         processing_time_seconds: 0.8,
-      });
+      }) as any;
 
       mockUseSchedule.mockReturnValue({
         schedule: mockSchedule,
         isLoading: false,
         error: null,
-        generateSchedule: jest.fn(),
-        optimizeSchedule: mockOptimizeSchedule,
-        getUserSchedule: jest.fn(),
-        refreshSchedule: jest.fn(),
+        generateSchedule: jest.fn() as any,
+        optimizeSchedule: mockOptimizeSchedule as any,
+        getUserSchedule: jest.fn() as any,
+        refreshSchedule: jest.fn() as any,
       });
 
       renderWithProviders(
@@ -421,9 +417,9 @@ describe('ScheduleOptimizer Component', () => {
         schedule: mockSchedule,
         isLoading: false,
         error: null,
-        generateSchedule: jest.fn(),
-        optimizeSchedule: jest.fn(),
-        getUserSchedule: jest.fn(),
+        generateSchedule: jest.fn() as any,
+        optimizeSchedule: jest.fn() as any,
+        getUserSchedule: jest.fn() as any,
         refreshSchedule: mockRefreshSchedule,
       });
 

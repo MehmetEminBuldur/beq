@@ -13,7 +13,7 @@ interface AuthUser {
   onboarding_completed?: boolean;
 }
 
-interface AuthContextType {
+export interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   user: AuthUser | null;

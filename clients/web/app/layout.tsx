@@ -1,9 +1,15 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { Providers } from '@/components/providers/providers';
+import { logEnvironmentValidation } from '@/lib/utils/env-validation';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
+
+// Validate environment variables on startup
+if (typeof window === 'undefined') {
+  logEnvironmentValidation();
+}
 
 export const metadata: Metadata = {
   title: {
@@ -72,6 +78,17 @@ export const metadata: Metadata = {
     apple: '/apple-touch-icon.svg',
   },
   manifest: '/site.webmanifest',
+};
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: 'white' },
+    { media: '(prefers-color-scheme: dark)', color: 'black' },
+  ],
 };
 
 interface RootLayoutProps {

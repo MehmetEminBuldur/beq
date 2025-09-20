@@ -13,14 +13,12 @@ interface ProvidersProps {
 
 export function Providers({ children }: ProvidersProps) {
   return (
-    <div suppressHydrationWarning>
-      <ThemeProvider
-        attribute="class"
-        defaultTheme="light"
-        enableSystem
-        disableTransitionOnChange
-        suppressHydrationWarning
-      >
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      disableTransitionOnChange
+    >
       <ServiceWorkerProvider>
         <OfflineIndicator />
         <QueryProvider>
@@ -58,7 +56,6 @@ export function Providers({ children }: ProvidersProps) {
           </AuthProvider>
         </QueryProvider>
       </ServiceWorkerProvider>
-      </ThemeProvider>
-    </div>
+    </ThemeProvider>
   );
 }

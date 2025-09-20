@@ -8,6 +8,28 @@ import Link from 'next/link';
 
 export default function QuantasPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuthContext();
+  const { quantas, bricks, isLoading, createQuanta, deleteQuanta, completeQuanta, loadUserData } = useBricks();
+  const [selectedBrickId, setSelectedBrickId] = useState<string>('');
+  const [title, setTitle] = useState('');
+  const [minutes, setMinutes] = useState(30);
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      loadUserData();
+    }
+  }, [isAuthenticated, user, loadUserData]);
+
+  const sortedQuantas = useMemo(() => {
+    return [...quantas].sort((a, b) => (a.created_at > b.created_at ? -1 : 1));
+  }, [quantas]);
+
+  const brickTitleById = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const b of bricks) {
+      map[b.id] = b.title;
+    }
+    return map;
+  }, [bricks]);
 
   // Show loading state while authentication is being checked
   if (authLoading) {
@@ -47,26 +69,6 @@ export default function QuantasPage() {
       </div>
     );
   }
-  const { quantas, bricks, isLoading, createQuanta, deleteQuanta, completeQuanta, loadUserData } = useBricks();
-  const [selectedBrickId, setSelectedBrickId] = useState<string>('');
-  const [title, setTitle] = useState('');
-  const [minutes, setMinutes] = useState(30);
-
-  useEffect(() => {
-    loadUserData();
-  }, [loadUserData]);
-
-  const sortedQuantas = useMemo(() => {
-    return [...quantas].sort((a, b) => (a.created_at > b.created_at ? -1 : 1));
-  }, [quantas]);
-
-  const brickTitleById = useMemo(() => {
-    const map: Record<string, string> = {};
-    for (const b of bricks) {
-      map[b.id] = b.title;
-    }
-    return map;
-  }, [bricks]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();

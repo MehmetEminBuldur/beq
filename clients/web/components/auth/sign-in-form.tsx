@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuthContext } from '@/lib/providers/auth-provider';
+import { rateLimiter } from '@/lib/utils/security';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 
 const signInSchema = z.object({
@@ -37,8 +38,16 @@ export function SignInForm({ onSwitchToSignUp, onSwitchToResetPassword }: SignIn
   });
 
   const onSubmit = async (data: SignInForm) => {
+    // Rate limiting - prevent brute force attacks
+    if (!rateLimiter.isAllowed(`signin-${data.email}`, 5, 15 * 60 * 1000)) { // 5 attempts per 15 minutes
+      alert('Too many sign-in attempts. Please try again later.');
+      return;
+    }
+
     const result = await signIn(data.email, data.password);
     if (!result.error) {
+      // Reset rate limiter on successful login
+      rateLimiter.reset(`signin-${data.email}`);
       router.push('/dashboard');
     }
   };

@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Clock, Target, Plus, ChevronRight, X } from 'lucide-react';
+import { Calendar, Clock, Target, Plus, ChevronRight, X, RefreshCw, ExternalLink } from 'lucide-react';
 import { format, startOfWeek, addDays, isSameDay, isToday } from 'date-fns';
 import { useDashboard } from '@/lib/hooks/use-dashboard';
 import { useAuthContext } from '@/lib/providers/auth-provider';
+import { useCalendar } from '@/lib/hooks/use-calendar';
 import { toast } from 'react-hot-toast';
 
 interface ScheduleEvent {
@@ -21,6 +22,17 @@ interface ScheduleEvent {
 export function ScheduleView() {
   const { stats, todaySchedule } = useDashboard();
   const { user } = useAuthContext();
+  const {
+    getAuthStatus,
+    connectGoogleCalendar,
+    getCalendarEvents,
+    syncCalendar,
+    createEvent,
+    disconnectGoogleCalendar,
+    loading: calendarLoading,
+    error: calendarError
+  } = useCalendar();
+
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showAddModal, setShowAddModal] = useState(false);
   const [newEvent, setNewEvent] = useState({
@@ -33,13 +45,49 @@ export function ScheduleView() {
   });
   const [isAdding, setIsAdding] = useState(false);
 
+  // Google Calendar state
+  const [googleAuthStatus, setGoogleAuthStatus] = useState<any>(null);
+  const [googleEvents, setGoogleEvents] = useState<any[]>([]);
+  const [showGoogleConnect, setShowGoogleConnect] = useState(false);
+
   const startDate = startOfWeek(selectedDate, { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(startDate, i));
 
+  // Google Calendar integration functions
+  const checkGoogleAuthStatus = async () => {
+    try {
+      const status = await getAuthStatus();
+      setGoogleAuthStatus(status);
+
+      if (status.authenticated) {
+        // Load Google Calendar events
+        const start = new Date(selectedDate);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(selectedDate);
+        end.setHours(23, 59, 59, 999);
+
+        const events = await getCalendarEvents('primary', start, end);
+        setGoogleEvents(events);
+      }
+    } catch (error) {
+      console.error('Failed to check Google auth status:', error);
+    }
+  };
+
+  // Check Google auth status on component mount and when user changes
+  useEffect(() => {
+    if (user?.id) {
+      checkGoogleAuthStatus();
+    }
+  }, [user?.id]);
+
   // Transform dashboard schedule data to ScheduleEvent format
   const getEventsForDate = (date: Date) => {
+    const events: ScheduleEvent[] = [];
+
+    // Add dashboard schedule events for today
     if (isSameDay(date, new Date())) {
-      return todaySchedule.map((item): ScheduleEvent => {
+      const dashboardEvents = todaySchedule.map((item): ScheduleEvent => {
         const start = new Date(item.start_time);
         const end = new Date(item.end_time);
         const durationMs = end.getTime() - start.getTime();
@@ -65,13 +113,92 @@ export function ScheduleView() {
                  item.status === 'in_progress' ? 'bg-blue-500' : 'bg-gray-400'
         };
       });
+      events.push(...dashboardEvents);
     }
 
-    // For other dates, show empty array (could be enhanced to show scheduled items)
-    return [];
+    // Add Google Calendar events for the selected date
+    if (googleAuthStatus?.authenticated && googleEvents.length > 0) {
+      const googleEventsForDate = googleEvents.filter(event => {
+        const eventDate = new Date(event.start_time);
+        return isSameDay(eventDate, date);
+      }).map((event): ScheduleEvent => {
+        const start = new Date(event.start_time);
+        const end = new Date(event.end_time);
+        const durationMs = end.getTime() - start.getTime();
+        const durationHours = Math.floor(durationMs / (1000 * 60 * 60));
+        const durationMinutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+
+        let duration = '';
+        if (durationHours > 0) {
+          duration = `${durationHours}h`;
+          if (durationMinutes > 0) duration += ` ${durationMinutes}m`;
+        } else {
+          duration = `${durationMinutes}m`;
+        }
+
+        return {
+          id: `google-${event.id}`,
+          title: event.title,
+          time: format(start, 'HH:mm'),
+          duration,
+          type: 'meeting', // Google Calendar events are typically meetings
+          status: event.status || 'confirmed',
+          color: 'bg-purple-500' // Purple for Google Calendar events
+        };
+      });
+      events.push(...googleEventsForDate);
+    }
+
+    // Sort events by time
+    return events.sort((a, b) => a.time.localeCompare(b.time));
   };
 
   const eventsForSelectedDate = getEventsForDate(selectedDate);
+
+  // Google Calendar integration functions
+
+  const handleGoogleConnect = async () => {
+    try {
+      await connectGoogleCalendar();
+      // Refresh auth status after connection attempt
+      setTimeout(() => {
+        checkGoogleAuthStatus();
+      }, 2000);
+    } catch (error) {
+      toast.error('Failed to initiate Google Calendar connection');
+      console.error('Google connect error:', error);
+    }
+  };
+
+  const handleSyncCalendar = async () => {
+    try {
+      const start = new Date();
+      start.setDate(start.getDate() - 7); // Last week
+      const end = new Date();
+      end.setDate(end.getDate() + 30); // Next month
+
+      const result = await syncCalendar('primary', start, end);
+      toast.success(`Synced ${result.events_synced} events. ${result.conflicts_detected} conflicts detected.`);
+
+      // Refresh events
+      await checkGoogleAuthStatus();
+    } catch (error) {
+      toast.error('Failed to sync calendar');
+      console.error('Sync error:', error);
+    }
+  };
+
+  const handleDisconnectGoogle = async () => {
+    try {
+      await disconnectGoogleCalendar();
+      setGoogleAuthStatus(null);
+      setGoogleEvents([]);
+      toast.success('Google Calendar disconnected successfully');
+    } catch (error) {
+      toast.error('Failed to disconnect Google Calendar');
+      console.error('Disconnect error:', error);
+    }
+  };
 
   const handleAddEvent = async () => {
     if (!newEvent.title.trim() || !newEvent.startTime || !newEvent.endTime) {
@@ -140,16 +267,66 @@ export function ScheduleView() {
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
             Schedule
           </h2>
-          <button
-            onClick={handleOpenAddModal}
-            className="rounded-lg bg-primary-600 p-2 text-white hover:bg-primary-700 transition-colors"
-          >
-            <Plus className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Google Calendar Status */}
+            {googleAuthStatus?.authenticated ? (
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  Google Connected
+                </div>
+                <button
+                  onClick={handleSyncCalendar}
+                  disabled={calendarLoading}
+                  className="rounded-md bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  title="Sync Google Calendar events"
+                >
+                  {calendarLoading ? (
+                    <RefreshCw className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-3 w-3" />
+                  )}
+                </button>
+                <button
+                  onClick={handleDisconnectGoogle}
+                  disabled={calendarLoading}
+                  className="rounded-md bg-gray-600 px-3 py-1 text-xs text-white hover:bg-gray-700 transition-colors disabled:opacity-50"
+                  title="Disconnect Google Calendar"
+                >
+                  Disconnect
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleGoogleConnect}
+                disabled={calendarLoading}
+                className="rounded-md bg-red-600 px-3 py-1 text-xs text-white hover:bg-red-700 transition-colors disabled:opacity-50"
+                title="Connect your Google Calendar"
+              >
+                {calendarLoading ? 'Connecting...' : 'Connect Google'}
+              </button>
+            )}
+            <button
+              onClick={handleOpenAddModal}
+              className="rounded-lg bg-primary-600 p-2 text-white hover:bg-primary-700 transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          </div>
         </div>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
           {format(selectedDate, 'MMMM yyyy')}
         </p>
+        {googleAuthStatus?.authenticated && googleAuthStatus?.email && (
+          <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+            Connected to {googleAuthStatus.email}
+          </p>
+        )}
+        {calendarError && (
+          <p className="mt-1 text-xs text-red-500 dark:text-red-400">
+            Calendar error: {calendarError}
+          </p>
+        )}
       </div>
 
       {/* Week view */}
@@ -229,15 +406,22 @@ export function ScheduleView() {
                       {event.duration}
                     </span>
                     <span className="text-xs text-gray-400">•</span>
-                    <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                      event.type === 'brick' 
-                        ? 'bg-orange-100 text-orange-600 dark:bg-orange-900 dark:text-orange-400'
-                        : event.type === 'quanta'
-                        ? 'bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-400'
-                        : 'bg-purple-100 text-purple-600 dark:bg-purple-900 dark:text-purple-400'
-                    }`}>
-                      {event.type}
-                    </span>
+                    <div className="flex items-center gap-1">
+                      <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                        event.type === 'brick'
+                          ? 'bg-orange-100 text-orange-600 dark:bg-orange-900 dark:text-orange-400'
+                          : event.type === 'quanta'
+                          ? 'bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-400'
+                          : event.type === 'meeting'
+                          ? 'bg-purple-100 text-purple-600 dark:bg-purple-900 dark:text-purple-400'
+                          : 'bg-gray-100 text-gray-600 dark:bg-gray-900 dark:text-gray-400'
+                      }`}>
+                        {event.type}
+                      </span>
+                      {event.id.startsWith('google-') && (
+                        <span className="text-xs text-gray-400 dark:text-gray-500">G</span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -264,6 +448,25 @@ export function ScheduleView() {
             <Plus className="mx-auto h-5 w-5 mb-1" />
             <span className="text-sm">Add to schedule</span>
           </motion.button>
+
+          {/* Google Calendar Info */}
+          {googleAuthStatus?.authenticated && (
+            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <div className="flex items-center gap-2 mb-2">
+                <Calendar className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                  Google Calendar Integration
+                </span>
+              </div>
+              <p className="text-xs text-blue-700 dark:text-blue-300 mb-2">
+                Your Google Calendar events are automatically synced and displayed alongside your BeQ schedule.
+              </p>
+              <div className="flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400">
+                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                <span>Purple events are from Google Calendar</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

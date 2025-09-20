@@ -1,6 +1,14 @@
+const withBundleAnalyzer = require('@next/bundle-analyzer')({
+  enabled: process.env.ANALYZE === 'true',
+});
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
+    optimizeCss: true,
+  },
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production',
   },
   typescript: {
     ignoreBuildErrors: true,
@@ -25,7 +33,7 @@ const nextConfig = {
     domains: ['localhost', 'api.beq.app'],
     unoptimized: process.env.NODE_ENV === 'development',
   },
-  webpack: (config, { isServer }) => {
+  webpack: (config, { isServer, dev }) => {
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
@@ -34,8 +42,34 @@ const nextConfig = {
         tls: false,
       };
     }
+
+    // Performance optimizations
+    if (!dev) {
+      config.optimization.splitChunks.cacheGroups = {
+        ...config.optimization.splitChunks.cacheGroups,
+        vendor: {
+          test: /[\\/]node_modules[\\/]/,
+          name: 'vendors',
+          chunks: 'all',
+          priority: 10,
+        },
+        supabase: {
+          test: /[\\/]node_modules[\\/]@supabase[\\/]/,
+          name: 'supabase',
+          chunks: 'all',
+          priority: 20,
+        },
+        ui: {
+          test: /[\\/]components[\\/]ui[\\/]/,
+          name: 'ui-components',
+          chunks: 'all',
+          priority: 15,
+        },
+      };
+    }
+
     return config;
   },
 };
 
-module.exports = nextConfig;
+module.exports = withBundleAnalyzer(nextConfig);

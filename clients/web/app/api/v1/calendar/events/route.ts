@@ -94,7 +94,7 @@ const MOCK_CALENDAR_EVENTS: CalendarEvent[] = [
 ];
 
 // Google Calendar integration (mock implementation)
-async function syncGoogleCalendar(userId: string, accessToken?: string): Promise<CalendarEvent[]> {
+async function syncGoogleCalendar(userId: string, _accessToken?: string): Promise<CalendarEvent[]> {
   // In a real implementation, this would:
   // 1. Use the Google Calendar API
   // 2. Authenticate with the provided access token
@@ -108,7 +108,7 @@ async function syncGoogleCalendar(userId: string, accessToken?: string): Promise
 }
 
 // Microsoft Calendar integration (mock implementation)
-async function syncMicrosoftCalendar(userId: string, accessToken?: string): Promise<CalendarEvent[]> {
+async function syncMicrosoftCalendar(userId: string, _accessToken?: string): Promise<CalendarEvent[]> {
   // In a real implementation, this would:
   // 1. Use the Microsoft Graph API
   // 2. Authenticate with the provided access token
@@ -177,8 +177,8 @@ export async function POST(request: NextRequest) {
 
     // Sync events based on provider
     let syncedEvents: CalendarEvent[] = [];
-    let errors: string[] = [];
-    let warnings: string[] = [];
+    const errors: string[] = [];
+    const warnings: string[] = [];
 
     try {
       switch (body.calendar_provider) {

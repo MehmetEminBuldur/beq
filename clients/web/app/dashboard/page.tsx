@@ -1,11 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense, lazy } from 'react';
 import { useAuthContext } from '@/lib/providers/auth-provider';
 import { useDashboard } from '@/lib/hooks/use-dashboard';
 import { Navigation } from '@/components/layout/navigation';
-import { ChatInterface } from '@/components/chat/chat-interface';
 import { DynamicQuickActions } from '@/components/dashboard/dynamic-quick-actions';
+
+// Lazy load heavy components
+const ChatInterface = lazy(() => import('@/components/chat/chat-interface').then(mod => ({ default: mod.ChatInterface })));
+const ScheduleView = lazy(() => import('@/components/chat/schedule-view').then(mod => ({ default: mod.ScheduleView })));
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -55,7 +58,16 @@ export default function DashboardPage() {
       <div className="flex min-h-screen flex-col bg-background">
         <Navigation />
         <div className="flex h-[calc(100vh-64px)] overflow-hidden">
-          <ChatInterface />
+          <Suspense fallback={
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+                <p className="text-gray-600 dark:text-gray-400">Loading chat...</p>
+              </div>
+            </div>
+          }>
+            <ChatInterface />
+          </Suspense>
         </div>
       </div>
     );
@@ -74,7 +86,7 @@ export default function DashboardPage() {
                 Welcome back, {user?.full_name || user?.email?.split('@')[0] || 'User'}! 👋
               </h1>
               <p className="text-muted-foreground mt-2">
-                Here's your life management overview for today.
+                Here&apos;s your life management overview for today.
               </p>
             </div>
             <Button
