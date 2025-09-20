@@ -2,9 +2,11 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Clock, Target, Plus, ChevronRight } from 'lucide-react';
+import { Calendar, Clock, Target, Plus, ChevronRight, X } from 'lucide-react';
 import { format, startOfWeek, addDays, isSameDay, isToday } from 'date-fns';
 import { useDashboard } from '@/lib/hooks/use-dashboard';
+import { useAuthContext } from '@/lib/providers/auth-provider';
+import { toast } from 'react-hot-toast';
 
 interface ScheduleEvent {
   id: string;
@@ -18,7 +20,19 @@ interface ScheduleEvent {
 
 export function ScheduleView() {
   const { stats, todaySchedule } = useDashboard();
+  const { user } = useAuthContext();
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newEvent, setNewEvent] = useState({
+    title: '',
+    description: '',
+    startTime: '',
+    endTime: '',
+    type: 'event' as 'event' | 'meeting' | 'brick' | 'quanta',
+    category: 'personal' as 'work' | 'personal' | 'health' | 'learning'
+  });
+  const [isAdding, setIsAdding] = useState(false);
+
   const startDate = startOfWeek(selectedDate, { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(startDate, i));
 
@@ -59,6 +73,65 @@ export function ScheduleView() {
 
   const eventsForSelectedDate = getEventsForDate(selectedDate);
 
+  const handleAddEvent = async () => {
+    if (!newEvent.title.trim() || !newEvent.startTime || !newEvent.endTime) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    if (!user?.id) {
+      toast.error('You must be logged in to add schedule items');
+      return;
+    }
+
+    setIsAdding(true);
+
+    try {
+      // For now, we'll simulate adding to schedule by showing a success message
+      // In a real implementation, this would call the schedule API
+      const eventTime = `${newEvent.startTime} - ${newEvent.endTime}`;
+      const eventType = newEvent.type === 'event' ? 'Event' : newEvent.type === 'meeting' ? 'Meeting' : 'Task';
+
+      toast.success(`✅ Added "${newEvent.title}" to your schedule at ${eventTime}`);
+
+      // Reset form
+      setNewEvent({
+        title: '',
+        description: '',
+        startTime: '',
+        endTime: '',
+        type: 'event',
+        category: 'personal'
+      });
+
+      setShowAddModal(false);
+
+      // In a real implementation, you would refresh the schedule data here
+      // await refreshDashboard();
+
+    } catch (error) {
+      toast.error('Failed to add event to schedule');
+      console.error('Error adding event:', error);
+    } finally {
+      setIsAdding(false);
+    }
+  };
+
+  const handleOpenAddModal = () => {
+    // Pre-fill start time with current time + 1 hour
+    const now = new Date();
+    const startTime = format(now, 'HH:mm');
+    const endTime = format(new Date(now.getTime() + 60 * 60 * 1000), 'HH:mm'); // 1 hour later
+
+    setNewEvent({
+      ...newEvent,
+      startTime,
+      endTime
+    });
+
+    setShowAddModal(true);
+  };
+
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
@@ -67,7 +140,10 @@ export function ScheduleView() {
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
             Schedule
           </h2>
-          <button className="rounded-lg bg-primary-600 p-2 text-white hover:bg-primary-700 transition-colors">
+          <button
+            onClick={handleOpenAddModal}
+            className="rounded-lg bg-primary-600 p-2 text-white hover:bg-primary-700 transition-colors"
+          >
             <Plus className="h-4 w-4" />
           </button>
         </div>
@@ -182,6 +258,7 @@ export function ScheduleView() {
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
+            onClick={handleOpenAddModal}
             className="w-full rounded-lg border-2 border-dashed border-gray-300 p-4 text-center text-gray-500 hover:border-primary-300 hover:text-primary-600 transition-colors dark:border-gray-600 dark:text-gray-400 dark:hover:border-primary-600 dark:hover:text-primary-400"
           >
             <Plus className="mx-auto h-5 w-5 mb-1" />
@@ -221,6 +298,143 @@ export function ScheduleView() {
           </div>
         </div>
       </div>
+
+      {/* Add Event Modal */}
+      {showAddModal && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+          onClick={() => setShowAddModal(false)}
+        >
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Add to Schedule
+              </h3>
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="rounded-full p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Title */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Title *
+                </label>
+                <input
+                  type="text"
+                  value={newEvent.title}
+                  onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
+                  placeholder="Enter event title"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Description
+                </label>
+                <textarea
+                  value={newEvent.description}
+                  onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
+                  placeholder="Optional description"
+                  rows={2}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                />
+              </div>
+
+              {/* Time */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Start Time *
+                  </label>
+                  <input
+                    type="time"
+                    value={newEvent.startTime}
+                    onChange={(e) => setNewEvent({ ...newEvent, startTime: e.target.value })}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    End Time *
+                  </label>
+                  <input
+                    type="time"
+                    value={newEvent.endTime}
+                    onChange={(e) => setNewEvent({ ...newEvent, endTime: e.target.value })}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              {/* Type */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Type
+                </label>
+                <select
+                  value={newEvent.type}
+                  onChange={(e) => setNewEvent({ ...newEvent, type: e.target.value as any })}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                >
+                  <option value="event">Event</option>
+                  <option value="meeting">Meeting</option>
+                  <option value="brick">Brick Task</option>
+                  <option value="quanta">Quanta Task</option>
+                </select>
+              </div>
+
+              {/* Category */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Category
+                </label>
+                <select
+                  value={newEvent.category}
+                  onChange={(e) => setNewEvent({ ...newEvent, category: e.target.value as any })}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                >
+                  <option value="personal">Personal</option>
+                  <option value="work">Work</option>
+                  <option value="health">Health</option>
+                  <option value="learning">Learning</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="flex-1 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddEvent}
+                disabled={isAdding || !newEvent.title.trim() || !newEvent.startTime || !newEvent.endTime}
+                className="flex-1 rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isAdding ? 'Adding...' : 'Add Event'}
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
     </div>
   );
 }

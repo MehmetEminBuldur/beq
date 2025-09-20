@@ -54,7 +54,7 @@ export default function ChatPage() {
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
-      <div className="flex h-[calc(100vh-64px)]">
+      <div className="flex h-[calc(100vh-64px)] overflow-hidden">
         <ChatInterface />
       </div>
     </div>

@@ -158,7 +158,7 @@ export function ChatInterface() {
   };
 
   return (
-    <div className="flex h-full flex-col bg-gray-50 dark:bg-gray-900">
+    <div className="flex h-full w-full flex-col bg-gray-50 dark:bg-gray-900">
       {/* Header */}
       <div className="border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-800">
         <div className="flex items-center gap-3">
@@ -179,9 +179,9 @@ export function ChatInterface() {
       {/* Main content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Chat area */}
-        <div className="flex flex-1 flex-col">
+        <div className="flex flex-1 flex-col min-w-0">
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-6 py-4">
+          <div className="flex-1 overflow-y-auto px-6 py-4 min-h-0">
             <div className="mx-auto max-w-3xl space-y-6">
               {messages.length === 0 ? (
                 <motion.div
