@@ -32,12 +32,14 @@ export function Providers({ children }: ProvidersProps) {
             </AppStateProviderWrapper>
             <Toaster
               position="top-right"
+              containerClassName="z-[9999]"
               toastOptions={{
                 duration: 4000,
                 style: {
                   background: 'var(--background)',
                   color: 'var(--foreground)',
                   border: '1px solid var(--border)',
+                  zIndex: 9999,
                 },
                 success: {
                   iconTheme: {

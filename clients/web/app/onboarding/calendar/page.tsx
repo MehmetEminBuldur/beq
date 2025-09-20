@@ -6,6 +6,7 @@ import { useAuthContext } from '@/lib/providers/auth-provider'
 import { supabase } from '@/lib/supabase/client'
 import { ProgressIndicator } from '../../../components/onboarding/progress-indicator'
 import { initializeDefaultSettings } from '../../../lib/default-settings'
+import { Navigation } from '@/components/layout/navigation'
 
 interface CalendarConnection {
   id: string
@@ -204,19 +205,9 @@ function OnboardingCalendarIntegrationContent() {
 
   return (
     <div className="relative flex size-full min-h-screen flex-col group/design-root overflow-x-hidden">
+      <Navigation />
       <div className="layout-container flex h-full grow flex-col">
-        <header className="flex items-center justify-between whitespace-nowrap px-10 py-5">
-          <div className="flex items-center gap-3 text-gray-800">
-            <div className="size-6 text-blue-600">
-              <svg fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-                <path d="M4 42.4379C4 42.4379 14.0962 36.0744 24 41.1692C35.0664 46.8624 44 42.2078 44 42.2078L44 7.01134C44 7.01134 35.068 11.6577 24.0031 5.96913C14.0971 0.876274 4 7.27094 4 7.27094L4 42.4379Z" fill="currentColor"></path>
-              </svg>
-            </div>
-            <h2 className="text-gray-800 text-xl font-bold leading-tight tracking-[-0.015em]">BeQ</h2>
-          </div>
-        </header>
-        
-        <div className="px-10 flex flex-1 justify-center items-center py-5">
+        <div className="px-10 flex flex-1 justify-center items-center py-5" style={{ paddingTop: '64px' }}>
           <div className="flex flex-col w-full max-w-md text-center">
             <ProgressIndicator steps={steps} currentStep={2} />
             <div className="mb-8">

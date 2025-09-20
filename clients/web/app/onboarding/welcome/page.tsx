@@ -6,6 +6,7 @@ import { useAuthContext } from '@/lib/providers/auth-provider'
 import { supabase } from '@/lib/supabase/client'
 import { ProgressIndicator } from '../../../components/onboarding/progress-indicator'
 import { AuthGuard } from '@/components/auth/auth-guard'
+import { Navigation } from '@/components/layout/navigation'
 
 function OnboardingWelcomeContent() {
   const router = useRouter()
@@ -62,7 +63,8 @@ function OnboardingWelcomeContent() {
 
   return (
     <div className="relative flex size-full min-h-screen flex-col bg-white group/design-root overflow-x-hidden">
-      <div className="flex-1">
+      <Navigation />
+      <div className="flex-1" style={{ paddingTop: '64px' }}>
         <div className="flex flex-col items-center justify-center min-h-[calc(100vh-100px)] px-4 py-12 sm:px-6 lg:px-8">
           <div className="w-full max-w-md space-y-8">
             <ProgressIndicator steps={steps} currentStep={0} />

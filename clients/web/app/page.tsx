@@ -49,9 +49,8 @@ export default function HomePage() {
     if (isClient && !isLoading) {
       if (isAuthenticated) {
         router.push('/dashboard');
-      } else {
-        router.push('/auth');
       }
+      // For unauthenticated users, we'll show the landing page instead of redirecting
     }
   }, [isAuthenticated, isLoading, router, isClient]);
 
@@ -79,10 +78,8 @@ export default function HomePage() {
     );
   }
 
-  // Don't render anything if not authenticated (will redirect)
-  if (!isAuthenticated) {
-    return null;
-  }
+  // Show landing page for unauthenticated users
+  // Authenticated users will be redirected to /dashboard
 
   // Show chat interface if authenticated and chat is requested
   if (showChat) {
@@ -101,7 +98,12 @@ export default function HomePage() {
       <Navigation />
       
       {/* Hero Section */}
-      <Hero onStartChat={() => setShowChat(true)} />
+      <Hero
+        onStartChat={() => setShowChat(true)}
+        isAuthenticated={isAuthenticated}
+        onSignUp={() => router.push('/auth')}
+        onSignIn={() => router.push('/auth')}
+      />
       
       {/* Features Section */}
       <section className="py-24 sm:py-32">
@@ -156,27 +158,52 @@ export default function HomePage() {
           className="mx-auto max-w-2xl text-center"
         >
           <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            Ready to transform your life?
+            {isAuthenticated ? 'Continue your journey' : 'Ready to transform your life?'}
           </h2>
           <p className="mx-auto mt-6 max-w-xl text-lg leading-8 text-gray-300">
-            Join thousands of users who have already started their journey toward a more organized and fulfilling life with BeQ.
+            {isAuthenticated
+              ? 'Keep building your purposeful life with AI-powered organization and smart scheduling.'
+              : 'Join thousands of users who have already started their journey toward a more organized and fulfilling life with BeQ.'
+            }
           </p>
           <div className="mt-10 flex items-center justify-center gap-x-6">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setShowChat(true)}
-              className="rounded-md bg-white px-3.5 py-2.5 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white flex items-center gap-2"
-            >
-              <Sparkles className="h-4 w-4" />
-              Start Your Journey
-            </motion.button>
-            <a
-              href="/docs"
-              className="text-sm font-semibold leading-6 text-white hover:text-gray-300 transition-colors"
-            >
-              Learn more <span aria-hidden="true">→</span>
-            </a>
+            {isAuthenticated ? (
+              <>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setShowChat(true)}
+                  className="rounded-md bg-white px-3.5 py-2.5 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white flex items-center gap-2"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Continue Planning
+                </motion.button>
+                <a
+                  href="/docs"
+                  className="text-sm font-semibold leading-6 text-white hover:text-gray-300 transition-colors"
+                >
+                  Learn more <span aria-hidden="true">→</span>
+                </a>
+              </>
+            ) : (
+              <>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => router.push('/auth')}
+                  className="rounded-md bg-white px-3.5 py-2.5 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white flex items-center gap-2"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Get Started Free
+                </motion.button>
+                <a
+                  href="/docs"
+                  className="text-sm font-semibold leading-6 text-white hover:text-gray-300 transition-colors"
+                >
+                  Learn more <span aria-hidden="true">→</span>
+                </a>
+              </>
+            )}
           </div>
         </motion.div>
 

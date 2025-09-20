@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuthContext } from '@/lib/providers/auth-provider'
 import { supabase } from '@/lib/supabase/client'
 import { ProgressIndicator } from '../../../components/onboarding/progress-indicator'
+import { Navigation } from '@/components/layout/navigation'
 
 function OnboardingGoalSettingContent() {
   const router = useRouter()
@@ -97,16 +98,9 @@ function OnboardingGoalSettingContent() {
 
   return (
     <div className="relative flex size-full min-h-screen flex-col group/design-root overflow-x-hidden">
+      <Navigation />
       <div className="layout-container flex h-full grow flex-col">
-        <header className="flex items-center justify-between whitespace-nowrap border-b border-solid border-gray-200 px-10 py-4 bg-white">
-          <div className="flex items-center gap-3 text-gray-800">
-            <svg className="h-8 w-8 text-[var(--primary-600)]" fill="currentColor" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-              <path d="M4 42.4379C4 42.4379 14.0962 36.0744 24 41.1692C35.0664 46.8624 44 42.2078 44 42.2078L44 7.01134C44 7.01134 35.068 11.6577 24.0031 5.96913C14.0971 0.876274 4 7.27094 4 7.27094L4 42.4379Z"></path>
-            </svg>
-            <h2 className="text-xl font-bold leading-tight tracking-tight">BeQ</h2>
-          </div>
-        </header>
-        <main className="flex flex-1 justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <main className="flex flex-1 justify-center py-12 px-4 sm:px-6 lg:px-8" style={{ paddingTop: '64px' }}>
           <div className="w-full max-w-lg space-y-8">
             <ProgressIndicator steps={steps} currentStep={1} />
             <div className="text-center">

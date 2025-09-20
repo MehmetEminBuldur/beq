@@ -2,24 +2,27 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Bot, User, Loader2, Calendar, Target, Lightbulb } from 'lucide-react';
+import { Send, Bot, User, Loader2, Calendar, Target, Lightbulb, Package } from 'lucide-react';
 import { useChat } from '@/lib/hooks/use-chat';
 import { useDashboard } from '@/lib/hooks/use-dashboard';
+import { useBricks } from '@/lib/hooks/use-bricks';
 import { useAuthContext } from '@/lib/providers/auth-provider';
 import { ChatMessage } from './chat-message';
 import { SuggestedActions } from './suggested-actions';
 import { ScheduleView } from './schedule-view';
 import { AiInsightsSidebar } from './ai-insights-sidebar';
+import { BricksSidebar } from './bricks-sidebar';
 
 export function ChatInterface() {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [sidebarView, setSidebarView] = useState<'schedule' | 'insights'>('schedule');
+  const [sidebarView, setSidebarView] = useState<'schedule' | 'insights' | 'bricks'>('schedule');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const { user } = useAuthContext();
   const { stats, todaySchedule, aiInsights } = useDashboard();
+  const { bricks, isLoading: bricksLoading } = useBricks();
   const { messages, sendMessage, isLoading } = useChat();
 
   // Generate dynamic welcome message based on user state
@@ -288,24 +291,35 @@ export function ChatInterface() {
           <div className="flex border-b border-gray-200 dark:border-gray-700">
             <button
               onClick={() => setSidebarView('schedule')}
-              className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+              className={`flex-1 px-3 py-3 text-xs font-medium transition-colors ${
                 sidebarView === 'schedule'
                   ? 'text-primary-600 border-b-2 border-primary-600 dark:text-primary-400 dark:border-primary-400'
                   : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
               }`}
             >
-              <Calendar className="h-4 w-4 inline mr-2" />
+              <Calendar className="h-4 w-4 inline mr-1" />
               Schedule
             </button>
             <button
+              onClick={() => setSidebarView('bricks')}
+              className={`flex-1 px-3 py-3 text-xs font-medium transition-colors ${
+                sidebarView === 'bricks'
+                  ? 'text-primary-600 border-b-2 border-primary-600 dark:text-primary-400 dark:border-primary-400'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+              }`}
+            >
+              <Package className="h-4 w-4 inline mr-1" />
+              Bricks
+            </button>
+            <button
               onClick={() => setSidebarView('insights')}
-              className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+              className={`flex-1 px-3 py-3 text-xs font-medium transition-colors ${
                 sidebarView === 'insights'
                   ? 'text-primary-600 border-b-2 border-primary-600 dark:text-primary-400 dark:border-primary-400'
                   : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
               }`}
             >
-              <Lightbulb className="h-4 w-4 inline mr-2" />
+              <Lightbulb className="h-4 w-4 inline mr-1" />
               Insights
             </button>
           </div>
@@ -314,6 +328,8 @@ export function ChatInterface() {
           <div className="flex-1 overflow-hidden">
             {sidebarView === 'schedule' ? (
               <ScheduleView />
+            ) : sidebarView === 'bricks' ? (
+              <BricksSidebar />
             ) : (
               <AiInsightsSidebar />
             )}

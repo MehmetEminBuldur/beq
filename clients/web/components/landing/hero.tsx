@@ -1,13 +1,16 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { ArrowRight, Sparkles, Calendar, Target } from 'lucide-react';
+import { ArrowRight, Sparkles, Calendar, Target, UserPlus, LogIn } from 'lucide-react';
 
 interface HeroProps {
   onStartChat: () => void;
+  isAuthenticated?: boolean;
+  onSignUp?: () => void;
+  onSignIn?: () => void;
 }
 
-export function Hero({ onStartChat }: HeroProps) {
+export function Hero({ onStartChat, isAuthenticated = false, onSignUp, onSignIn }: HeroProps) {
   return (
     <div className="relative isolate px-6 pt-14 lg:px-8">
       <div
@@ -94,24 +97,51 @@ export function Hero({ onStartChat }: HeroProps) {
             transition={{ delay: 0.6, duration: 0.8 }}
             className="mt-10 flex items-center justify-center gap-x-6"
           >
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={onStartChat}
-              className="group rounded-md bg-primary-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 flex items-center gap-2 transition-all duration-200"
-            >
-              Start Planning Your Life
-              <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
-            </motion.button>
-            
-            <motion.a
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              href="/demo"
-              className="text-sm font-semibold leading-6 text-gray-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-            >
-              Watch Demo <span aria-hidden="true">→</span>
-            </motion.a>
+            {isAuthenticated ? (
+              <>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={onStartChat}
+                  className="group rounded-md bg-primary-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 flex items-center gap-2 transition-all duration-200"
+                >
+                  Start Planning Your Life
+                  <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                </motion.button>
+
+                <motion.a
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  href="/demo"
+                  className="text-sm font-semibold leading-6 text-gray-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                >
+                  Watch Demo <span aria-hidden="true">→</span>
+                </motion.a>
+              </>
+            ) : (
+              <>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={onSignUp}
+                  className="group rounded-md bg-primary-600 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 flex items-center gap-2 transition-all duration-200"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  Get Started Free
+                  <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                </motion.button>
+
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={onSignIn}
+                  className="rounded-md border border-gray-300 bg-white px-6 py-3 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-600 flex items-center gap-2 transition-all duration-200 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700"
+                >
+                  <LogIn className="h-4 w-4" />
+                  Sign In
+                </motion.button>
+              </>
+            )}
           </motion.div>
 
           {/* Social proof */}

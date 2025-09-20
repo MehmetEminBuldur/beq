@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, XCircle, RefreshCw, User, Database, Shield } from 'lucide-react';
 import { AuthGuard } from '@/components/auth/auth-guard';
+import { Navigation } from '@/components/layout/navigation';
 
 export default function AuthVerifyPage() {
   const { user, isAuthenticated, signOut } = useAuthContext();
@@ -106,6 +107,7 @@ export default function AuthVerifyPage() {
   return (
     <AuthGuard>
       <div className="min-h-screen bg-background">
+        <Navigation />
         <div className="container mx-auto px-4 py-8">
           <div className="max-w-4xl mx-auto">
             <div className="mb-8">
