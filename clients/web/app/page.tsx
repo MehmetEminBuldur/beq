@@ -101,7 +101,7 @@ export default function HomePage() {
       <Hero
         onStartChat={() => setShowChat(true)}
         isAuthenticated={isAuthenticated}
-        onSignUp={() => router.push('/auth')}
+        onSignUp={() => router.push('/signup')}
         onSignIn={() => router.push('/auth')}
       />
       
@@ -190,7 +190,7 @@ export default function HomePage() {
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => router.push('/auth')}
+                  onClick={() => router.push('/signup')}
                   className="rounded-md bg-white px-3.5 py-2.5 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white flex items-center gap-2"
                 >
                   <Sparkles className="h-4 w-4" />
