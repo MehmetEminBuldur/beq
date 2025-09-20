@@ -4,6 +4,9 @@
 .env.development
 .env.production
 
+# Docker
+docker-compose.override.yml
+
 # Python
 __pycache__/
 *.py[cod]

@@ -22,8 +22,8 @@ BeQ is an avant-garde AI-powered life management application that transcends tra
 
 ## ✨ Key Features
 
-### 🤖 AI-Powered Orchestration (100% Open Source)
-- **Conversational AI**: Natural language interaction powered by Gemma 3 27B IT via OpenRouter
+### 🤖 AI-Powered Orchestration (OpenAI GPT-4o)
+- **Conversational AI**: Natural language interaction powered by GPT-4o via OpenAI
 - **Intelligent Scheduling**: LLM-based optimization considering health, preferences, and constraints
 - **Proactive Assistance**: Context-aware suggestions and resource recommendations with state management
 
@@ -110,7 +110,7 @@ BeQ follows a modern microservices architecture designed for scalability, mainta
 
 - **Docker & Docker Compose**: Latest version
 - **Git**: For cloning the repository
-- **OpenAI API Key**: For AI functionality (optional for development)
+- **OpenAI API Key**: Required for AI functionality (get from https://platform.openai.com/api-keys)
 
 ### 1. Clone the Repository
 
@@ -133,18 +133,13 @@ nano .env
 
 **Required Environment Variables:**
 ```bash
-# AI Services (100% Open Source - Gemma 3 27B IT via OpenRouter)
-OPENROUTER_API_KEY=your_openrouter_api_key_here
-OPENROUTER_MODEL=google/gemma-2-27b-it
+# AI Services (OpenAI GPT-4o)
+OPENAI_API_KEY=your_openai_api_key_here
+OPENAI_MODEL=gpt-4o
 
-# Supabase Configuration
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
-
-# Deployment (Production)
-NEXT_PUBLIC_API_URL=https://your-app.vercel.app
-VERCEL_URL=your-app.vercel.app
+# Supabase Configuration (Pre-configured)
+NEXT_PUBLIC_SUPABASE_URL=https://ncuqhnggwiayzqvrelql.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5jdXFobmdnd2lheXpxdnJlbHFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgyODkwODcsImV4cCI6MjA3Mzg2NTA4N30.EQG8bwa0uhYv3u8TkH5bHiTJoJupcG8m_ETDLUuos9I
 
 # Calendar Integration (Optional)
 GOOGLE_CLIENT_ID=your_google_client_id
@@ -165,14 +160,20 @@ cd ../..
 ### 4. Build and Run with Docker
 
 ```bash
-# Build and start all services
+# Build and start all services (recommended for first run)
 docker-compose up --build
 
-# Or run in detached mode
+# Or run in detached mode (background)
 docker-compose up -d --build
 
-# To include monitoring services (Prometheus, Grafana)
-docker-compose --profile monitoring up -d --build
+# For development with hot reload
+docker-compose -f docker-compose.yml -f docker-compose.override.yml up --build
+
+# Start only core services (without local database)
+docker-compose up -d orchestrator scheduler rag-recommender calendar-integration web
+
+# Start with local database
+docker-compose --profile local-db up -d
 ```
 
 ### 5. Verify Installation
@@ -180,8 +181,18 @@ docker-compose --profile monitoring up -d --build
 Open your browser and navigate to:
 
 - **Web Application**: http://localhost:3000
-- **API Documentation**: http://localhost:8000/docs
-- **Health Check**: http://localhost:8000/health
+- **Orchestrator API**: http://localhost:8000
+  - API Docs: http://localhost:8000/docs
+  - Health Check: http://localhost:8000/health
+- **Scheduler API**: http://localhost:8001
+  - API Docs: http://localhost:8001/docs
+  - Health Check: http://localhost:8001/health
+- **RAG Recommender API**: http://localhost:8002
+  - API Docs: http://localhost:8002/docs
+  - Health Check: http://localhost:8002/health
+- **Calendar Integration API**: http://localhost:8003
+  - API Docs: http://localhost:8003/docs
+  - Health Check: http://localhost:8003/health
 
 ## 📖 Usage Examples
 
