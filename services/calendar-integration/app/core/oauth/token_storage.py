@@ -10,6 +10,7 @@ from typing import Dict, Any, Optional
 import json
 import hashlib
 import os
+import base64
 
 import redis.asyncio as redis
 import structlog

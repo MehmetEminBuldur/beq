@@ -24,10 +24,10 @@ class TaskInput:
     """Input model for a task to be scheduled."""
     id: str
     title: str
+    estimated_duration_minutes: int
     description: Optional[str] = None
     category: str = "work"
     priority: str = "medium"  # low, medium, high, urgent
-    estimated_duration_minutes: int
     deadline: Optional[datetime] = None
     preferred_time: Optional[str] = None  # "morning", "afternoon", "evening"
     dependencies: Optional[List[str]] = None
@@ -62,9 +62,9 @@ class UserPreferences:
 class ConstraintInput:
     """Input model for scheduling constraints."""
     type: str  # "time_block", "no_meetings", "focus_time"
+    description: str
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
-    description: str
     is_hard_constraint: bool = True
 
 
@@ -73,8 +73,8 @@ class ScheduleRequest:
     """Request model for schedule generation."""
     user_id: str
     tasks: List[TaskInput]
-    existing_events: Optional[List[EventInput]] = None
     user_preferences: UserPreferences
+    existing_events: Optional[List[EventInput]] = None
     constraints: Optional[List[ConstraintInput]] = None
     planning_horizon_days: int = 7
 

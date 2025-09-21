@@ -6,7 +6,7 @@ for scheduling, task management, and life optimization.
 """
 
 from datetime import datetime
-from typing import List, Optional
+from typing import Dict, List, Optional, Any
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, HTTPException, Depends
@@ -85,10 +85,11 @@ class ChatService(LoggerMixin):
         self.agent = agent
     
     async def process_message(
-        self, 
-        message: str, 
-        user_id: UUID, 
-        conversation_id: Optional[UUID] = None
+        self,
+        message: str,
+        user_id: UUID,
+        conversation_id: Optional[UUID] = None,
+        context: Optional[Dict[str, Any]] = None
     ) -> ChatMessageResponse:
         """Process a user message and generate AI response."""
         
@@ -111,7 +112,8 @@ class ChatService(LoggerMixin):
             agent_response = await self.agent.process_user_message(
                 message=message,
                 user_id=user_id,
-                conversation_id=conversation_id
+                conversation_id=conversation_id,
+                context=context
             )
             
             # Calculate processing time

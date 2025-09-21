@@ -61,26 +61,65 @@ class ChatAPI {
   }
 
   private async getAuthHeaders() {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) {
-      throw new Error('No authentication token available');
-    }
+    try {
+      console.log('Getting Supabase session...');
+      const { data: { session }, error } = await supabase.auth.getSession();
 
-    return {
-      'Authorization': `Bearer ${session.access_token}`,
-      'Content-Type': 'application/json',
-    };
+      if (error) {
+        console.error('Error getting session:', error);
+        // For debugging, continue without auth if session fails
+        console.warn('Continuing without authentication for debugging...');
+        return {
+          'Content-Type': 'application/json',
+        };
+      }
+
+      if (!session?.access_token) {
+        console.error('No access token in session');
+        // For debugging, continue without auth
+        console.warn('No access token, continuing without authentication for debugging...');
+        return {
+          'Content-Type': 'application/json',
+        };
+      }
+
+      console.log('Session found, token available');
+      return {
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      };
+    } catch (error) {
+      console.error('getAuthHeaders failed:', error);
+      // For debugging, continue without auth
+      console.warn('Auth failed, continuing without authentication for debugging...');
+      return {
+        'Content-Type': 'application/json',
+      };
+    }
   }
 
   async sendMessage(request: SendMessageRequest): Promise<SendMessageResponse> {
     try {
+      console.log('Getting auth headers...');
       const headers = await this.getAuthHeaders();
+      console.log('Auth headers obtained:', !!headers['Authorization']);
+
+      console.log('Making fetch request to:', `${this.baseURL}/api/v1/chat/message`);
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        console.log('Chat request timed out after 30 seconds');
+        controller.abort();
+      }, 30000); // 30 second timeout
 
       const response = await fetch(`${this.baseURL}/api/v1/chat/message`, {
         method: 'POST',
         headers,
         body: JSON.stringify(request),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -88,6 +127,7 @@ class ChatAPI {
       }
 
       const data = await response.json();
+      console.log('Received response data:', data);
 
       // Transform backend response to frontend format
       return {
@@ -107,6 +147,15 @@ class ChatAPI {
       };
     } catch (error) {
       console.error('Chat API error:', error);
+
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error('Request timed out. The server took too long to respond.');
+      }
+
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new Error('Network error. Please check your connection and try again.');
+      }
+
       throw error;
     }
   }

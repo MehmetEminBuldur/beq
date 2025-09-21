@@ -21,7 +21,7 @@ from .core.config import get_settings
 from .core.logging import setup_logging
 from .core.telemetry import get_telemetry_collector
 from .api.v1.router import api_v1_router
-from .api.health import health_router
+from .api.health import router as health_router
 from .llm.openrouter_client import (
     get_openai_conversational_client,
     cleanup_openai_conversational_client,

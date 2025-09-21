@@ -51,7 +51,7 @@ COPY packages/shared-models /tmp/shared-models
 # Install shared models package
 RUN pip install -e /tmp/shared-models
 
-# Copy application code
+# Copy application code and environment file
 COPY services/calendar-integration /app
 
 # Change ownership to non-root user

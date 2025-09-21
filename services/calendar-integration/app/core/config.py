@@ -5,7 +5,8 @@ This module defines all configuration settings including OAuth credentials,
 database connections, and service-specific settings.
 """
 
-from pydantic import BaseSettings, Field
+from pydantic_settings import BaseSettings
+from pydantic import Field, ConfigDict
 from typing import List, Optional
 import os
 
@@ -73,7 +74,7 @@ class ServiceConfig(BaseSettings):
 
     # Supabase integration
     supabase_url: str = Field(..., env="SUPABASE_URL")
-    supabase_key: str = Field(..., env="SUPABASE_ANON_KEY")
+    supabase_key: str = Field(..., env="SUPABASE_KEY")
     supabase_service_role_key: str = Field(..., env="SUPABASE_SERVICE_ROLE_KEY")
 
     # Security
@@ -98,9 +99,11 @@ class Settings(BaseSettings):
     database: DatabaseConfig = DatabaseConfig()
     service: ServiceConfig = ServiceConfig()
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
+    model_config = ConfigDict(
+        env_file=".env",
+        case_sensitive=False,
+        extra='allow'  # Allow extra fields to prevent validation errors
+    )
 
 
 # Global settings instance

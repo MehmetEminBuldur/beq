@@ -103,9 +103,9 @@ class OrchestratorAgent(LoggerMixin):
     
     def __init__(self):
         self.openrouter_client = None  # Will be initialized async
+        self.checkpointer = MemorySaver()
         self.tools = self._initialize_tools()
         self.workflow = self._create_workflow()
-        self.checkpointer = MemorySaver()
         self.conversations: Dict[UUID, ConversationContext] = {}
     
     async def _get_llm_client(self) -> OpenAIConversationalClient:

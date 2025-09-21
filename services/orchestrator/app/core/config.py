@@ -51,6 +51,7 @@ class Settings(BaseSettings):
     # AI/LLM settings (Open Source Only - Gemma 3 27B IT)
     openrouter_api_key: Optional[str] = Field(None, description="OpenRouter API key")
     openrouter_model: str = Field("google/gemma-2-27b-it", description="OpenRouter model")
+    default_model: str = Field("gpt-4o", description="Default AI model to use")
     
     # LLM configuration
     max_tokens: int = Field(4000, description="Maximum tokens for LLM responses")

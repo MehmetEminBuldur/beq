@@ -3,29 +3,6 @@ version: '3.8'
 name: beq
 
 services:
-  # Local database services (Optional - Supabase is primary)
-  postgres:
-    image: postgres:15-alpine
-    container_name: beq-postgres-local
-    environment:
-      POSTGRES_DB: beq_local
-      POSTGRES_USER: beq
-      POSTGRES_PASSWORD: beq_password
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./infra/docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
-    ports:
-      - "5432:5432"
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U beq"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    profiles:
-      - local-db  # Only start with --profile local-db
-
-
   # Vector database for RAG
   qdrant:
     image: qdrant/qdrant:latest
@@ -49,6 +26,7 @@ services:
     container_name: beq-orchestrator
     environment:
       - ENVIRONMENT=development
+      - DATABASE_URL=${DATABASE_URL}
       - SCHEDULER_SERVICE_URL=http://scheduler:8001
       - RAG_SERVICE_URL=http://rag-recommender:8002
       - CALENDAR_SERVICE_URL=http://calendar-integration:8003
@@ -59,9 +37,6 @@ services:
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
     ports:
       - "8000:8000"
-    depends_on:
-      postgres:
-        condition: service_healthy
     restart: unless-stopped
     volumes:
       - ./services/orchestrator:/app
@@ -80,14 +55,11 @@ services:
     container_name: beq-scheduler
     environment:
       - ENVIRONMENT=development
-      - DATABASE_URL=postgresql+asyncpg://beq:beq_password@postgres:5432/beq_scheduler
+      - DATABASE_URL=${DATABASE_URL}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o}
     ports:
       - "8001:8001"
-    depends_on:
-      postgres:
-        condition: service_healthy
     restart: unless-stopped
     networks:
       - beq-network
@@ -104,15 +76,13 @@ services:
     container_name: beq-rag-recommender
     environment:
       - ENVIRONMENT=development
-      - DATABASE_URL=postgresql+asyncpg://beq:beq_password@postgres:5432/beq_rag
+      - DATABASE_URL=${DATABASE_URL}
       - QDRANT_URL=http://qdrant:6333
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o}
     ports:
       - "8002:8002"
     depends_on:
-      postgres:
-        condition: service_healthy
       qdrant:
         condition: service_healthy
     restart: unless-stopped
@@ -131,19 +101,21 @@ services:
     container_name: beq-calendar-integration
     environment:
       - ENVIRONMENT=development
-      - DATABASE_URL=postgresql+asyncpg://beq:beq_password@postgres:5432/beq_calendar
+      - DATABASE_URL=${DATABASE_URL}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - MICROSOFT_CLIENT_ID=${MICROSOFT_CLIENT_ID}
       - MICROSOFT_CLIENT_SECRET=${MICROSOFT_CLIENT_SECRET}
+      - SUPABASE_URL=https://ncuqhnggwiayzqvrelql.supabase.co
+      - SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5jdXFobmdnd2lheXpxdnJlbHFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgyODkwODcsImV4cCI6MjA3Mzg2NTA4N30.EQG8bwa0uhYv3u8TkH5bHiTJoJupcG8m_ETDLUuos9I
+      - SUPABASE_SERVICE_ROLE_KEY=${NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY}
     ports:
       - "8003:8003"
-    depends_on:
-      postgres:
-        condition: service_healthy
     restart: unless-stopped
+    volumes:
+      - ./services/calendar-integration/.env:/app/.env
     networks:
       - beq-network
     healthcheck:
@@ -159,7 +131,7 @@ services:
       dockerfile: Dockerfile
     container_name: beq-web
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=development
       - NEXT_PUBLIC_API_URL=http://localhost:8000
       - NEXT_PUBLIC_ORCHESTRATOR_API_URL=http://localhost:8000
       - NEXT_PUBLIC_SCHEDULER_API_URL=http://localhost:8001
@@ -168,6 +140,7 @@ services:
       - NEXT_PUBLIC_ENVIRONMENT=development
       - NEXT_PUBLIC_SUPABASE_URL=https://ncuqhnggwiayzqvrelql.supabase.co
       - NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5jdXFobmdnd2lheXpxdnJlbHFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgyODkwODcsImV4cCI6MjA3Mzg2NTA4N30.EQG8bwa0uhYv3u8TkH5bHiTJoJupcG8m_ETDLUuos9I
+      - NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5jdXFobmdnd2lheXpxdnJlbHFsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1ODI4OTA4NywiZXhwIjoyMDczODY1MDg3fQ.FvxvPeqgGVkkZ8Tn24SRWRy5HxLpXXqIbST-YtOl7OI
       - NEXT_PUBLIC_WS_URL=ws://localhost:8000
       - NEXT_TELEMETRY_DISABLED=1
     ports:
@@ -187,7 +160,6 @@ services:
       retries: 5
 
 volumes:
-  postgres_data:
   qdrant_data:
 
 networks:

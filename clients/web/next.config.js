@@ -10,8 +10,21 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  // Static generation'ı devre dışı bırak - development için yeterli
+  images: {
+    unoptimized: true,
+  },
+  // SSR için gerekli
+  trailingSlash: false,
   eslint: {
     ignoreDuringBuilds: true,
+  },
+  // Static generation hatalarını önle
+  outputFileTracingExcludes: {
+    '**/*': [
+      '**/node_modules/**',
+      '**/.next/**',
+    ],
   },
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
