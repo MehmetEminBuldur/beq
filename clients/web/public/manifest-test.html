@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manifest Test - BeQ</title>
+  <link rel="manifest" href="/site.webmanifest">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    .status {
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 5px;
+    }
+    .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    button {
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    button:hover { background: #1d4ed8; }
+  </style>
+</head>
+<body>
+  <h1>🧱 BeQ Web App Manifest Test</h1>
+
+  <div id="manifest-status" class="status">Checking manifest...</div>
+
+  <h2>Manifest Content:</h2>
+  <pre id="manifest-content">Loading...</pre>
+
+  <h2>PWA Features:</h2>
+  <div>
+    <button onclick="checkInstallability()">Check Installability</button>
+    <button onclick="testShortcuts()">Test Shortcuts</button>
+    <button onclick="openDashboard()">Go to Dashboard</button>
+  </div>
+
+  <div id="install-status" class="status" style="display:none;"></div>
+
+  <script>
+    // Check if manifest is accessible
+    fetch('/site.webmanifest')
+      .then(response => {
+        if (response.ok) {
+          return response.json();
+        } else {
+          throw new Error(`HTTP ${response.status}`);
+        }
+      })
+      .then(data => {
+        document.getElementById('manifest-status').className = 'status success';
+        document.getElementById('manifest-status').textContent = '✅ Manifest loaded successfully!';
+        document.getElementById('manifest-content').textContent = JSON.stringify(data, null, 2);
+      })
+      .catch(error => {
+        document.getElementById('manifest-status').className = 'status error';
+        document.getElementById('manifest-status').textContent = `❌ Failed to load manifest: ${error.message}`;
+      });
+
+    // Check PWA installability
+    function checkInstallability() {
+      const statusDiv = document.getElementById('install-status');
+      statusDiv.style.display = 'block';
+
+      if ('serviceWorker' in navigator) {
+        statusDiv.className = 'status success';
+        statusDiv.textContent = '✅ Service Worker supported';
+      } else {
+        statusDiv.className = 'status error';
+        statusDiv.textContent = '❌ Service Worker not supported';
+      }
+
+      if (window.matchMedia('(display-mode: standalone)').matches) {
+        statusDiv.textContent += '\n✅ App is running in standalone mode (installed)';
+      } else {
+        statusDiv.textContent += '\nℹ️ App is running in browser mode';
+      }
+    }
+
+    // Test shortcuts (if supported)
+    function testShortcuts() {
+      alert('Shortcuts can be tested after PWA installation. Look for BeQ in your app launcher!');
+    }
+
+    // Navigate to dashboard
+    function openDashboard() {
+      window.location.href = '/dashboard';
+    }
+
+    // Listen for install prompt
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+
+      const installButton = document.createElement('button');
+      installButton.textContent = 'Install BeQ';
+      installButton.onclick = () => {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then((choiceResult) => {
+          if (choiceResult.outcome === 'accepted') {
+            console.log('User accepted the install prompt');
+          }
+          deferredPrompt = null;
+        });
+      };
+
+      document.querySelector('div').appendChild(installButton);
+    });
+  </script>
+</body>
+</html>

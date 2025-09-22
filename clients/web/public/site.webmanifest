@@ -1,0 +1,98 @@
+{
+  "name": "BeQ - Bricks and Quantas",
+  "short_name": "BeQ",
+  "description": "AI-powered life management application that transcends traditional calendar planning by serving as a dynamic and intuitive personal assistant.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["productivity", "lifestyle", "utilities"],
+  "icons": [
+    {
+      "src": "/beq-logo.png",
+      "sizes": "32x32",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "32x32",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-touch-icon.svg",
+      "sizes": "180x180",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "View your life management overview",
+      "url": "/dashboard",
+      "icons": [
+        {
+          "src": "/beq-logo.png",
+          "sizes": "32x32"
+        }
+      ]
+    },
+    {
+      "name": "Calendar",
+      "short_name": "Calendar",
+      "description": "View your smart calendar",
+      "url": "/calendar",
+      "icons": [
+        {
+          "src": "/beq-logo.png",
+          "sizes": "32x32"
+        }
+      ]
+    },
+    {
+      "name": "Bricks",
+      "short_name": "Tasks",
+      "description": "Manage your bricks and quantas",
+      "url": "/bricks",
+      "icons": [
+        {
+          "src": "/beq-logo.png",
+          "sizes": "32x32"
+        }
+      ]
+    },
+    {
+      "name": "Chat",
+      "short_name": "AI Assistant",
+      "description": "Talk to your AI assistant",
+      "url": "/chat",
+      "icons": [
+        {
+          "src": "/beq-logo.png",
+          "sizes": "32x32"
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-mobile.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/screenshot-desktop.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide"
+    }
+  ]
+}
