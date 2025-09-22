@@ -34,9 +34,11 @@ export function Navigation() {
           <Link href="/" className="-m-1.5 p-1.5">
             <span className="sr-only">BeQ</span>
             <div className="flex items-center space-x-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-600">
-                <span className="text-sm font-bold text-white">BeQ</span>
-              </div>
+              <img
+                src="/beq-logo.png"
+                alt="BeQ Logo"
+                className="h-8 w-8 object-contain"
+              />
               <span className="text-xl font-bold text-gray-900 dark:text-white">
                 Bricks & Quantas
               </span>

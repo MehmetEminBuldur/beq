@@ -46,13 +46,12 @@ interface RecommendationResponse {
   timestamp: string;
 }
 
-// OpenRouter recommendation client
+// OpenRouter recommendation client (disabled - OpenRouter not configured)
 async function generateRecommendationsWithAI(request: RecommendationRequest): Promise<any> {
   const openRouterApiKey = process.env.OPENROUTER_API_KEY;
-  const model = process.env.OPENROUTER_MODEL || 'google/gemma-2-27b-it';
 
   if (!openRouterApiKey) {
-    throw new Error('OpenRouter API key not configured');
+    throw new Error('OpenRouter API key not configured - AI recommendation features are disabled');
   }
 
   // Create recommendation prompt

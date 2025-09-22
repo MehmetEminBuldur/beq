@@ -4,6 +4,11 @@ import { useEffect, useState } from 'react';
 import { useBricks } from '@/lib/hooks/use-bricks';
 import { useAuthContext } from '@/lib/providers/auth-provider';
 import { Navigation } from '@/components/layout/navigation';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { ArrowLeft, Plus, Trash2, Eye, Target, Clock, CheckCircle2, Circle } from 'lucide-react';
 import Link from 'next/link';
 
 export default function BricksPage() {
@@ -73,107 +78,267 @@ export default function BricksPage() {
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Your Bricks</h1>
-          <Link href="/dashboard" className="text-sm text-primary-600 hover:underline">Back to Dashboard</Link>
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+        {/* Header */}
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <Link href="/dashboard">
+                <Button variant="ghost" size="sm" className="gap-2">
+                  <ArrowLeft className="h-4 w-4" />
+                  Back to Dashboard
+                </Button>
+              </Link>
+            </div>
+            <h1 className="text-3xl font-bold tracking-tight">Your Bricks</h1>
+            <p className="text-muted-foreground mt-2">
+              Manage your goals and objectives with structured bricks
+            </p>
+          </div>
         </div>
 
-        <form onSubmit={handleCreate} className="mb-8 grid gap-3 md:grid-cols-5">
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="New brick title"
-            className="md:col-span-2 rounded border px-3 py-2"
-          />
-          <input
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Description (optional)"
-            className="md:col-span-2 rounded border px-3 py-2"
-          />
-          <div className="flex gap-2">
-            <select value={category} onChange={(e) => setCategory(e.target.value)} className="rounded border px-3 py-2">
-              <option value="general">General</option>
-              <option value="work">Work</option>
-              <option value="personal">Personal</option>
-              <option value="health">Health</option>
-              <option value="learning">Learning</option>
-            </select>
-            <input
-              type="number"
-              min={1}
-              value={estimatedMinutes}
-              onChange={(e) => setEstimatedMinutes(parseInt(e.target.value || '1', 10))}
-              className="w-28 rounded border px-3 py-2"
-              placeholder="Minutes"
-            />
-            <button disabled={!user || isLoading} className="rounded bg-primary-600 px-4 py-2 text-white disabled:opacity-50" type="submit">
-              {isLoading ? 'Creating...' : 'Add'}
-            </button>
-          </div>
-        </form>
+        {/* Create New Brick Card */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5" />
+              Create New Brick
+            </CardTitle>
+            <CardDescription>
+              Add a new goal or objective to break down into manageable quantas
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleCreate} className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <div className="md:col-span-2">
+                <Input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Brick title (e.g., Complete project proposal)"
+                  required
+                />
+              </div>
+              <Input
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Description (optional)"
+              />
+              <div className="flex gap-2">
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="general">General</option>
+                  <option value="work">Work</option>
+                  <option value="personal">Personal</option>
+                  <option value="health">Health</option>
+                  <option value="learning">Learning</option>
+                </select>
+              </div>
+              <div className="flex gap-2 md:col-span-2 lg:col-span-1">
+                <Input
+                  type="number"
+                  min={1}
+                  value={estimatedMinutes}
+                  onChange={(e) => setEstimatedMinutes(parseInt(e.target.value || '1', 10))}
+                  placeholder="Est. minutes"
+                  className="flex-1"
+                />
+                <Button disabled={!user || isLoading} type="submit" className="whitespace-nowrap">
+                  {isLoading ? 'Creating...' : 'Add Brick'}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
 
         {isLoading && (
-          <div className="text-sm text-muted-foreground mb-4">Loading...</div>
+          <div className="flex items-center justify-center py-8">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+              <p className="text-sm text-muted-foreground">Loading bricks...</p>
+            </div>
+          </div>
         )}
 
-        <div className="grid gap-8 md:grid-cols-3">
-          <section>
-            <h2 className="mb-3 text-sm font-semibold text-muted-foreground">Pending</h2>
-            <ul className="space-y-2">
+        {/* Bricks Grid */}
+        <div className="grid gap-6 md:grid-cols-3">
+          {/* Pending Bricks */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Circle className="h-5 w-5 text-orange-500" />
+                Pending Bricks
+                <Badge variant="secondary" className="ml-auto">
+                  {pendingBricks.length}
+                </Badge>
+              </CardTitle>
+              <CardDescription>
+                Goals waiting to be started
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
               {pendingBricks.map((b) => (
-                <li key={b.id} className="rounded border p-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Link href={`/detail/${b.id}`} className="font-medium hover:underline">{b.title}</Link>
-                      {b.description && <p className="text-sm text-muted-foreground">{b.description}</p>}
-                      <p className="mt-1 text-xs text-gray-500">{b.category} • Est. {b.estimated_duration_minutes}m</p>
+                <div key={b.id} className="flex items-start justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <Link href={`/detail/${b.id}`} className="font-medium hover:underline block truncate">
+                      {b.title}
+                    </Link>
+                    {b.description && (
+                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{b.description}</p>
+                    )}
+                    <div className="flex items-center gap-2 mt-2">
+                      <Badge variant="outline" className="text-xs">
+                        {b.category}
+                      </Badge>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        {b.estimated_duration_minutes}m
+                      </div>
                     </div>
-                    <button onClick={() => deleteBrick(b.id)} className="text-xs text-red-600 hover:underline">Delete</button>
                   </div>
-                </li>
+                  <div className="flex items-center gap-1 ml-2">
+                    <Button asChild variant="ghost" size="sm">
+                      <Link href={`/detail/${b.id}`}>
+                        <Eye className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => deleteBrick(b.id)}
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
               ))}
-              {pendingBricks.length === 0 && <p className="text-sm text-muted-foreground">No pending bricks</p>}
-            </ul>
-          </section>
+              {pendingBricks.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Target className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No pending bricks yet</p>
+                  <p className="text-xs mt-1">Create your first brick above</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-          <section>
-            <h2 className="mb-3 text-sm font-semibold text-muted-foreground">Active</h2>
-            <ul className="space-y-2">
+          {/* Active Bricks */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Target className="h-5 w-5 text-blue-500" />
+                Active Bricks
+                <Badge variant="secondary" className="ml-auto">
+                  {activeBricks.length}
+                </Badge>
+              </CardTitle>
+              <CardDescription>
+                Currently working on these goals
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
               {activeBricks.map((b) => (
-                <li key={b.id} className="rounded border p-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Link href={`/detail/${b.id}`} className="font-medium hover:underline">{b.title}</Link>
-                      {b.description && <p className="text-sm text-muted-foreground">{b.description}</p>}
-                      <p className="mt-1 text-xs text-gray-500">Progress {b.completion_percentage}% • Sessions {b.sessions_count}</p>
+                <div key={b.id} className="flex items-start justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <Link href={`/detail/${b.id}`} className="font-medium hover:underline block truncate">
+                      {b.title}
+                    </Link>
+                    {b.description && (
+                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{b.description}</p>
+                    )}
+                    <div className="flex items-center gap-2 mt-2">
+                      <Badge variant="outline" className="text-xs">
+                        {b.completion_percentage}% complete
+                      </Badge>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Target className="h-3 w-3" />
+                        {b.sessions_count} sessions
+                      </div>
                     </div>
-                    <button onClick={() => deleteBrick(b.id)} className="text-xs text-red-600 hover:underline">Delete</button>
                   </div>
-                </li>
+                  <div className="flex items-center gap-1 ml-2">
+                    <Button asChild variant="ghost" size="sm">
+                      <Link href={`/detail/${b.id}`}>
+                        <Eye className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => deleteBrick(b.id)}
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
               ))}
-              {activeBricks.length === 0 && <p className="text-sm text-muted-foreground">No active bricks</p>}
-            </ul>
-          </section>
+              {activeBricks.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Target className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No active bricks</p>
+                  <p className="text-xs mt-1">Start working on a pending brick</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-          <section>
-            <h2 className="mb-3 text-sm font-semibold text-muted-foreground">Completed</h2>
-            <ul className="space-y-2">
+          {/* Completed Bricks */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <CheckCircle2 className="h-5 w-5 text-green-500" />
+                Completed Bricks
+                <Badge variant="secondary" className="ml-auto">
+                  {completedBricks.length}
+                </Badge>
+              </CardTitle>
+              <CardDescription>
+                Successfully achieved goals
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
               {completedBricks.map((b) => (
-                <li key={b.id} className="rounded border p-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Link href={`/detail/${b.id}`} className="font-medium hover:underline">{b.title}</Link>
-                      <p className="mt-1 text-xs text-gray-500">Completed</p>
+                <div key={b.id} className="flex items-start justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <Link href={`/detail/${b.id}`} className="font-medium hover:underline block truncate">
+                      {b.title}
+                    </Link>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Badge variant="success" className="text-xs">
+                        Completed
+                      </Badge>
                     </div>
-                    <button onClick={() => deleteBrick(b.id)} className="text-xs text-red-600 hover:underline">Delete</button>
                   </div>
-                </li>
+                  <div className="flex items-center gap-1 ml-2">
+                    <Button asChild variant="ghost" size="sm">
+                      <Link href={`/detail/${b.id}`}>
+                        <Eye className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => deleteBrick(b.id)}
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
               ))}
-              {completedBricks.length === 0 && <p className="text-sm text-muted-foreground">No completed bricks</p>}
-            </ul>
-          </section>
+              {completedBricks.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  <CheckCircle2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No completed bricks yet</p>
+                  <p className="text-xs mt-1">Keep working towards your goals!</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

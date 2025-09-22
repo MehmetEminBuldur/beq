@@ -21,8 +21,8 @@ const REQUIRED_ENV_VARS = [
  * Optional but recommended environment variables
  */
 const OPTIONAL_ENV_VARS = [
-  'OPENROUTER_API_KEY',
   'NEXT_PUBLIC_ENVIRONMENT',
+  'NEXT_PUBLIC_SITE_URL',
 ] as const;
 
 /**
@@ -62,11 +62,7 @@ export function validateEnvironment(): EnvValidationResult {
 
   // Environment-specific validations
   const environment = process.env.NEXT_PUBLIC_ENVIRONMENT || 'development';
-  if (environment === 'production') {
-    if (!process.env.OPENROUTER_API_KEY) {
-      errors.push('OPENROUTER_API_KEY is required in production for AI features');
-    }
-  }
+  // No additional production validations needed
 
   return {
     isValid: errors.length === 0,

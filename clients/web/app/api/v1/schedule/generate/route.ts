@@ -69,13 +69,12 @@ interface ScheduleResponse {
   processing_time_seconds: number;
 }
 
-// OpenRouter scheduling client
+// OpenRouter scheduling client (disabled - OpenRouter not configured)
 async function generateScheduleWithAI(context: ScheduleRequest): Promise<any> {
   const openRouterApiKey = process.env.OPENROUTER_API_KEY;
-  const model = process.env.OPENROUTER_MODEL || 'google/gemma-2-27b-it';
 
   if (!openRouterApiKey) {
-    throw new Error('OpenRouter API key not configured');
+    throw new Error('OpenRouter API key not configured - AI scheduling features are disabled');
   }
 
   // Create a detailed prompt for scheduling

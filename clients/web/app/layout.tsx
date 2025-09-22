@@ -12,6 +12,7 @@ if (typeof window === 'undefined') {
 }
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
   title: {
     default: 'BeQ - Bricks and Quantas',
     template: '%s | BeQ - Efficient Life Management',
@@ -73,9 +74,13 @@ export const metadata: Metadata = {
     google: 'google-verification-code',
   },
   icons: {
-    icon: '/favicon.svg',
-    shortcut: '/favicon.svg',
-    apple: '/apple-touch-icon.svg',
+    icon: [
+      { url: '/favicon.ico?v=1', sizes: '16x16 32x32 48x48' },
+      { url: '/beq-logo.png?v=1', sizes: '32x32', type: 'image/png' },
+      { url: '/favicon.svg?v=1', type: 'image/svg+xml' },
+    ],
+    shortcut: '/beq-logo.png?v=1',
+    apple: '/apple-touch-icon.svg?v=1',
   },
   manifest: '/site.webmanifest',
 };
