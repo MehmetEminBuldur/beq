@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { AuthGuard } from '@/components/auth/auth-guard'
 
 interface ChecklistItem {
   id: string
@@ -24,7 +25,7 @@ interface DetailItem {
   resources: Resource[]
 }
 
-export default function DetailPane() {
+function DetailPaneContent() {
   const [item, setItem] = useState<DetailItem>({
     id: '1',
     title: 'Morning Routine',
@@ -195,5 +196,13 @@ export default function DetailPane() {
         </main>
       </div>
     </div>
+  )
+}
+
+export default function DetailPane() {
+  return (
+    <AuthGuard>
+      <DetailPaneContent />
+    </AuthGuard>
   )
 }

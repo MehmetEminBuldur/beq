@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuthContext } from '@/lib/providers/auth-provider';
-import { rateLimiter } from '@/lib/utils/security';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 
 const signInSchema = z.object({
@@ -26,8 +25,16 @@ interface SignInFormProps {
 
 export function SignInForm({ onSwitchToSignUp, onSwitchToResetPassword }: SignInFormProps) {
   const [showPassword, setShowPassword] = useState(false);
+  const [rateLimiter, setRateLimiter] = useState<any>(null);
   const { signIn, isLoading } = useAuthContext();
   const router = useRouter();
+
+  useEffect(() => {
+    // Dynamically import rateLimiter on client side only
+    import('@/lib/utils/security').then((security) => {
+      setRateLimiter(security.rateLimiter);
+    });
+  }, []);
 
   const {
     register,
@@ -38,16 +45,18 @@ export function SignInForm({ onSwitchToSignUp, onSwitchToResetPassword }: SignIn
   });
 
   const onSubmit = async (data: SignInForm) => {
-    // Rate limiting - prevent brute force attacks
-    if (!rateLimiter.isAllowed(`signin-${data.email}`, 5, 15 * 60 * 1000)) { // 5 attempts per 15 minutes
+    // Rate limiting - prevent brute force attacks (only if rateLimiter is loaded)
+    if (rateLimiter && !rateLimiter.isAllowed(`signin-${data.email}`, 5, 15 * 60 * 1000)) { // 5 attempts per 15 minutes
       alert('Too many sign-in attempts. Please try again later.');
       return;
     }
 
     const result = await signIn(data.email, data.password);
     if (!result.error) {
-      // Reset rate limiter on successful login
-      rateLimiter.reset(`signin-${data.email}`);
+      // Reset rate limiter on successful login (only if rateLimiter is loaded)
+      if (rateLimiter) {
+        rateLimiter.reset(`signin-${data.email}`);
+      }
       router.push('/dashboard');
     }
   };

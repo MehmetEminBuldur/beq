@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { AuthGuard } from '@/components/auth/auth-guard'
 
 interface ChecklistItem {
   id: string
@@ -25,7 +26,7 @@ interface DetailItem {
   resources: Resource[]
 }
 
-export default function DynamicDetailPane() {
+function DynamicDetailPaneContent() {
   const params = useParams()
   const router = useRouter()
   const [item, setItem] = useState<DetailItem | null>(null)
@@ -273,5 +274,13 @@ export default function DynamicDetailPane() {
         </main>
       </div>
     </div>
+  )
+}
+
+export default function DynamicDetailPane() {
+  return (
+    <AuthGuard>
+      <DynamicDetailPaneContent />
+    </AuthGuard>
   )
 }

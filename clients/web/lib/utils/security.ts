@@ -2,7 +2,15 @@
  * Security utilities for input validation and sanitization
  */
 
-import DOMPurify from 'isomorphic-dompurify';
+// DOMPurify is only available on client side
+let DOMPurify: any = null;
+if (typeof window !== 'undefined') {
+  try {
+    DOMPurify = require('isomorphic-dompurify');
+  } catch (error) {
+    console.warn('DOMPurify not available:', error);
+  }
+}
 
 // Input validation patterns
 export const VALIDATION_PATTERNS = {
@@ -36,6 +44,12 @@ const SANITIZE_OPTIONS = {
  */
 export function sanitizeHtml(content: string, level: keyof typeof SANITIZE_OPTIONS = 'basic'): string {
   if (!content || typeof content !== 'string') return '';
+
+  // During SSR, DOMPurify might not be available
+  if (!DOMPurify) {
+    // Fallback: basic HTML entity escaping for SSR
+    return escapeHtml(content);
+  }
 
   return DOMPurify.sanitize(content, SANITIZE_OPTIONS[level]);
 }
