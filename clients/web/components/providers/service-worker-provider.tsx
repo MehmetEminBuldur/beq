@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useOfflineDetection } from '@/lib/hooks/use-service-worker';
+import { useServiceWorker, useOfflineDetection } from '@/lib/hooks/use-service-worker';
 import { toast } from 'react-hot-toast';
 
 interface ServiceWorkerProviderProps {
@@ -9,7 +9,19 @@ interface ServiceWorkerProviderProps {
 }
 
 export function ServiceWorkerProvider({ children }: ServiceWorkerProviderProps) {
+  const { register, isSupported, isRegistered } = useServiceWorker();
   const { isOnline, isOffline } = useOfflineDetection();
+
+  // Register service worker on mount
+  useEffect(() => {
+    if (isSupported && !isRegistered && typeof window !== 'undefined') {
+      register('/sw.js').then(() => {
+        console.log('Service worker registered successfully');
+      }).catch((error) => {
+        console.error('Service worker registration failed:', error);
+      });
+    }
+  }, [isSupported, isRegistered, register]);
 
   // Handle online/offline status
   useEffect(() => {

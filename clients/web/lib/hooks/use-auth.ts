@@ -5,6 +5,22 @@ import { User, Session, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase/client';
 import { toast } from 'react-hot-toast';
 
+// Helper function to check network connectivity
+const checkNetworkConnectivity = async (): Promise<boolean> => {
+  try {
+    // Try to fetch a small resource from Supabase
+    const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/`, {
+      method: 'HEAD',
+      headers: {
+        'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      },
+    });
+    return response.ok;
+  } catch (error) {
+    return false;
+  }
+};
+
 interface AuthUser {
   id: string;
   email?: string;
@@ -20,32 +36,74 @@ export function useAuth() {
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [sessionChecked, setSessionChecked] = useState(false);
 
   useEffect(() => {
-    // Get initial session with timeout
+    // Prevent duplicate session checks (important for development hot reloading)
+    if (sessionChecked) {
+      return;
+    }
+
+    // Get initial session with timeout protection and network checking
     const getInitialSession = async () => {
       try {
-        // Add timeout to prevent hanging
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Session check timeout')), 5000)
-        );
+        setSessionChecked(true); // Mark as checked immediately to prevent duplicates
 
+        // First, check if we can reach Supabase
+        const isNetworkAvailable = await checkNetworkConnectivity();
+        if (!isNetworkAvailable) {
+          console.warn('🚨 Supabase is not reachable. Authentication features will be limited.');
+          console.warn('This may be because:');
+          console.warn('1. Supabase service is not running locally (check if docker-compose is running)');
+          console.warn('2. Network connectivity issues');
+          console.warn('3. Incorrect Supabase URL configuration');
+          console.warn('4. Environment variables are not set correctly');
+          console.warn('');
+          console.warn('To fix this, ensure:');
+          console.warn('- Run: docker-compose up -d (for local Supabase)');
+          console.warn('- Check: .env.local file has correct SUPABASE_URL and SUPABASE_ANON_KEY');
+          console.warn('- Verify: Network connectivity to Supabase');
+          setIsLoading(false);
+          return;
+        }
+
+        // Create a timeout promise
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Session check timeout')), 10000); // 10 second timeout
+        });
+
+        // Race between session check and timeout
         const sessionPromise = supabase.auth.getSession();
         const { data: { session }, error } = await Promise.race([sessionPromise, timeoutPromise]) as any;
 
-        if (error) throw error;
+        if (error) {
+          // Only log network-related errors, not authentication errors
+          if (error.message.includes('network') || error.message.includes('fetch')) {
+            console.warn('Network error during session check:', error.message);
+          } else if (error.message.includes('timeout')) {
+            console.warn('Session check timed out - this may be due to network issues or Supabase service being unavailable');
+          } else {
+            console.warn('Supabase authentication error:', error.message);
+          }
+          return; // Don't throw, just continue without session
+        }
 
         if (session?.user) {
           await loadUserProfile(session.user);
           setSession(session);
           setIsAuthenticated(true);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error getting initial session:', error);
-        // Don't show error toast for timeout/network issues on first load
-        if (!error.message.includes('timeout')) {
-          toast.error('Failed to load authentication state');
+        // Handle timeout specifically
+        if (error.message === 'Session check timeout') {
+          console.warn('⏰ Session check timed out - continuing without session.');
+          console.warn('This usually means Supabase is not running or there are network issues.');
+          console.warn('For local development: Run `docker-compose up -d` to start Supabase services.');
+        } else {
+          console.warn('Unexpected error during session check:', error);
         }
+        // Don't show toast for session check errors - they're not user-facing issues
       } finally {
         setIsLoading(false);
       }
@@ -73,7 +131,7 @@ export function useAuth() {
     );
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [sessionChecked]);
 
   const loadUserProfile = async (authUser: User) => {
     try {
@@ -87,14 +145,15 @@ export function useAuth() {
         throw error;
       }
 
+      // profile will be null if no row is found (PGRST116), but will have proper typing if found
       const userData: AuthUser = {
         id: authUser.id,
         email: authUser.email,
-        full_name: profile?.full_name || authUser.user_metadata?.full_name,
-        avatar_url: profile?.avatar_url || authUser.user_metadata?.avatar_url,
-        timezone: profile?.timezone || 'UTC',
-        preferences: profile?.preferences || {},
-        onboarding_completed: profile?.onboarding_completed || false,
+        full_name: (profile as any)?.full_name || authUser.user_metadata?.full_name,
+        avatar_url: (profile as any)?.avatar_url || authUser.user_metadata?.avatar_url,
+        timezone: (profile as any)?.timezone || 'UTC',
+        preferences: (profile as any)?.preferences || {},
+        onboarding_completed: (profile as any)?.onboarding_completed || false,
       };
 
       setUser(userData);

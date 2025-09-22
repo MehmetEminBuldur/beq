@@ -1,42 +1,54 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useAuthContext } from '@/lib/providers/auth-provider';
 import { bricksAPI, Brick, Quanta, CreateBrickRequest, UpdateBrickRequest, CreateQuantaRequest, UpdateQuantaRequest } from '@/lib/api/bricks';
+import { useUserDataCache } from './use-cached-query';
 import { toast } from 'react-hot-toast';
 
 export function useBricks() {
   const { user } = useAuthContext();
-  const [bricks, setBricks] = useState<Brick[]>([]);
-  const [quantas, setQuantas] = useState<Quanta[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [selectedBrick, setSelectedBrick] = useState<Brick | null>(null);
 
-  // Load user bricks and quantas
-  const loadUserData = useCallback(async () => {
-    if (!user) return;
-
-    try {
-      setIsLoading(true);
-      const [userBricks, userQuantas] = await Promise.all([
-        bricksAPI.getUserBricks(user.id),
-        bricksAPI.getUserQuantas(user.id),
-      ]);
-
-      setBricks(userBricks);
-      setQuantas(userQuantas);
-    } catch (error) {
-      console.error('Failed to load user data:', error);
-      toast.error('Failed to load your tasks');
-    } finally {
-      setIsLoading(false);
+  // Cached queries for bricks and quantas
+  const bricksQuery = useUserDataCache(
+    'bricks',
+    user?.id || '',
+    () => user ? bricksAPI.getUserBricks(user.id) : Promise.resolve([]),
+    {
+      cacheTTL: 10 * 60 * 1000, // 10 minutes for bricks
+      enableOffline: true,
+      compress: true, // Compress brick data
     }
-  }, [user]);
+  );
 
-  // Load data when user changes
+  const quantasQuery = useUserDataCache(
+    'quantas',
+    user?.id || '',
+    () => user ? bricksAPI.getUserQuantas(user.id) : Promise.resolve([]),
+    {
+      cacheTTL: 10 * 60 * 1000, // 10 minutes for quantas
+      enableOffline: true,
+      compress: true, // Compress quanta data
+    }
+  );
+
+  const bricks = bricksQuery.data || [];
+  const quantas = quantasQuery.data || [];
+  const isLoading = bricksQuery.isLoading || quantasQuery.isLoading;
+  const selectedBrick = null; // This would need to be managed separately if needed
+
+  // Combined loading state
+  const isLoadingAny = bricksQuery.isLoading || quantasQuery.isLoading;
+  const hasError = bricksQuery.error || quantasQuery.error;
+
+  // Trigger refresh when user becomes available
   useEffect(() => {
-    loadUserData();
-  }, [loadUserData]);
+    if (user?.id && !bricksQuery.data && !quantasQuery.data && !isLoadingAny) {
+      // User just became available and we don't have data yet, refresh
+      bricksQuery.refresh();
+      quantasQuery.refresh();
+    }
+  }, [user?.id, bricksQuery, quantasQuery, bricksQuery.data, quantasQuery.data, isLoadingAny]);
 
   // === BRICK OPERATIONS ===
 
@@ -47,33 +59,26 @@ export function useBricks() {
     }
 
     try {
-      setIsLoading(true);
       const newBrick = await bricksAPI.createBrick(user.id, brickData);
-      setBricks(prev => [newBrick, ...prev]);
+
+      // Invalidate bricks cache to refresh data
+      bricksQuery.invalidate();
+
       toast.success('Brick created successfully!');
       return newBrick;
     } catch (error) {
       console.error('Failed to create brick:', error);
       toast.error('Failed to create brick');
       return null;
-    } finally {
-      setIsLoading(false);
     }
-  }, [user]);
+  }, [user, bricksQuery]);
 
   const updateBrick = useCallback(async (brickId: string, updates: UpdateBrickRequest) => {
     try {
-      setIsLoading(true);
       const updatedBrick = await bricksAPI.updateBrick(brickId, updates);
 
-      setBricks(prev => prev.map(brick =>
-        brick.id === brickId ? updatedBrick : brick
-      ));
-
-      // Update selected brick if it's the one being updated
-      if (selectedBrick?.id === brickId) {
-        setSelectedBrick(updatedBrick);
-      }
+      // Invalidate bricks cache to refresh data
+      bricksQuery.invalidate();
 
       toast.success('Brick updated successfully!');
       return updatedBrick;
@@ -81,32 +86,23 @@ export function useBricks() {
       console.error('Failed to update brick:', error);
       toast.error('Failed to update brick');
       return null;
-    } finally {
-      setIsLoading(false);
     }
-  }, [selectedBrick]);
+  }, [bricksQuery]);
 
   const deleteBrick = useCallback(async (brickId: string) => {
     try {
-      setIsLoading(true);
       await bricksAPI.deleteBrick(brickId);
 
-      setBricks(prev => prev.filter(brick => brick.id !== brickId));
-      setQuantas(prev => prev.filter(quanta => quanta.brick_id !== brickId));
-
-      // Clear selected brick if it's the one being deleted
-      if (selectedBrick?.id === brickId) {
-        setSelectedBrick(null);
-      }
+      // Invalidate both bricks and quantas caches since deleting a brick affects quantas
+      bricksQuery.invalidate();
+      quantasQuery.invalidate();
 
       toast.success('Brick deleted successfully!');
     } catch (error) {
       console.error('Failed to delete brick:', error);
       toast.error('Failed to delete brick');
-    } finally {
-      setIsLoading(false);
     }
-  }, [selectedBrick]);
+  }, [bricksQuery, quantasQuery]);
 
   const getBrickById = useCallback(async (brickId: string) => {
     try {
@@ -127,12 +123,10 @@ export function useBricks() {
     }
 
     try {
-      setIsLoading(true);
       const newQuanta = await bricksAPI.createQuanta(user.id, quantaData);
 
-      // Reload quantas to get updated data with joined brick info
-      const updatedQuantas = await bricksAPI.getUserQuantas(user.id);
-      setQuantas(updatedQuantas);
+      // Invalidate quantas cache to refresh data
+      quantasQuery.invalidate();
 
       toast.success('Quanta created successfully!');
       return newQuanta;
@@ -140,21 +134,15 @@ export function useBricks() {
       console.error('Failed to create quanta:', error);
       toast.error('Failed to create quanta');
       return null;
-    } finally {
-      setIsLoading(false);
     }
-  }, [user]);
+  }, [user, quantasQuery]);
 
   const updateQuanta = useCallback(async (quantaId: string, updates: UpdateQuantaRequest) => {
     try {
-      setIsLoading(true);
       const updatedQuanta = await bricksAPI.updateQuanta(quantaId, updates);
 
-      // Reload quantas to get updated data
-      if (user) {
-        const updatedQuantas = await bricksAPI.getUserQuantas(user.id);
-        setQuantas(updatedQuantas);
-      }
+      // Invalidate quantas cache to refresh data
+      quantasQuery.invalidate();
 
       toast.success('Quanta updated successfully!');
       return updatedQuanta;
@@ -162,34 +150,30 @@ export function useBricks() {
       console.error('Failed to update quanta:', error);
       toast.error('Failed to update quanta');
       return null;
-    } finally {
-      setIsLoading(false);
     }
-  }, [user]);
+  }, [quantasQuery]);
 
   const deleteQuanta = useCallback(async (quantaId: string) => {
     try {
-      setIsLoading(true);
       await bricksAPI.deleteQuanta(quantaId);
 
-      setQuantas(prev => prev.filter(quanta => quanta.id !== quantaId));
+      // Invalidate quantas cache to refresh data
+      quantasQuery.invalidate();
 
       toast.success('Quanta deleted successfully!');
     } catch (error) {
       console.error('Failed to delete quanta:', error);
       toast.error('Failed to delete quanta');
-    } finally {
-      setIsLoading(false);
     }
-  }, []);
+  }, [quantasQuery]);
 
   const completeQuanta = useCallback(async (quantaId: string) => {
     try {
-      setIsLoading(true);
       const updatedQuanta = await bricksAPI.completeQuanta(quantaId);
 
-      // Reload both bricks and quantas to reflect progress changes
-      await loadUserData();
+      // Invalidate both caches since completing quantas affects brick progress
+      bricksQuery.invalidate();
+      quantasQuery.invalidate();
 
       toast.success('Quanta completed! 🎉');
       return updatedQuanta;
@@ -197,27 +181,22 @@ export function useBricks() {
       console.error('Failed to complete quanta:', error);
       toast.error('Failed to complete quanta');
       return null;
-    } finally {
-      setIsLoading(false);
     }
-  }, [loadUserData]);
+  }, [bricksQuery, quantasQuery]);
 
   const reorderQuantas = useCallback(async (quantaIds: string[]) => {
     try {
       await bricksAPI.reorderQuantas(quantaIds);
 
-      // Reload quantas to get updated order
-      if (user) {
-        const updatedQuantas = await bricksAPI.getUserQuantas(user.id);
-        setQuantas(updatedQuantas);
-      }
+      // Invalidate quantas cache to refresh data
+      quantasQuery.invalidate();
 
       toast.success('Quantas reordered successfully!');
     } catch (error) {
       console.error('Failed to reorder quantas:', error);
       toast.error('Failed to reorder quantas');
     }
-  }, [user]);
+  }, [quantasQuery]);
 
   // === UTILITY FUNCTIONS ===
 
@@ -269,9 +248,15 @@ export function useBricks() {
       brick.title.toLowerCase().includes(lowercaseQuery) ||
       brick.description?.toLowerCase().includes(lowercaseQuery) ||
       brick.category.toLowerCase().includes(lowercaseQuery) ||
-      brick.tags.some(tag => tag.toLowerCase().includes(lowercaseQuery))
+      brick.personalization_tags?.some((tag: string) => tag.toLowerCase().includes(lowercaseQuery))
     );
   }, [bricks]);
+
+  const setSelectedBrick = useCallback((brick: Brick | null) => {
+    // For now, this is a no-op since we're using cached queries
+    // In the future, this could be used for more complex state management
+    console.log('Selected brick:', brick?.id);
+  }, []);
 
   return {
     // State
@@ -279,6 +264,20 @@ export function useBricks() {
     quantas,
     selectedBrick,
     isLoading,
+    isLoadingAny,
+    hasError,
+
+    // Cache status
+    bricksCache: {
+      isStale: bricksQuery.isStale,
+      lastFetched: bricksQuery.lastFetched,
+      error: bricksQuery.error,
+    },
+    quantasCache: {
+      isStale: quantasQuery.isStale,
+      lastFetched: quantasQuery.lastFetched,
+      error: quantasQuery.error,
+    },
 
     // Brick operations
     createBrick,
@@ -297,7 +296,7 @@ export function useBricks() {
 
     // Utility functions
     getBrickStats,
-    loadUserData,
+    loadUserData: bricksQuery.refresh, // Use cache refresh instead
 
     // Filters and search
     getBricksByCategory,

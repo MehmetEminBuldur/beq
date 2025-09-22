@@ -2,7 +2,7 @@
 const nextConfig = {
   output: 'standalone',
   experimental: {
-    optimizeCss: true,
+    // optimizeCss: true, // Temporarily disabled due to critters dependency issue
   },
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
@@ -31,6 +31,34 @@ const nextConfig = {
   images: {
     domains: ['localhost', 'api.beq.app'],
     unoptimized: process.env.NODE_ENV === 'development',
+  },
+  async headers() {
+    return [
+      {
+        // Service worker headers
+        source: '/sw.js',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=0, must-revalidate',
+          },
+          {
+            key: 'Service-Worker-Allowed',
+            value: '/',
+          },
+        ],
+      },
+      {
+        // Static assets caching
+        source: '/_next/static/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+    ];
   },
   webpack: (config, { isServer, dev }) => {
     if (!isServer) {
