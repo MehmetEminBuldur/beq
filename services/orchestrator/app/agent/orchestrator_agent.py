@@ -20,6 +20,7 @@ import structlog
 
 from ..core.config import get_settings
 from ..core.logging import LoggerMixin
+from ..core.supabase import get_supabase
 from ..llm.openrouter_client import (
     OpenAIConversationalClient,
     ConversationMessage,
@@ -406,10 +407,24 @@ Remember: You're not just a scheduler, you're a life optimization partner. Help 
             conv_context = await self._get_conversation_context(
                 user_id, conversation_id, context
             )
-            
-            # Create initial state
+
+            # Load conversation history from Supabase
+            conversation_history = await self._load_conversation_history(user_id, conversation_id)
+
+            # Convert history to LangChain messages
+            history_messages = []
+            for msg in conversation_history:
+                if msg['sender'] == 'user':
+                    history_messages.append(HumanMessage(content=msg['content']))
+                elif msg['sender'] == 'assistant':
+                    history_messages.append(AIMessage(content=msg['content']))
+
+            # Add current message
+            history_messages.append(HumanMessage(content=message))
+
+            # Create initial state with conversation history
             initial_state: AgentState = {
-                "messages": [HumanMessage(content=message)],
+                "messages": history_messages,
                 "user_id": str(user_id),
                 "conversation_id": str(conversation_id),
                 "user_context": context or {},
@@ -462,6 +477,54 @@ Remember: You're not just a scheduler, you're a life optimization partner. Help 
                 model_used=settings.default_model,
                 actions_taken=["error_handling"]
             )
+
+    async def _load_conversation_history(
+        self,
+        user_id: UUID,
+        conversation_id: UUID,
+        limit: int = 20
+    ) -> List[Dict[str, Any]]:
+        """Load conversation history from Supabase."""
+
+        try:
+            supabase = get_supabase()
+
+            # Get messages from Supabase
+            response = await supabase.table('messages') \
+                .select('*') \
+                .eq('conversation_id', str(conversation_id)) \
+                .eq('user_id', str(user_id)) \
+                .order('created_at', desc=False) \
+                .limit(limit) \
+                .execute()
+
+            history = []
+            for msg in response.data:
+                # Add user message
+                history.append({
+                    'sender': 'user',
+                    'content': msg['content'],
+                    'timestamp': msg['created_at']
+                })
+
+                # Add assistant response if exists
+                if msg['response']:
+                    history.append({
+                        'sender': 'assistant',
+                        'content': msg['response'],
+                        'timestamp': msg['created_at']
+                    })
+
+            return history
+
+        except Exception as e:
+            self.logger.warning(
+                "Failed to load conversation history, proceeding without history",
+                user_id=str(user_id),
+                conversation_id=str(conversation_id),
+                error=str(e)
+            )
+            return []
     
     async def _get_conversation_context(
         self,

@@ -16,6 +16,7 @@ import structlog
 
 from ...agent.orchestrator_agent import OrchestratorAgent, get_orchestrator_agent
 from ...core.logging import LoggerMixin
+from ...core.supabase import get_supabase
 
 router = APIRouter()
 logger = structlog.get_logger(__name__)
@@ -80,10 +81,61 @@ class ConversationHistoryResponse(BaseModel):
 
 class ChatService(LoggerMixin):
     """Service for handling chat interactions."""
-    
+
     def __init__(self, agent: OrchestratorAgent):
         self.agent = agent
+        self.supabase = get_supabase()
     
+    async def ensure_conversation_exists(
+        self,
+        conversation_id: UUID,
+        user_id: UUID
+    ) -> None:
+        """Ensure conversation exists in Supabase, create if not."""
+
+        try:
+            # Check if conversation exists
+            response = await self.supabase.table('conversations') \
+                .select('id') \
+                .eq('id', str(conversation_id)) \
+                .eq('user_id', str(user_id)) \
+                .single() \
+                .execute()
+
+            # Conversation exists
+            if response.data:
+                return
+
+        except Exception:
+            # Conversation doesn't exist, create it
+            pass
+
+        # Create new conversation
+        try:
+            await self.supabase.table('conversations') \
+                .insert({
+                    'id': str(conversation_id),
+                    'user_id': str(user_id),
+                    'title': 'New Chat',
+                    'context': {}
+                }) \
+                .execute()
+
+            self.logger.info(
+                "Created new conversation",
+                conversation_id=str(conversation_id),
+                user_id=str(user_id)
+            )
+
+        except Exception as e:
+            self.logger.error(
+                "Failed to create conversation",
+                conversation_id=str(conversation_id),
+                user_id=str(user_id),
+                error=str(e)
+            )
+            raise HTTPException(status_code=500, detail="Failed to create conversation")
+
     async def process_message(
         self,
         message: str,
@@ -98,7 +150,10 @@ class ChatService(LoggerMixin):
         
         if not conversation_id:
             conversation_id = uuid4()
-        
+
+        # Ensure conversation exists in database
+        await self.ensure_conversation_exists(conversation_id, user_id)
+
         self.logger.info(
             "Processing chat message",
             user_id=str(user_id),
@@ -121,6 +176,42 @@ class ChatService(LoggerMixin):
                 (datetime.utcnow() - start_time).total_seconds() * 1000
             )
             
+            # Save message to Supabase
+            try:
+                await self.supabase.table('messages').insert({
+                    'id': str(message_id),
+                    'conversation_id': str(conversation_id),
+                    'user_id': str(user_id),
+                    'content': message,
+                    'response': agent_response.response_text,
+                    'model_used': agent_response.model_used,
+                    'processing_time_ms': processing_time_ms,
+                    'metadata': {
+                        'confidence_score': agent_response.confidence_score,
+                        'actions_taken': agent_response.actions_taken,
+                        'suggestions': agent_response.suggestions,
+                        'schedule_updated': agent_response.schedule_updated,
+                        'bricks_created': [str(bid) for bid in agent_response.bricks_created],
+                        'bricks_updated': [str(bid) for bid in agent_response.bricks_updated],
+                        'resources_recommended': [str(rid) for rid in agent_response.resources_recommended]
+                    }
+                }).execute()
+
+                # Update conversation last_message_at
+                await self.supabase.table('conversations') \
+                    .update({'last_message_at': datetime.utcnow().isoformat()}) \
+                    .eq('id', str(conversation_id)) \
+                    .execute()
+
+            except Exception as e:
+                self.logger.error(
+                    "Failed to save message to database",
+                    message_id=str(message_id),
+                    conversation_id=str(conversation_id),
+                    error=str(e)
+                )
+                # Don't fail the request if DB save fails, just log it
+
             # Create response
             response = ChatMessageResponse(
                 message_id=message_id,
@@ -208,17 +299,69 @@ async def get_conversation_history(
     offset: int = 0
 ):
     """Get conversation history for a specific conversation."""
-    
-    # TODO: Implement conversation history retrieval from database
-    # For now, return placeholder
-    return ConversationHistoryResponse(
-        conversation_id=conversation_id,
-        user_id=user_id,
-        messages=[],
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
-        total_messages=0
-    )
+
+    try:
+        # Get messages from Supabase
+        response = await get_supabase().table('messages') \
+            .select('*') \
+            .eq('conversation_id', str(conversation_id)) \
+            .eq('user_id', str(user_id)) \
+            .order('created_at', desc=False) \
+            .range(offset, offset + limit - 1) \
+            .execute()
+
+        messages = []
+        for msg in response.data:
+            # Add user message
+            messages.append({
+                'id': msg['id'] + '_user',
+                'conversation_id': str(conversation_id),
+                'content': msg['content'],
+                'response': None,
+                'sender': 'user',
+                'timestamp': msg['created_at'],
+                'type': 'text',
+                'metadata': {}
+            })
+
+            # Add assistant response if exists
+            if msg['response']:
+                messages.append({
+                    'id': msg['id'] + '_assistant',
+                    'conversation_id': str(conversation_id),
+                    'content': msg['response'],
+                    'response': None,
+                    'sender': 'assistant',
+                    'timestamp': msg['created_at'],
+                    'type': 'text',
+                    'metadata': msg['metadata'] or {}
+                })
+
+        # Get conversation info
+        conv_response = await get_supabase().table('conversations') \
+            .select('*') \
+            .eq('id', str(conversation_id)) \
+            .eq('user_id', str(user_id)) \
+            .single() \
+            .execute()
+
+        if not conv_response.data:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+
+        conv = conv_response.data
+
+        return ConversationHistoryResponse(
+            conversation_id=conversation_id,
+            user_id=user_id,
+            messages=messages,
+            created_at=datetime.fromisoformat(conv['created_at'].replace('Z', '+00:00')),
+            updated_at=datetime.fromisoformat(conv['updated_at'].replace('Z', '+00:00')),
+            total_messages=len(messages)
+        )
+
+    except Exception as e:
+        logger.error("Error retrieving conversation history", error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to retrieve conversation history")
 
 
 @router.get("/conversations", response_model=List[ConversationHistoryResponse])
@@ -228,10 +371,38 @@ async def get_user_conversations(
     offset: int = 0
 ):
     """Get all conversations for a user."""
-    
-    # TODO: Implement user conversations retrieval from database
-    # For now, return empty list
-    return []
+
+    try:
+        # Get conversations from Supabase
+        response = await get_supabase().table('conversations') \
+            .select('*') \
+            .eq('user_id', str(user_id)) \
+            .order('last_message_at', desc=True) \
+            .range(offset, offset + limit - 1) \
+            .execute()
+
+        conversations = []
+        for conv in response.data:
+            # Get message count for this conversation
+            msg_response = await get_supabase().table('messages') \
+                .select('id', count='exact') \
+                .eq('conversation_id', conv['id']) \
+                .execute()
+
+            conversations.append(ConversationHistoryResponse(
+                conversation_id=UUID(conv['id']),
+                user_id=user_id,
+                messages=[],  # Don't load full messages for list view
+                created_at=datetime.fromisoformat(conv['created_at'].replace('Z', '+00:00')),
+                updated_at=datetime.fromisoformat(conv['updated_at'].replace('Z', '+00:00')),
+                total_messages=msg_response.count or 0
+            ))
+
+        return conversations
+
+    except Exception as e:
+        logger.error("Error retrieving user conversations", error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to retrieve conversations")
 
 
 @router.delete("/conversations/{conversation_id}")
@@ -240,9 +411,20 @@ async def delete_conversation(
     user_id: UUID
 ):
     """Delete a conversation and all its messages."""
-    
-    # TODO: Implement conversation deletion
-    return {"message": "Conversation deleted successfully"}
+
+    try:
+        # Delete conversation (messages will be deleted automatically due to CASCADE)
+        await get_supabase().table('conversations') \
+            .delete() \
+            .eq('id', str(conversation_id)) \
+            .eq('user_id', str(user_id)) \
+            .execute()
+
+        return {"message": "Conversation deleted successfully"}
+
+    except Exception as e:
+        logger.error("Error deleting conversation", error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to delete conversation")
 
 
 @router.post("/conversations/{conversation_id}/clear")
@@ -251,6 +433,17 @@ async def clear_conversation(
     user_id: UUID
 ):
     """Clear all messages from a conversation."""
-    
-    # TODO: Implement conversation clearing
-    return {"message": "Conversation cleared successfully"}
+
+    try:
+        # Delete all messages from conversation
+        await get_supabase().table('messages') \
+            .delete() \
+            .eq('conversation_id', str(conversation_id)) \
+            .eq('user_id', str(user_id)) \
+            .execute()
+
+        return {"message": "Conversation cleared successfully"}
+
+    except Exception as e:
+        logger.error("Error clearing conversation", error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to clear conversation")

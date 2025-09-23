@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useAuthContext } from '@/lib/providers/auth-provider';
 import { chatAPI, ChatMessage, SendMessageResponse } from '@/lib/api/chat';
+import { ChatService } from '@/lib/services/chat-service';
 import { supabase } from '@/lib/supabase/client';
 import { toast } from 'react-hot-toast';
 
@@ -49,15 +50,9 @@ export function useChat(conversationId?: string) {
     if (!user || !currentConversationId) return;
 
     try {
-      const history = await chatAPI.getConversationHistory(currentConversationId, user.id);
-
-      // Transform backend messages to frontend format
-      const transformedMessages: ChatMessage[] = history.messages.map(msg => ({
-        ...msg,
-        timestamp: new Date(msg.timestamp),
-      }));
-
-      setMessages(transformedMessages);
+      // Load conversation history from Supabase
+      const messages = await ChatService.loadConversationHistory(currentConversationId, user.id);
+      setMessages(messages);
     } catch (error) {
       console.error('Failed to load conversation history:', error);
       toast.error('Failed to load conversation history');
@@ -73,9 +68,32 @@ export function useChat(conversationId?: string) {
       return;
     }
 
+    // Create conversation if it doesn't exist
+    let conversationId = currentConversationId;
+    if (!conversationId) {
+      try {
+        conversationId = await ChatService.createConversation(user.id, 'New Chat');
+        setCurrentConversationId(conversationId);
+      } catch (error) {
+        console.error('Failed to create conversation:', error);
+        toast.error('Failed to create conversation');
+        return;
+      }
+    }
+
+    // Save user message to Supabase
+    let messageId: string;
+    try {
+      messageId = await ChatService.saveUserMessage(conversationId, user.id, content);
+    } catch (error) {
+      console.error('Failed to save user message:', error);
+      toast.error('Failed to save message');
+      return;
+    }
+
     const userMessage: ChatMessage = {
-      id: Date.now().toString(),
-      conversation_id: currentConversationId || '',
+      id: messageId + '_user',
+      conversation_id: conversationId,
       content,
       sender: 'user',
       timestamp: new Date(),
@@ -177,9 +195,33 @@ export function useChat(conversationId?: string) {
           setCurrentConversationId(response.conversation_id);
         }
 
+        // Save assistant response to Supabase
+        try {
+          await ChatService.saveAssistantMessage(
+            response.conversation_id,
+            user.id,
+            messageId, // Use the same message ID
+            response.response,
+            response.model_used,
+            response.processing_time_ms,
+            {
+              confidence_score: response.confidence_score,
+              actions_taken: response.actions_taken,
+              suggestions: response.suggestions,
+              schedule_updated: response.schedule_updated,
+              bricks_created: response.bricks_created,
+              bricks_updated: response.bricks_updated,
+              resources_recommended: response.resources_recommended,
+            }
+          );
+        } catch (error) {
+          console.error('Failed to save assistant message:', error);
+          // Don't show error toast for this, as the message was already processed
+        }
+
         // Create assistant message
         const assistantMessage: ChatMessage = {
-          id: response.message_id,
+          id: messageId + '_assistant',
           conversation_id: response.conversation_id,
           content: response.response,
           sender: 'assistant',
@@ -263,7 +305,7 @@ export function useChat(conversationId?: string) {
     }
 
     try {
-      await chatAPI.clearConversation(currentConversationId, user.id);
+      await ChatService.clearConversation(currentConversationId, user.id);
       setMessages([]);
       toast.success('Conversation cleared');
     } catch (error) {
@@ -276,7 +318,7 @@ export function useChat(conversationId?: string) {
     if (!user || !currentConversationId) return;
 
     try {
-      await chatAPI.deleteConversation(currentConversationId, user.id);
+      await ChatService.deleteConversation(currentConversationId, user.id);
       setMessages([]);
       setCurrentConversationId(undefined);
       toast.success('Conversation deleted');

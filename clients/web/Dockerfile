@@ -13,18 +13,7 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Set environment variables for build
-ENV NEXT_TELEMETRY_DISABLED 1
-ENV NODE_ENV development
-ENV NEXT_PUBLIC_API_URL=http://localhost:8000
-ENV NEXT_PUBLIC_ORCHESTRATOR_API_URL=http://localhost:8000
-ENV NEXT_PUBLIC_SCHEDULER_API_URL=http://localhost:8001
-ENV NEXT_PUBLIC_RAG_API_URL=http://localhost:8002
-ENV NEXT_PUBLIC_CALENDAR_API_URL=http://localhost:8003
-ENV NEXT_PUBLIC_ENVIRONMENT=development
-ENV NEXT_PUBLIC_SUPABASE_URL=https://ncuqhnggwiayzqvrelql.supabase.co
-ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5jdXFobmdnd2lheXpxdnJlbHFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgyODkwODcsImV4cCI6MjA3Mzg2NTA4N30.EQG8bwa0uhYv3u8TkH5bHiTJoJupcG8m_ETDLUuos9I
-ENV SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key_placeholder
+# Environment variables will be provided by docker-compose env_file
 
 # Skip build for development
 # RUN npm run build
