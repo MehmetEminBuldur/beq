@@ -3,7 +3,7 @@
  * Tests basic connectivity to Supabase services
  */
 
-require('dotenv').config({ path: '.env.local' });
+require('dotenv').config({ path: '../../global.env' });
 const { createClient } = require('@supabase/supabase-js');
 
 async function testSupabaseConnectivity() {

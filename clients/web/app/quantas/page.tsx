@@ -13,7 +13,7 @@ import Link from 'next/link';
 
 export default function QuantasPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuthContext();
-  const { quantas, bricks, isLoading, createQuanta, deleteQuanta, completeQuanta, loadUserData } = useBricks();
+  const { quantas, bricks, isLoading, isCreatingQuanta, createQuanta, deleteQuanta, completeQuanta, loadUserData } = useBricks();
   const [selectedBrickId, setSelectedBrickId] = useState<string>('');
   const [title, setTitle] = useState('');
   const [minutes, setMinutes] = useState(30);
@@ -152,8 +152,8 @@ export default function QuantasPage() {
                   placeholder="Est. minutes"
                   className="flex-1"
                 />
-                <Button disabled={!user || isLoading} type="submit" className="whitespace-nowrap">
-                  {isLoading ? 'Adding...' : 'Add Quanta'}
+                <Button disabled={!user || isCreatingQuanta} type="submit" className="whitespace-nowrap">
+                  {isCreatingQuanta ? 'Adding...' : 'Add Quanta'}
                 </Button>
               </div>
             </form>

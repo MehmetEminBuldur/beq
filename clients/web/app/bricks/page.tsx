@@ -13,7 +13,7 @@ import Link from 'next/link';
 
 export default function BricksPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuthContext();
-  const { bricks, isLoading, createBrick, deleteBrick, getBricksByStatus, loadUserData } = useBricks();
+  const { bricks, isLoading, isCreatingBrick, createBrick, deleteBrick, getBricksByStatus, loadUserData } = useBricks();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('general');
@@ -145,8 +145,8 @@ export default function BricksPage() {
                   placeholder="Est. minutes"
                   className="flex-1"
                 />
-                <Button disabled={!user || isLoading} type="submit" className="whitespace-nowrap">
-                  {isLoading ? 'Creating...' : 'Add Brick'}
+                <Button disabled={!user || isCreatingBrick} type="submit" className="whitespace-nowrap">
+                  {isCreatingBrick ? 'Creating...' : 'Add Brick'}
                 </Button>
               </div>
             </form>

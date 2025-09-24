@@ -74,9 +74,18 @@ self.addEventListener('fetch', (event) => {
   // Default network-first strategy for other requests
   event.respondWith(
     fetch(request)
-      .catch(() => {
+      .catch(async () => {
         // If network fails, try cache
-        return caches.match(request);
+        const cachedResponse = await caches.match(request);
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        
+        // Final fallback - return a basic offline response
+        return new Response('Offline - Resource not available', { 
+          status: 503,
+          headers: { 'Content-Type': 'text/plain' }
+        });
       })
   );
 });
@@ -119,37 +128,54 @@ function isStaticResource(url) {
 }
 
 async function handleApiRequest(request) {
-  const cache = await caches.open(API_CACHE_NAME);
-
   try {
-    // Network-first strategy for API calls
-    const networkResponse = await fetch(request.clone());
+    const cache = await caches.open(API_CACHE_NAME);
 
-    // Cache successful responses
-    if (networkResponse.ok) {
-      cache.put(request, networkResponse.clone());
+    try {
+      // Network-first strategy for API calls
+      const networkResponse = await fetch(request.clone());
+
+      // Cache successful responses
+      if (networkResponse.ok) {
+        cache.put(request, networkResponse.clone());
+      }
+
+      return networkResponse;
+    } catch (error) {
+      console.log('Network failed, trying cache for:', request.url);
+
+      // Try to get from cache
+      const cachedResponse = await cache.match(request);
+
+      if (cachedResponse) {
+        return cachedResponse;
+      }
+
+      // Return offline response as fallback
+      return new Response(
+        JSON.stringify({
+          error: 'Offline',
+          message: 'You are offline. This data may be outdated.',
+          offline: true,
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
     }
-
-    return networkResponse;
-  } catch (error) {
-    console.log('Network failed, trying cache for:', request.url);
-
-    // Try to get from cache
-    const cachedResponse = await cache.match(request);
-
-    if (cachedResponse) {
-      return cachedResponse;
-    }
-
-    // Return offline response
+  } catch (cacheError) {
+    console.error('Cache operation failed for API request:', request.url, cacheError);
+    
+    // Return error response as final fallback
     return new Response(
       JSON.stringify({
-        error: 'Offline',
-        message: 'You are offline. This data may be outdated.',
+        error: 'Service Worker Error',
+        message: 'Failed to handle request',
         offline: true,
       }),
       {
-        status: 200,
+        status: 503,
         headers: { 'Content-Type': 'application/json' },
       }
     );
@@ -157,35 +183,60 @@ async function handleApiRequest(request) {
 }
 
 async function handleStaticRequest(request) {
-  const cache = await caches.open(CACHE_NAME);
-
   try {
-    // Cache-first strategy for static resources
-    const cachedResponse = await cache.match(request);
+    const cache = await caches.open(CACHE_NAME);
 
-    if (cachedResponse) {
-      // Check if we should update in background
-      fetch(request).then((networkResponse) => {
-        if (networkResponse.ok) {
-          cache.put(request, networkResponse);
-        }
-      }).catch(() => {
-        // Silently fail background updates
+    try {
+      // Cache-first strategy for static resources
+      const cachedResponse = await cache.match(request);
+
+      if (cachedResponse) {
+        // Check if we should update in background
+        fetch(request).then((networkResponse) => {
+          if (networkResponse.ok) {
+            cache.put(request, networkResponse);
+          }
+        }).catch(() => {
+          // Silently fail background updates
+        });
+
+        return cachedResponse;
+      }
+
+      // Not in cache, fetch from network
+      const networkResponse = await fetch(request);
+      if (networkResponse.ok) {
+        cache.put(request, networkResponse.clone());
+      }
+      return networkResponse;
+
+    } catch (networkError) {
+      console.log('Failed to handle static request:', request.url, networkError);
+      
+      // Try cache one more time as fallback
+      const cachedResponse = await cache.match(request);
+      if (cachedResponse) {
+        return cachedResponse;
+      }
+      
+      // Return generic offline response
+      return new Response('Resource not available offline', { 
+        status: 503,
+        headers: { 'Content-Type': 'text/plain' }
       });
-
-      return cachedResponse;
     }
-
-    // Not in cache, fetch from network
-    const networkResponse = await fetch(request);
-    if (networkResponse.ok) {
-      cache.put(request, networkResponse.clone());
+  } catch (cacheError) {
+    console.error('Cache operation failed for static request:', request.url, cacheError);
+    
+    // Final fallback - try network without cache
+    try {
+      return await fetch(request);
+    } catch (finalError) {
+      return new Response('Service Worker Error: Resource unavailable', { 
+        status: 503,
+        headers: { 'Content-Type': 'text/plain' }
+      });
     }
-    return networkResponse;
-
-  } catch (error) {
-    console.log('Failed to handle static request:', request.url, error);
-    return new Response('Offline', { status: 503 });
   }
 }
 

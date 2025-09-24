@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuthContext } from '@/lib/providers/auth-provider';
 import { bricksAPI, Brick, Quanta, CreateBrickRequest, UpdateBrickRequest, CreateQuantaRequest, UpdateQuantaRequest } from '@/lib/api/bricks';
 import { useUserDataCache } from './use-cached-query';
@@ -8,6 +8,10 @@ import { toast } from 'react-hot-toast';
 
 export function useBricks() {
   const { user } = useAuthContext();
+  
+  // Loading states for operations
+  const [isCreatingBrick, setIsCreatingBrick] = useState(false);
+  const [isCreatingQuanta, setIsCreatingQuanta] = useState(false);
 
   // Cached queries for bricks and quantas
   const bricksQuery = useUserDataCache(
@@ -58,6 +62,7 @@ export function useBricks() {
       return null;
     }
 
+    setIsCreatingBrick(true);
     try {
       const newBrick = await bricksAPI.createBrick(user.id, brickData);
 
@@ -70,6 +75,8 @@ export function useBricks() {
       console.error('Failed to create brick:', error);
       toast.error('Failed to create brick');
       return null;
+    } finally {
+      setIsCreatingBrick(false);
     }
   }, [user, bricksQuery]);
 
@@ -122,6 +129,7 @@ export function useBricks() {
       return null;
     }
 
+    setIsCreatingQuanta(true);
     try {
       const newQuanta = await bricksAPI.createQuanta(user.id, quantaData);
 
@@ -134,6 +142,8 @@ export function useBricks() {
       console.error('Failed to create quanta:', error);
       toast.error('Failed to create quanta');
       return null;
+    } finally {
+      setIsCreatingQuanta(false);
     }
   }, [user, quantasQuery]);
 
@@ -266,6 +276,10 @@ export function useBricks() {
     isLoading,
     isLoadingAny,
     hasError,
+    
+    // Operation loading states
+    isCreatingBrick,
+    isCreatingQuanta,
 
     // Cache status
     bricksCache: {

@@ -1,12 +1,11 @@
 # FastAPI and web framework dependencies
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
-pydantic==2.5.0
+pydantic==2.11.9
 pydantic-settings==2.1.0
 
 # LLM and AI dependencies
 openai==1.3.0  # For OpenAI API integration
-httpx==0.24.0  # For HTTP client
 langgraph==0.0.62
 langchain-core==0.2.0
 tiktoken==0.5.2  # For token counting
@@ -15,10 +14,16 @@ tenacity==8.2.3  # For retry logic
 # HTTP client and async support
 aiohttp==3.9.1
 asyncio==3.4.3
+httpx==0.28.1  # Updated for Supabase compatibility
 
 # Supabase and database
-supabase==2.3.0
-postgrest==0.13.0
+supabase==2.20.0
+postgrest==2.20.0
+realtime==2.20.0
+gotrue==2.12.4
+storage3==2.20.0
+supabase-auth==2.20.0
+supabase-functions==2.20.0
 
 # Security and authentication
 python-jose[cryptography]==3.3.0
@@ -34,7 +39,6 @@ sentry-sdk[fastapi]==1.38.0
 pytest==7.4.3
 pytest-asyncio==0.21.1
 pytest-cov==4.1.0
-httpx==0.24.0
 
 # Development tools
 black==23.11.0
@@ -50,6 +54,7 @@ toml==0.10.2
 python-dateutil==2.8.2
 pytz==2023.3
 uuid==1.30
+websockets==15.0.1
 
 # BeQ shared models (local package)
 # This will be installed via: pip install -e ../packages/shared-models
