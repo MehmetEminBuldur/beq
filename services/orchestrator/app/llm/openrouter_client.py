@@ -40,10 +40,18 @@ class OpenAIConversationalClient:
         if not self.api_key:
             raise ValueError("OPENAI_API_KEY environment variable is required")
 
-        self.client = AsyncOpenAI(
-            api_key=self.api_key,
-            timeout=60.0
-        )
+        # Create OpenAI client with error handling
+        try:
+            # Use minimal initialization to avoid version conflicts
+            self.client = AsyncOpenAI(
+                api_key=self.api_key,
+                # Avoid passing any problematic parameters
+            )
+            logger.info("OpenAI client successfully initialized", model=self.model)
+        except Exception as e:
+            logger.error("Failed to initialize OpenAI client", error=str(e), model=self.model)
+            # Set client to None so we can detect and use fallback
+            self.client = None
     
     @retry(
         stop=stop_after_attempt(3),
@@ -55,6 +63,11 @@ class OpenAIConversationalClient:
         system_prompt: Optional[str] = None
     ) -> str:
         """Generate a conversational response using OpenAI."""
+
+        # If client failed to initialize, return a fallback response
+        if self.client is None:
+            logger.warning("OpenAI client not available, returning fallback response")
+            return "Merhaba! BeQ asistanınızla konuşuyorsunuz. Şu anda teknik bir sorun yaşıyoruz, lütfen daha sonra tekrar deneyin."
 
         try:
             # Prepare messages for the API
@@ -97,7 +110,7 @@ class OpenAIConversationalClient:
 
         except Exception as e:
             logger.error("Error in conversational response generation", exc_info=e)
-            return "I apologize, but I'm having trouble processing your request right now. Please try again."
+            return "Merhaba! BeQ asistanınızla konuşuyorsunuz. Teknik bir sorun yaşıyoruz, lütfen daha sonra tekrar deneyin."
     
     
     async def stream_response(

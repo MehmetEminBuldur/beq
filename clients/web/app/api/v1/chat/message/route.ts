@@ -33,7 +33,7 @@ interface ChatMessageResponse {
 
 // Forwarder to orchestrator chat endpoint
 async function callOrchestrator(body: ChatMessageRequest) {
-  const baseURL = process.env.NEXT_PUBLIC_ORCHESTRATOR_API_URL || 'http://localhost:8000';
+  const baseURL = process.env.NEXT_PUBLIC_ORCHESTRATOR_API_URL || 'http://beq-orchestrator:8000';
   const response = await fetch(`${baseURL}/api/v1/chat/message`, {
     method: 'POST',
     headers: {

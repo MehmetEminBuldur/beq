@@ -57,7 +57,8 @@ class ChatAPI {
   private baseURL: string;
 
   constructor() {
-    this.baseURL = process.env.NEXT_PUBLIC_ORCHESTRATOR_API_URL || 'http://localhost:8000';
+    // Use Next.js API routes instead of direct backend communication
+    this.baseURL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
   }
 
   private async getAuthHeaders() {

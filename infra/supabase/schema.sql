@@ -311,6 +311,8 @@ create table public.conversations (
   
   title text,
   summary text,
+  context jsonb,
+  last_message_at timestamp with time zone,
   
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
@@ -320,9 +322,11 @@ create table public.conversations (
 create table public.messages (
   id uuid default uuid_generate_v4() primary key,
   conversation_id uuid references public.conversations(id) on delete cascade not null,
+  user_id uuid references public.profiles(id) on delete cascade not null,
   
   role text not null check (role in ('user', 'assistant', 'system')),
   content text not null,
+  response text,
   
   -- AI-specific fields
   model_used text,
@@ -414,6 +418,11 @@ create policy "Users can manage their own conversations"
   on public.conversations for all
   using (auth.uid() = user_id);
 
+-- Service role can manage all conversations
+create policy "Service role can manage all conversations"
+  on public.conversations for all
+  using (auth.role() = 'service_role');
+
 -- Messages policies
 create policy "Users can view messages from their conversations"
   on public.messages for select
@@ -432,6 +441,11 @@ create policy "Users can insert messages to their conversations"
       where id = conversation_id
     )
   );
+
+-- Service role can manage all messages
+create policy "Service role can manage all messages"
+  on public.messages for all
+  using (auth.role() = 'service_role');
 
 -- Resources table is public (read-only for users)
 create policy "Anyone can view resources"

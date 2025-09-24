@@ -1,0 +1,4 @@
+from supabase import create_client, Client
+
+
+create_client("https://ncuqhnggwiayzqvrelql.supabase.co", supabase_key="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5jdXFobmdnd2lheXpxdnJlbHFsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1ODI4OTA4NywiZXhwIjoyMDczODY1MDg3fQ.FvxvPeqgGVkkZ8Tn24SRWRy5HxLpXXqIbST-YtOl7OI")

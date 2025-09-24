@@ -95,7 +95,7 @@ class ChatService(LoggerMixin):
 
         try:
             # Check if conversation exists
-            response = await self.supabase.table('conversations') \
+            response = self.supabase.table('conversations') \
                 .select('id') \
                 .eq('id', str(conversation_id)) \
                 .eq('user_id', str(user_id)) \
@@ -112,7 +112,7 @@ class ChatService(LoggerMixin):
 
         # Create new conversation
         try:
-            await self.supabase.table('conversations') \
+            response = self.supabase.table('conversations') \
                 .insert({
                     'id': str(conversation_id),
                     'user_id': str(user_id),
@@ -178,7 +178,7 @@ class ChatService(LoggerMixin):
             
             # Save message to Supabase
             try:
-                await self.supabase.table('messages').insert({
+                self.supabase.table('messages').insert({
                     'id': str(message_id),
                     'conversation_id': str(conversation_id),
                     'user_id': str(user_id),
@@ -198,7 +198,7 @@ class ChatService(LoggerMixin):
                 }).execute()
 
                 # Update conversation last_message_at
-                await self.supabase.table('conversations') \
+                self.supabase.table('conversations') \
                     .update({'last_message_at': datetime.utcnow().isoformat()}) \
                     .eq('id', str(conversation_id)) \
                     .execute()
@@ -302,7 +302,7 @@ async def get_conversation_history(
 
     try:
         # Get messages from Supabase
-        response = await get_supabase().table('messages') \
+        response = get_supabase().table('messages') \
             .select('*') \
             .eq('conversation_id', str(conversation_id)) \
             .eq('user_id', str(user_id)) \
@@ -338,7 +338,7 @@ async def get_conversation_history(
                 })
 
         # Get conversation info
-        conv_response = await get_supabase().table('conversations') \
+        conv_response = get_supabase().table('conversations') \
             .select('*') \
             .eq('id', str(conversation_id)) \
             .eq('user_id', str(user_id)) \
@@ -374,7 +374,7 @@ async def get_user_conversations(
 
     try:
         # Get conversations from Supabase
-        response = await get_supabase().table('conversations') \
+        response = get_supabase().table('conversations') \
             .select('*') \
             .eq('user_id', str(user_id)) \
             .order('last_message_at', desc=True) \
@@ -384,7 +384,7 @@ async def get_user_conversations(
         conversations = []
         for conv in response.data:
             # Get message count for this conversation
-            msg_response = await get_supabase().table('messages') \
+            msg_response = get_supabase().table('messages') \
                 .select('id', count='exact') \
                 .eq('conversation_id', conv['id']) \
                 .execute()
@@ -436,7 +436,7 @@ async def clear_conversation(
 
     try:
         # Delete all messages from conversation
-        await get_supabase().table('messages') \
+        get_supabase().table('messages') \
             .delete() \
             .eq('conversation_id', str(conversation_id)) \
             .eq('user_id', str(user_id)) \

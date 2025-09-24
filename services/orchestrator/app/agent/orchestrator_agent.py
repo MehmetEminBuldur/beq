@@ -267,25 +267,31 @@ class OrchestratorAgent(LoggerMixin):
         latest_message = state["messages"][-1]
         tools_used = state.get("tools_used", [])
         
-        response_prompt = f"""
-        Generate a helpful, conversational response to the user's request.
+        # Convert LangChain messages to OpenAI format for conversation history
+        conversation_messages = []
         
-        User message: "{latest_message.content}"
-        Tools used: {tools_used}
-        Schedule updated: {state.get("schedule_updated", False)}
-        Bricks created: {state.get("bricks_created", [])}
-        Resources recommended: {state.get("resources_recommended", [])}
+        # Add conversation history (excluding the last message we'll add separately)
+        for msg in state["messages"][:-1]:  # All messages except the current one
+            if isinstance(msg, HumanMessage):
+                conversation_messages.append(ConversationMessage(role="user", content=msg.content))
+            elif isinstance(msg, AIMessage):
+                conversation_messages.append(ConversationMessage(role="assistant", content=msg.content))
         
-        Be supportive, specific, and actionable. Use the Bricks and Quantas terminology.
-        Explain what actions were taken and suggest next steps.
-        Keep your response conversational and helpful.
-        """
+        # Add current user message with context about tools used
+        current_message_content = latest_message.content
+        if tools_used:
+            current_message_content += f"\n\n[Context: Tools used in processing: {', '.join(tools_used)}]"
+        if state.get("schedule_updated"):
+            current_message_content += "\n[Schedule was updated during processing]"
+        if state.get("bricks_created"):
+            current_message_content += f"\n[Created {len(state.get('bricks_created', []))} new Brick(s)]"
+        if state.get("resources_recommended"):
+            current_message_content += f"\n[Recommended {len(state.get('resources_recommended', []))} resource(s)]"
         
-        # Generate response with OpenAI
+        conversation_messages.append(ConversationMessage(role="user", content=current_message_content))
+        
+        # Generate response with OpenAI using full conversation history
         llm_client = await self._get_llm_client()
-        conversation_messages = [
-            ConversationMessage(role="user", content=response_prompt)
-        ]
         
         response_content = await llm_client.generate_response(
             messages=conversation_messages,
@@ -490,7 +496,7 @@ Remember: You're not just a scheduler, you're a life optimization partner. Help 
             supabase = get_supabase()
 
             # Get messages from Supabase
-            response = await supabase.table('messages') \
+            response = supabase.table('messages') \
                 .select('*') \
                 .eq('conversation_id', str(conversation_id)) \
                 .eq('user_id', str(user_id)) \
