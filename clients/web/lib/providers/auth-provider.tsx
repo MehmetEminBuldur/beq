@@ -1,7 +1,6 @@
 'use client';
 
-import { createContext, useContext } from 'react';
-import { useAuth } from '@/lib/hooks/use-auth';
+import { createContext, useContext, useState, useEffect } from 'react';
 
 interface AuthUser {
   id: string;
@@ -25,26 +24,63 @@ export interface AuthContextType {
   updateProfile: (updates: Partial<AuthUser>) => Promise<{ error: any }>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// Default context value for server-side rendering
+const defaultAuthContext: AuthContextType = {
+  isAuthenticated: false,
+  isLoading: true,
+  user: null,
+  session: null,
+  signIn: async () => ({ data: null, error: new Error('Auth not initialized') }),
+  signUp: async () => ({ data: null, error: new Error('Auth not initialized') }),
+  signOut: async () => {},
+  resetPassword: async () => ({ error: new Error('Auth not initialized') }),
+  updateProfile: async () => ({ error: new Error('Auth not initialized') }),
+};
+
+const AuthContext = createContext<AuthContextType>(defaultAuthContext);
 
 interface AuthProviderProps {
   children: React.ReactNode;
 }
 
-export function AuthProvider({ children }: AuthProviderProps) {
+// Client-only auth provider component
+function ClientAuthProvider({ children }: AuthProviderProps) {
+  const { useAuth } = require('@/lib/hooks/use-auth');
   const auth = useAuth();
 
   return (
-    <AuthContext.Provider value={auth}>
+    <AuthContext.Provider value={auth || defaultAuthContext}>
       {children}
     </AuthContext.Provider>
   );
 }
 
-export function useAuthContext() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuthContext must be used within an AuthProvider');
+export function AuthProvider({ children }: AuthProviderProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    // Add a small delay to prevent rapid re-mounting during development
+    const timeoutId = setTimeout(() => {
+      setMounted(true);
+    }, 50);
+
+    return () => clearTimeout(timeoutId);
+  }, []);
+
+  // Show loading state while mounting
+  if (!mounted) {
+    return (
+      <AuthContext.Provider value={defaultAuthContext}>
+        {children}
+      </AuthContext.Provider>
+    );
   }
-  return context;
+
+  return <ClientAuthProvider>{children}</ClientAuthProvider>;
+}
+
+export function useAuthContext(): AuthContextType {
+  const context = useContext(AuthContext);
+  // Context should never be undefined since we always provide a default value
+  return context || defaultAuthContext;
 }

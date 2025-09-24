@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useServiceWorker, useOfflineDetection } from '@/lib/hooks/use-service-worker';
 import { toast } from 'react-hot-toast';
 
@@ -11,6 +11,8 @@ interface ServiceWorkerProviderProps {
 export function ServiceWorkerProvider({ children }: ServiceWorkerProviderProps) {
   const { register, isSupported, isRegistered } = useServiceWorker();
   const { isOnline, isOffline } = useOfflineDetection();
+  const hasInitialized = useRef(false);
+  const wasOffline = useRef(false);
 
   // Register service worker on mount
   useEffect(() => {
@@ -23,26 +25,47 @@ export function ServiceWorkerProvider({ children }: ServiceWorkerProviderProps) 
     }
   }, [isSupported, isRegistered, register]);
 
-  // Handle online/offline status
+  // Handle online/offline status with proper initialization tracking
   useEffect(() => {
-    if (isOffline) {
+    if (typeof window === 'undefined') return;
+
+    if (!hasInitialized.current) {
+      // First time - just track the initial state without showing toast
+      hasInitialized.current = true;
+      wasOffline.current = isOffline;
+      return;
+    }
+
+    // Only show toasts for actual state changes
+    if (isOffline && !wasOffline.current) {
+      // Went offline
       toast('You are offline. Using cached data.', {
         icon: '📱',
         duration: 3000,
       });
-    } else if (isOnline) {
+      wasOffline.current = true;
+    } else if (isOnline && wasOffline.current) {
+      // Came back online
       toast.success('You are back online!', {
         duration: 2000,
       });
+      wasOffline.current = false;
     }
   }, [isOnline, isOffline]);
 
-  return <>{children}</>;
+  return (
+    <>
+      <OfflineIndicator isOffline={isOffline} />
+      {children}
+    </>
+  );
 }
 
-export function OfflineIndicator() {
-  const { isOffline } = useOfflineDetection();
+interface OfflineIndicatorProps {
+  isOffline: boolean;
+}
 
+export function OfflineIndicator({ isOffline }: OfflineIndicatorProps) {
   if (!isOffline) return null;
 
   return (

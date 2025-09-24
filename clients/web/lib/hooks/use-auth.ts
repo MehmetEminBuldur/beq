@@ -5,21 +5,13 @@ import { User, Session, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase/client';
 import { toast } from 'react-hot-toast';
 
-// Helper function to check network connectivity
-const checkNetworkConnectivity = async (): Promise<boolean> => {
-  try {
-    // Try to fetch a small resource from Supabase
-    const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/`, {
-      method: 'HEAD',
-      headers: {
-        'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      },
-    });
-    return response.ok;
-  } catch (error) {
-    return false;
-  }
+// Simple auth configuration check - no network calls
+const isAuthConfigured = (): boolean => {
+  return !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 };
+
+// Global flag to prevent multiple auth instances
+let authInstanceRunning = false;
 
 interface AuthUser {
   id: string;
@@ -37,84 +29,98 @@ export function useAuth() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [sessionChecked, setSessionChecked] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // Track mounting state to prevent SSR issues
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
+    // Skip on server-side or if not mounted
+    if (typeof window === 'undefined' || !mounted) {
+      return;
+    }
+
     // Prevent duplicate session checks (important for development hot reloading)
     if (sessionChecked) {
       return;
     }
 
-    // Get initial session with timeout protection and network checking
+    let cancelled = false;
+
+    // Fast session check with timeout
     const getInitialSession = async () => {
       try {
-        setSessionChecked(true); // Mark as checked immediately to prevent duplicates
-
-        // First, check if we can reach Supabase
-        const isNetworkAvailable = await checkNetworkConnectivity();
-        if (!isNetworkAvailable) {
-          console.warn('🚨 Supabase is not reachable. Authentication features will be limited.');
-          console.warn('This may be because:');
-          console.warn('1. Supabase service is not running locally (check if docker-compose is running)');
-          console.warn('2. Network connectivity issues');
-          console.warn('3. Incorrect Supabase URL configuration');
-          console.warn('4. Environment variables are not set correctly');
-          console.warn('');
-          console.warn('To fix this, ensure:');
-          console.warn('- Run: docker-compose up -d (for local Supabase)');
-          console.warn('- Check: .env.local file has correct SUPABASE_URL and SUPABASE_ANON_KEY');
-          console.warn('- Verify: Network connectivity to Supabase');
+        // Prevent multiple auth instances from running simultaneously
+        if (authInstanceRunning) {
+          console.log('⏭️ Auth check already running, skipping...');
           setIsLoading(false);
           return;
         }
 
-        // Create a timeout promise
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Session check timeout')), 10000); // 10 second timeout
-        });
+        authInstanceRunning = true;
+        setSessionChecked(true);
 
-        // Race between session check and timeout
+        // Check configuration quickly
+        if (!isAuthConfigured()) {
+          console.warn('⚠️ Supabase configuration missing');
+          if (!cancelled) setIsLoading(false);
+          return;
+        }
+
+        console.log('🔍 Starting session check...');
+
+        // Add timeout to prevent hanging
         const sessionPromise = supabase.auth.getSession();
-        const { data: { session }, error } = await Promise.race([sessionPromise, timeoutPromise]) as any;
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Session check timeout')), 2000) // Reduced from 3s to 2s
+        );
+
+        const { data: { session }, error } = await Promise.race([
+          sessionPromise,
+          timeoutPromise
+        ]) as any;
+
+        // Check if component was unmounted
+        if (cancelled) return;
 
         if (error) {
-          // Only log network-related errors, not authentication errors
-          if (error.message.includes('network') || error.message.includes('fetch')) {
-            console.warn('Network error during session check:', error.message);
-          } else if (error.message.includes('timeout')) {
-            console.warn('Session check timed out - this may be due to network issues or Supabase service being unavailable');
-          } else {
-            console.warn('Supabase authentication error:', error.message);
-          }
-          return; // Don't throw, just continue without session
+          console.warn('Session check error:', error.message);
+          setIsLoading(false);
+          return;
         }
 
         if (session?.user) {
-          await loadUserProfile(session.user);
+          console.log('✅ Session found for:', session.user.email);
           setSession(session);
           setIsAuthenticated(true);
+          // Load profile in background without blocking UI
+          loadUserProfile(session.user).catch(console.warn);
+        } else {
+          console.log('ℹ️ No active session');
         }
       } catch (error: any) {
-        console.error('Error getting initial session:', error);
-        // Handle timeout specifically
-        if (error.message === 'Session check timeout') {
-          console.warn('⏰ Session check timed out - continuing without session.');
-          console.warn('This usually means Supabase is not running or there are network issues.');
-          console.warn('For local development: Run `docker-compose up -d` to start Supabase services.');
-        } else {
-          console.warn('Unexpected error during session check:', error);
+        if (!cancelled) {
+          console.warn('Session check failed:', error.message);
         }
-        // Don't show toast for session check errors - they're not user-facing issues
       } finally {
-        setIsLoading(false);
+        authInstanceRunning = false; // Reset the flag
+        if (!cancelled) {
+          setIsLoading(false);
+        }
       }
     };
 
-    getInitialSession();
+    // Small delay to ensure proper mounting
+    const timeoutId = setTimeout(getInitialSession, 100);
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.email);
+        if (cancelled) return;
+        
+        console.log('Auth state change:', event);
 
         if (session?.user) {
           await loadUserProfile(session.user);
@@ -130,45 +136,64 @@ export function useAuth() {
       }
     );
 
-    return () => subscription.unsubscribe();
-  }, [sessionChecked]);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+      subscription.unsubscribe();
+    };
+  }, [sessionChecked, mounted]);
 
   const loadUserProfile = async (authUser: User) => {
+    // Set basic user data immediately from auth user metadata
+    const basicUserData: AuthUser = {
+      id: authUser.id,
+      email: authUser.email,
+      full_name: authUser.user_metadata?.full_name,
+      avatar_url: authUser.user_metadata?.avatar_url,
+      timezone: 'UTC',
+      preferences: {},
+      onboarding_completed: false,
+    };
+
+    // Set basic data immediately for fast UI update
+    setUser(basicUserData);
+
     try {
-      const { data: profile, error } = await supabase
+      // Fetch additional profile data with timeout
+      const profilePromise = supabase
         .from('profiles')
-        .select('*')
+        .select('full_name, avatar_url, timezone, preferences, onboarding_completed')
         .eq('id', authUser.id)
         .single();
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 2000)
+      );
+
+      const { data: profile, error } = await Promise.race([
+        profilePromise,
+        timeoutPromise
+      ]) as any;
 
       if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
         throw error;
       }
 
-      // profile will be null if no row is found (PGRST116), but will have proper typing if found
-      const userData: AuthUser = {
-        id: authUser.id,
-        email: authUser.email,
-        full_name: (profile as any)?.full_name || authUser.user_metadata?.full_name,
-        avatar_url: (profile as any)?.avatar_url || authUser.user_metadata?.avatar_url,
-        timezone: (profile as any)?.timezone || 'UTC',
-        preferences: (profile as any)?.preferences || {},
-        onboarding_completed: (profile as any)?.onboarding_completed || false,
-      };
-
-      setUser(userData);
+      // Update with profile data if available
+      if (profile) {
+        const enhancedUserData: AuthUser = {
+          ...basicUserData,
+          full_name: profile.full_name || basicUserData.full_name,
+          avatar_url: profile.avatar_url || basicUserData.avatar_url,
+          timezone: profile.timezone || 'UTC',
+          preferences: profile.preferences || {},
+          onboarding_completed: profile.onboarding_completed || false,
+        };
+        setUser(enhancedUserData);
+      }
     } catch (error) {
-      console.error('Error loading user profile:', error);
-      // Still set basic user data even if profile fetch fails
-      setUser({
-        id: authUser.id,
-        email: authUser.email,
-        full_name: authUser.user_metadata?.full_name,
-        avatar_url: authUser.user_metadata?.avatar_url,
-        timezone: 'UTC',
-        preferences: {},
-        onboarding_completed: false,
-      });
+      console.warn('Profile fetch failed, using basic user data:', error);
+      // basicUserData is already set above, so no need to set again
     }
   };
 

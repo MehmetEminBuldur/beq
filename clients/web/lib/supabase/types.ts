@@ -283,69 +283,39 @@ export interface Database {
         Row: {
           id: string
           brick_id: string
-          user_id: string
           title: string
           description: string | null
           estimated_duration_minutes: number
           actual_duration_minutes: number | null
-          priority: string
           status: string
           order_index: number
-          depends_on_quantas: string[] | null
-          prerequisite_resources: string[] | null
-          completion_percentage: number
-          notes: string | null
-          ai_suggestions: string[] | null
-          scheduled_start: string | null
-          scheduled_end: string | null
-          actual_start: string | null
-          actual_end: string | null
+          completed_at: string | null
           created_at: string
           updated_at: string
         }
         Insert: {
           id?: string
           brick_id: string
-          user_id: string
           title: string
           description?: string | null
           estimated_duration_minutes: number
           actual_duration_minutes?: number | null
-          priority?: string
           status?: string
           order_index?: number
-          depends_on_quantas?: string[] | null
-          prerequisite_resources?: string[] | null
-          completion_percentage?: number
-          notes?: string | null
-          ai_suggestions?: string[] | null
-          scheduled_start?: string | null
-          scheduled_end?: string | null
-          actual_start?: string | null
-          actual_end?: string | null
+          completed_at?: string | null
           created_at?: string
           updated_at?: string
         }
         Update: {
           id?: string
           brick_id?: string
-          user_id?: string
           title?: string
           description?: string | null
           estimated_duration_minutes?: number
           actual_duration_minutes?: number | null
-          priority?: string
           status?: string
           order_index?: number
-          depends_on_quantas?: string[] | null
-          prerequisite_resources?: string[] | null
-          completion_percentage?: number
-          notes?: string | null
-          ai_suggestions?: string[] | null
-          scheduled_start?: string | null
-          scheduled_end?: string | null
-          actual_start?: string | null
-          actual_end?: string | null
+          completed_at?: string | null
           created_at?: string
           updated_at?: string
         }

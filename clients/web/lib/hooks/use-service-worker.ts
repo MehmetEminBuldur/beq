@@ -64,11 +64,15 @@ export function useServiceWorker() {
 }
 
 export function useOfflineDetection() {
-  const [isOnline, setIsOnline] = useState(() =>
-    typeof navigator !== 'undefined' ? navigator.onLine : true
-  );
+  const [isOnline, setIsOnline] = useState(true);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+    if (typeof navigator !== 'undefined') {
+      setIsOnline(navigator.onLine);
+    }
+
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 
@@ -80,6 +84,13 @@ export function useOfflineDetection() {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+
+  if (!mounted) {
+    return {
+      isOnline: true,
+      isOffline: false,
+    };
+  }
 
   return {
     isOnline,

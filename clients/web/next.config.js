@@ -1,5 +1,8 @@
-// Load environment variables from global.env
-require('dotenv').config({ path: '../../global.env' });
+// Load environment variables from global.env (development only)
+// In Docker, environment variables are provided via env_file
+if (process.env.NODE_ENV !== 'production' && !process.env.DOCKER_ENV) {
+  require('dotenv').config({ path: '../../global.env' });
+}
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -19,18 +22,26 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   env: {
+    // Use consistent localhost endpoints (docker-compose overrides these for Docker)
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
     NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000',
+    NEXT_PUBLIC_ORCHESTRATOR_API_URL: process.env.NEXT_PUBLIC_ORCHESTRATOR_API_URL || 'http://localhost:8000',
+    NEXT_PUBLIC_SCHEDULER_API_URL: process.env.NEXT_PUBLIC_SCHEDULER_API_URL || 'http://localhost:8001',
+    NEXT_PUBLIC_RAG_API_URL: process.env.NEXT_PUBLIC_RAG_API_URL || 'http://localhost:8002',
+    NEXT_PUBLIC_CALENDAR_API_URL: process.env.NEXT_PUBLIC_CALENDAR_API_URL || 'http://localhost:8003',
     NEXT_PUBLIC_ENVIRONMENT: process.env.NEXT_PUBLIC_ENVIRONMENT || 'development',
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
   },
   async rewrites() {
+    // Use the same API URL as defined in env
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      
     return [
       {
         source: '/api/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/:path*`,
+        destination: `${apiUrl}/api/:path*`,
       },
     ];
   },

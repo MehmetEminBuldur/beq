@@ -7,7 +7,7 @@ export interface Brick {
   description?: string;
   category: string;
   priority: 'low' | 'medium' | 'high' | 'urgent';
-  status: 'pending' | 'in_progress' | 'completed' | 'cancelled' | 'postponed' | 'on_hold';
+  status: 'not_started' | 'in_progress' | 'completed' | 'cancelled' | 'postponed' | 'on_hold';
   estimated_duration_minutes: number;
   actual_duration_minutes?: number;
   target_date?: string;
@@ -35,7 +35,7 @@ export interface Quanta {
   estimated_duration_minutes: number;
   actual_duration_minutes?: number;
   priority: 'low' | 'medium' | 'high' | 'urgent';
-  status: 'pending' | 'in_progress' | 'completed' | 'cancelled' | 'postponed';
+  status: 'not_started' | 'in_progress' | 'completed' | 'cancelled' | 'postponed';
   order_index: number;
   depends_on_quantas?: string[];
   prerequisite_resources?: string[];
@@ -71,7 +71,7 @@ export interface UpdateBrickRequest {
   description?: string;
   category?: string;
   priority?: 'low' | 'medium' | 'high' | 'urgent';
-  status?: 'pending' | 'in_progress' | 'completed' | 'cancelled' | 'postponed' | 'on_hold';
+  status?: 'not_started' | 'in_progress' | 'completed' | 'cancelled' | 'postponed' | 'on_hold';
   estimated_duration_minutes?: number;
   actual_duration_minutes?: number;
   completion_percentage?: number;
@@ -142,11 +142,7 @@ class BricksAPI {
       const brickInsertData = {
         user_id: userId,
         ...brickData,
-        status: brickData.priority === 'urgent' ? 'in_progress' : 'pending',
-        completion_percentage: 0,
-        time_spent_minutes: 0,
-        sessions_count: 0,
-        recurrence_type: 'none',
+        status: brickData.priority === 'urgent' ? 'in_progress' : 'not_started',
       } as any;
 
       const { data, error } = await supabase
@@ -170,12 +166,12 @@ class BricksAPI {
         updated_at: new Date().toISOString(),
       };
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase
         .from('bricks')
-        .update(updateData)
+        .update(updateData as any)
         .eq('id', brickId)
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
       return data;
@@ -227,46 +223,42 @@ class BricksAPI {
 
   async getUserQuantas(userId: string): Promise<Quanta[]> {
     try {
-      // First get all quantas that belong to bricks owned by this user
-      const { data: userBricks, error: bricksError } = await supabase
-        .from('bricks')
-        .select('id')
-        .eq('user_id', userId);
-
-      if (bricksError) throw bricksError;
-
-      if (!userBricks || userBricks.length === 0) {
-        return [];
-      }
-
-      const brickIds = userBricks.map(brick => brick.id);
-
+      // Get all quantas that belong to bricks owned by this user
+      // Using a join query since quantas don't have direct user_id column
       const { data, error } = await supabase
         .from('quantas')
         .select(`
           *,
-          bricks (
+          bricks!inner (
             id,
             title,
             category,
-            priority
+            priority,
+            user_id
           )
         `)
-        .in('brick_id', brickIds)
-        .order('created_at', { ascending: false });
+        .eq('bricks.user_id', userId)
+        .order('created_at', { ascending: false }) as any;
 
       if (error) throw error;
 
       // Transform the data to match the expected interface
-      return (data || []).map(quanta => ({
+      return (data || []).map((quanta: any) => ({
         ...quanta,
         user_id: userId, // Add user_id from the brick's user_id
-        priority: 'medium', // Default priority since it's missing in current DB
+        priority: (quanta.bricks?.priority as 'low' | 'medium' | 'high' | 'urgent') || 'medium', // Use brick priority or default
         completion_percentage: 0, // Default completion percentage
         depends_on_quantas: [],
         prerequisite_resources: [],
         notes: quanta.description || '', // Use description as notes
         ai_suggestions: [],
+        // Keep the brick reference
+        brick: quanta.bricks ? {
+          id: quanta.bricks.id,
+          title: quanta.bricks.title,
+          category: quanta.bricks.category,
+          priority: quanta.bricks.priority,
+        } : undefined,
       }));
     } catch (error) {
       console.error('Get user quantas error:', error);
@@ -289,7 +281,7 @@ class BricksAPI {
           )
         `)
         .eq('id', quantaId)
-        .single();
+        .single() as any;
 
       if (error) {
         if (error.code === 'PGRST116') return null; // No rows returned
@@ -299,13 +291,20 @@ class BricksAPI {
       // Transform the data to match the expected interface
       return {
         ...data,
-        user_id: data.bricks?.user_id, // Get user_id from the joined brick
-        priority: 'medium', // Default priority
+        user_id: data.bricks?.user_id || '', // Get user_id from the joined brick
+        priority: (data.bricks?.priority as 'low' | 'medium' | 'high' | 'urgent') || 'medium', // Use brick priority or default
         completion_percentage: 0, // Default completion percentage
         depends_on_quantas: [],
         prerequisite_resources: [],
         notes: data.description || '',
         ai_suggestions: [],
+        // Keep the brick reference
+        brick: data.bricks ? {
+          id: data.bricks.id,
+          title: data.bricks.title,
+          category: data.bricks.category,
+          priority: data.bricks.priority,
+        } : undefined,
       };
     } catch (error) {
       console.error('Get quanta by ID error:', error);
@@ -333,13 +332,13 @@ class BricksAPI {
         .select('order_index')
         .eq('brick_id', quantaData.brick_id)
         .order('order_index', { ascending: false })
-        .limit(1);
+        .limit(1) as any;
 
       const nextOrderIndex = existingQuantas && existingQuantas.length > 0
         ? existingQuantas[0].order_index + 1
         : 0;
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase
         .from('quantas')
         .insert({
           brick_id: quantaData.brick_id,
@@ -350,7 +349,7 @@ class BricksAPI {
           status: 'not_started',
         })
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
 
@@ -358,7 +357,7 @@ class BricksAPI {
       return {
         ...data,
         user_id: userId,
-        priority: 'medium',
+        priority: 'medium' as 'low' | 'medium' | 'high' | 'urgent',
         completion_percentage: 0,
         depends_on_quantas: [],
         prerequisite_resources: [],
@@ -394,20 +393,20 @@ class BricksAPI {
       }
       if (updates.order_index !== undefined) updateData.order_index = updates.order_index;
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase
         .from('quantas')
-        .update(updateData)
+        .update(updateData as any)
         .eq('id', quantaId)
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
 
       // Transform the data to match the expected interface
       return {
         ...data,
-        user_id: data.brick_id ? 'unknown' : 'unknown', // Will be set by caller if needed
-        priority: 'medium',
+        user_id: 'unknown', // Will be set by caller if needed
+        priority: 'medium' as 'low' | 'medium' | 'high' | 'urgent',
         completion_percentage: 0,
         depends_on_quantas: [],
         prerequisite_resources: [],
@@ -437,15 +436,15 @@ class BricksAPI {
   async reorderQuantas(quantaIds: string[]): Promise<void> {
     try {
       // Update order_index for each quanta
-      const updates = quantaIds.map((id, index) =>
-        supabase
-          .from('quantas')
-          .update({
-            order_index: index,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', id)
-      );
+        const updates = quantaIds.map((id, index) =>
+          supabase
+            .from('quantas')
+            .update({
+              order_index: index,
+              updated_at: new Date().toISOString(),
+            } as any)
+            .eq('id', id)
+        );
 
       const results = await Promise.all(updates);
       const errors = results.filter(result => result.error);
@@ -463,16 +462,16 @@ class BricksAPI {
 
   async completeQuanta(quantaId: string): Promise<Quanta> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase
         .from('quantas')
         .update({
           status: 'completed',
           completed_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-        })
+        } as any)
         .eq('id', quantaId)
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
 
@@ -502,7 +501,7 @@ class BricksAPI {
       }, 0);
 
       const status = progressPercentage === 100 ? 'completed' :
-                    progressPercentage > 0 ? 'in_progress' : 'pending';
+                    progressPercentage > 0 ? 'in_progress' : 'not_started';
 
       await this.updateBrick(brickId, {
         completion_percentage: progressPercentage,

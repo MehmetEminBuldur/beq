@@ -1,8 +1,11 @@
 # Build stage
-FROM node:18-alpine AS builder
+FROM node:24-alpine AS builder
 
 # Set working directory
 WORKDIR /app
+
+# Set Docker environment flag
+ENV DOCKER_ENV=true
 
 # Copy package files
 COPY package.json package-lock.json* ./
@@ -23,6 +26,9 @@ EXPOSE 3000
 
 # Set port environment variable
 ENV PORT 3000
+
+# Install curl for health checks
+RUN apk add --no-cache curl
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \

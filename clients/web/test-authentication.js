@@ -3,7 +3,7 @@
  * Tests login sessions across all pages and scenarios
  */
 
-require('dotenv').config({ path: '.env.local' });
+require('dotenv').config({ path: '../../global.env' });
 const { createClient } = require('@supabase/supabase-js');
 
 // Test user credentials

@@ -72,7 +72,7 @@ export default function BricksPage() {
   };
 
   const activeBricks = getBricksByStatus('in_progress');
-  const pendingBricks = getBricksByStatus('pending');
+  const pendingBricks = getBricksByStatus('not_started');
   const completedBricks = getBricksByStatus('completed');
 
   return (
@@ -175,7 +175,7 @@ export default function BricksPage() {
                 </Badge>
               </CardTitle>
               <CardDescription>
-                Goals waiting to be started
+                Goals not yet started
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
