@@ -60,7 +60,8 @@ class OpenAIConversationalClient:
     async def generate_response(
         self,
         messages: List[ConversationMessage],
-        system_prompt: Optional[str] = None
+        system_prompt: Optional[str] = None,
+        tools: Optional[List[dict]] = None
     ) -> str:
         """Generate a conversational response using OpenAI."""
 
@@ -87,17 +88,37 @@ class OpenAIConversationalClient:
                     "content": msg.content
                 })
 
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=api_messages,
-                max_tokens=self.max_tokens,
-                temperature=self.temperature,
-                top_p=self.top_p,
-                frequency_penalty=self.frequency_penalty,
-                presence_penalty=self.presence_penalty
-            )
+            # Prepare API call parameters
+            api_params = {
+                "model": self.model,
+                "messages": api_messages,
+                "max_tokens": self.max_tokens,
+                "temperature": self.temperature,
+                "top_p": self.top_p,
+                "frequency_penalty": self.frequency_penalty,
+                "presence_penalty": self.presence_penalty
+            }
+            
+            # Add tools if provided for function calling
+            if tools:
+                api_params["tools"] = tools
+                api_params["tool_choice"] = "auto"
+            
+            response = await self.client.chat.completions.create(**api_params)
 
-            content = response.choices[0].message.content
+            message = response.choices[0].message
+            
+            # Check if there are tool calls
+            if hasattr(message, 'tool_calls') and message.tool_calls:
+                logger.info(
+                    "Function calls detected in response",
+                    model=self.model,
+                    tool_calls=[call.function.name for call in message.tool_calls]
+                )
+                # Return the raw response so agent can handle tool calls
+                return response
+            
+            content = message.content
 
             logger.info(
                 "Conversational response generated",

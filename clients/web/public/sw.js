@@ -59,10 +59,9 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Handle API requests
+  // Skip Service Worker for API requests - let them go directly to network
   if (isApiRequest(url)) {
-    event.respondWith(handleApiRequest(request));
-    return;
+    return; // Don't intercept API requests
   }
 
   // Handle static resources
@@ -81,7 +80,21 @@ self.addEventListener('fetch', (event) => {
           return cachedResponse;
         }
         
-        // Final fallback - return a basic offline response
+        // Final fallback - return appropriate response based on request type
+        if (event.request.url.includes('/api/')) {
+          // API requests should return JSON error response
+          const errorResponse = {
+            error: 'Offline - API not available',
+            message: 'You are currently offline. Please check your connection and try again.',
+            offline: true
+          };
+          return new Response(JSON.stringify(errorResponse), { 
+            status: 503,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+        
+        // Non-API requests return plain text
         return new Response('Offline - Resource not available', { 
           status: 503,
           headers: { 'Content-Type': 'text/plain' }

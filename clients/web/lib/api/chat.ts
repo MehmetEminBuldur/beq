@@ -123,11 +123,36 @@ class ChatAPI {
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail?.message || 'Failed to send message');
+        let errorMessage = 'Failed to send message';
+        try {
+          const errorData = await response.json();
+          if (errorData.offline) {
+            errorMessage = errorData.message || 'You are offline. Please check your connection.';
+          } else {
+            errorMessage = errorData.detail?.message || errorData.error || 'Failed to send message';
+          }
+        } catch (jsonError) {
+          // If JSON parsing fails, use status-based message
+          if (response.status === 503) {
+            errorMessage = 'Service temporarily unavailable. Please try again.';
+          }
+        }
+        throw new Error(errorMessage);
       }
 
-      const data = await response.json();
+      // First get response as text to debug JSON parsing issues
+      const responseText = await response.text();
+      console.log('Raw response text:', responseText);
+      
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (jsonError) {
+        console.error('JSON parsing failed:', jsonError);
+        console.error('Response text that failed:', responseText);
+        throw new Error(`JSON parsing failed. Response: ${responseText.substring(0, 200)}...`);
+      }
+      
       console.log('Received response data:', data);
 
       // Transform backend response to frontend format

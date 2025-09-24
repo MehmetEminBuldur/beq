@@ -34,21 +34,40 @@ interface ChatMessageResponse {
 // Forwarder to orchestrator chat endpoint
 async function callOrchestrator(body: ChatMessageRequest) {
   const baseURL = process.env.NEXT_PUBLIC_ORCHESTRATOR_API_URL || 'http://beq-orchestrator:8000';
-  const response = await fetch(`${baseURL}/api/v1/chat/message`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-    // Note: If auth required, consider forwarding Supabase JWT in Authorization header
-  });
+  console.log('Calling orchestrator at:', `${baseURL}/api/v1/chat/message`);
+  
+  try {
+    const response = await fetch(`${baseURL}/api/v1/chat/message`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+      // Note: If auth required, consider forwarding Supabase JWT in Authorization header
+    });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Orchestrator API error: ${response.status} - ${errorText}`);
+    console.log('Orchestrator response status:', response.status);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Orchestrator error response:', errorText);
+      throw new Error(`Orchestrator API error: ${response.status} - ${errorText}`);
+    }
+
+    const responseText = await response.text();
+    console.log('Orchestrator raw response:', responseText.substring(0, 200));
+    
+    try {
+      return JSON.parse(responseText);
+    } catch (jsonError) {
+      console.error('JSON parsing failed for orchestrator response:', jsonError);
+      console.error('Response that failed to parse:', responseText);
+      throw new Error(`Orchestrator returned invalid JSON: ${responseText.substring(0, 200)}...`);
+    }
+  } catch (fetchError) {
+    console.error('Fetch error calling orchestrator:', fetchError);
+    throw fetchError;
   }
-
-  return response.json();
 }
 
 // Main POST handler

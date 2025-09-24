@@ -34,7 +34,8 @@ from ..tools.scheduling_tools import (
 from ..tools.brick_management_tools import (
     CreateBrickTool,
     UpdateBrickTool,
-    GetBricksTool
+    GetBricksTool,
+    CreateQuantaTool
 )
 from ..tools.resource_tools import (
     GetResourceRecommendationsTool,
@@ -130,7 +131,8 @@ class OrchestratorAgent(LoggerMixin):
         tools.extend([
             CreateBrickTool(),
             UpdateBrickTool(),
-            GetBricksTool()
+            GetBricksTool(),
+            CreateQuantaTool()
         ])
         
         # Resource recommendation tools
@@ -229,20 +231,8 @@ class OrchestratorAgent(LoggerMixin):
             except Exception as e:
                 logger.error("Error using schedule tool", exc_info=e)
         
-        if any(keyword in user_message.lower() for keyword in ["create", "add", "new task", "brick"]):
-            # Use brick creation tools
-            try:
-                create_tool = next(t for t in self.tools if t.name == "create_brick")
-                # Extract task details from message (simplified)
-                result = await create_tool.arun(
-                    title="New task from conversation",
-                    description=user_message,
-                    user_id=state["user_id"]
-                )
-                tools_used.append("create_brick")
-                state["bricks_created"].append("new_brick_id")
-            except Exception as e:
-                logger.error("Error using create brick tool", exc_info=e)
+        # Note: Removed automatic brick creation here
+        # AI will decide when to use tools through conversation context
         
         if any(keyword in user_message.lower() for keyword in ["learn", "resource", "help", "guide"]):
             # Use resource recommendation tools
@@ -290,13 +280,73 @@ class OrchestratorAgent(LoggerMixin):
         
         conversation_messages.append(ConversationMessage(role="user", content=current_message_content))
         
+        # Prepare available tools for function calling
+        available_functions = []
+        for tool in self.tools:
+            if tool.name in ["create_brick", "create_quanta", "get_bricks"] and tool.args_schema is not None:
+                try:
+                    tool_schema = {
+                        "type": "function",
+                        "function": {
+                            "name": tool.name,
+                            "description": tool.description,
+                            "parameters": tool.args_schema.model_json_schema()
+                        }
+                    }
+                    available_functions.append(tool_schema)
+                except Exception as e:
+                    logger.error(f"Failed to create schema for tool {tool.name}", exc_info=e)
+        
         # Generate response with OpenAI using full conversation history
         llm_client = await self._get_llm_client()
         
-        response_content = await llm_client.generate_response(
+        response = await llm_client.generate_response(
             messages=conversation_messages,
-            system_prompt=self._create_system_prompt()
+            system_prompt=self._create_system_prompt(),
+            tools=available_functions if available_functions else None
         )
+        
+        # Handle function calls if present
+        if hasattr(response, 'choices') and hasattr(response.choices[0].message, 'tool_calls'):
+            message = response.choices[0].message
+            if message.tool_calls:
+                # Execute tool calls
+                tool_results = []
+                for tool_call in message.tool_calls:
+                    try:
+                        function_name = tool_call.function.name
+                        function_args = json.loads(tool_call.function.arguments)
+                        
+                        # Find and execute the tool
+                        tool = next((t for t in self.tools if t.name == function_name), None)
+                        if tool:
+                            result = await tool.arun(function_args)
+                            tool_results.append(f"{function_name}: {result}")
+                            
+                            # Update state based on tool used
+                            if function_name == "create_brick":
+                                state["bricks_created"].append(function_args.get("title", "Unknown"))
+                            elif function_name == "create_quanta":
+                                state["bricks_created"].append(f"Quanta: {function_args.get('title', 'Unknown')}")
+                            
+                            state["tools_used"].append(function_name)
+                    except Exception as e:
+                        logger.error(f"Error executing tool {tool_call.function.name}", exc_info=e)
+                        tool_results.append(f"Error executing {tool_call.function.name}: {str(e)}")
+                
+                # Get final response after tool execution
+                tool_context = "\n".join(tool_results)
+                conversation_messages.append(ConversationMessage(role="assistant", content=f"Tool results: {tool_context}"))
+                conversation_messages.append(ConversationMessage(role="user", content="Please provide a summary of what was created."))
+                
+                response_content = await llm_client.generate_response(
+                    messages=conversation_messages,
+                    system_prompt=self._create_system_prompt()
+                )
+            else:
+                response_content = response  # String response
+        else:
+            response_content = response  # String response
         
         # Add AI response to messages
         state["messages"].append(AIMessage(content=response_content))
@@ -387,7 +437,30 @@ WHEN INTERACTING:
 - Proactively suggest improvements and optimizations
 
 TOOLS AVAILABLE:
-You have access to various tools for scheduling, task management, resource recommendations, and calendar integration. Use them appropriately based on user needs.
+You have access to various tools for scheduling, task management, resource recommendations, and calendar integration. Use them appropriately based on user needs:
+
+1. **create_brick**: Use when user wants to create a main task/project (Brick). Extract meaningful title, description, category (learning, work, personal, health, etc.), priority, and estimated duration.
+
+2. **create_quanta**: Use when user wants to break down a Brick into smaller sub-tasks (Quantas). Requires a brick_id from a previously created Brick.
+
+3. **get_schedule**, **get_bricks**: Use to retrieve current user data when needed for context.
+
+When creating Bricks or Quantas:
+- Extract meaningful titles and descriptions from user messages
+- Choose appropriate categories (learning, work, personal, health, social, maintenance, recreation)
+- Estimate realistic durations based on task complexity
+- Set appropriate priorities (low, medium, high, urgent)
+
+IMPORTANT: When a user asks you to create a Brick or task, you MUST use the create_brick function to actually create it in the system. Don't just talk about creating it - actually call the function.
+
+Examples of when to use create_brick function:
+- "Create a Brick for..."
+- "I need a task for..."
+- "Add [task name] to my list"
+- "Schedule [activity] for [time]"
+- "Make a Brick called [name]"
+
+Always inform the user when you create Bricks or Quantas, and explain what you've created.
 
 Remember: You're not just a scheduler, you're a life optimization partner. Help users build a more purposeful, organized, and fulfilling life.
 """
