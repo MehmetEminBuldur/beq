@@ -1,0 +1,134 @@
+CALENDAR AND SCHEDULING PAGE - DETAILED REQUIREMENTS
+
+This document outlines the requirements for creating a production-quality, professional-looking calendar and scheduling page with advanced features.
+
+## 1. MULTIPLE VIEWS
+The calendar must support three distinct view modes:
+
+### Daily View
+- Display a single day's schedule with hour-by-hour breakdown
+- Show time slots from early morning to late evening
+- Highlight current time with a moving indicator
+- Support scrolling to navigate through hours
+- Show events/tasks in chronological order
+
+### Weekly View  
+- Display 7-day week view with days as columns
+- Show time slots as rows with hourly granularity
+- Support week navigation (previous/next week)
+- Display week of year and date range
+- Responsive design for mobile and desktop
+
+### Monthly View
+- Traditional calendar grid with dates
+- Show events as small blocks or dots on dates
+- Support month navigation
+- Highlight today's date
+- Show month/year in header
+
+## 2. INTERACTIVE SCHEDULING (MANUAL)
+Implement drag-and-drop functionality for schedule management:
+
+### Schedule Objects (Bricks/Quantas)
+- Visual blocks representing tasks, events, or time blocks
+- Different colors/styles for different types:
+  - Bricks: Larger projects/goals (darker colors)
+  - Quantas: Smaller tasks/actions (lighter colors)
+  - Events: External calendar events (distinct styling)
+
+### Drag-and-Drop Functionality
+- Drag schedule objects from sidebar/palette onto calendar
+- Drag existing objects to new time slots
+- Visual feedback during drag (ghost image, drop zones)
+- Snap to time grid (15-30 minute increments)
+- Conflict detection and resolution
+
+### Resizing Capability
+- Resize objects by dragging top/bottom edges
+- Visual resize handles on hover
+- Minimum duration constraints (15-30 minutes)
+- Maximum duration validation
+- Real-time duration display during resize
+
+## 3. AI OPTIMIZATION (AUTOMATED)
+Integrate AI-powered scheduling optimization:
+
+### AI Adjustment Controls
+- "Optimize" button/context menu for selected objects
+- Batch optimization for multiple objects
+- Optimization criteria selection:
+  - Minimize conflicts
+  - Maximize focus time
+  - Balance workload
+  - Consider energy levels
+  - Account for deadlines
+
+### Optimization Engine Integration
+- Connect to existing scheduler service
+- Send optimization requests with constraints
+- Apply AI suggestions with user confirmation
+- Show before/after comparison
+- Allow undo/redo of optimizations
+
+## 4. EMBEDDED CONVERSATIONAL INTERFACE
+In-page chat for advanced scheduling actions:
+
+### Chat Toggle Button
+- Small, unobtrusive button (bottom-right corner)
+- Icon indicating chat availability
+- Badge for new suggestions/notifications
+- Smooth animation for open/close
+
+### Chat Window Implementation
+- Overlay or slide-out sidebar design
+- Resizable and draggable
+- Message history persistence
+- Typing indicators
+- Context awareness of current calendar view
+
+### Advanced Chat Commands
+- "Find 2 hours next week for Project Alpha"
+- "Reschedule all morning meetings to afternoon"
+- "Block focus time for deep work"
+- "Optimize my schedule for tomorrow"
+- "What's my availability on Friday?"
+
+## TECHNICAL IMPLEMENTATION NOTES
+
+### Frontend Components
+- Calendar grid component with time slots
+- Draggable schedule object components
+- View switcher (daily/weekly/monthly)
+- Chat interface component
+- Optimization controls
+
+### Backend Integration
+- Calendar events API (existing)
+- Bricks/Quantas management API (existing)
+- Schedule optimization service (existing)
+- Chat/AI conversation API (existing)
+
+### State Management
+- Calendar view state (current date, view mode)
+- Schedule objects state (bricks, quantas, events)
+- Drag-and-drop state
+- Chat conversation state
+- Optimization requests state
+
+### Real-time Updates
+- Live updates from external calendars
+- Real-time collaboration (future)
+- Push notifications for changes
+- Conflict resolution updates
+
+### Responsive Design
+- Mobile-first approach
+- Touch-friendly interactions
+- Responsive breakpoints
+- Accessibility compliance (WCAG 2.1)
+
+### Performance Considerations
+- Virtual scrolling for large time ranges
+- Lazy loading of events outside view
+- Debounced API calls during interactions
+- Local caching of frequently accessed data

@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useAuthContext } from '@/lib/providers/auth-provider';
-import { chatAPI, ChatMessage, SendMessageResponse } from '@/lib/api/chat';
+import { chatAPI, SendMessageResponse } from '@/lib/api/chat';
 import { ChatService } from '@/lib/services/chat-service';
 import { supabase } from '@/lib/supabase/client';
 import { toast } from 'react-hot-toast';
@@ -72,28 +72,66 @@ export function useChat(conversationId?: string) {
     let conversationId = currentConversationId;
     if (!conversationId) {
       try {
+        console.log('Creating new conversation for user:', user.id);
         conversationId = await ChatService.createConversation(user.id, 'New Chat');
         setCurrentConversationId(conversationId);
+        console.log('Successfully created conversation:', conversationId);
       } catch (error) {
         console.error('Failed to create conversation:', error);
-        toast.error('Failed to create conversation');
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        toast.error(`Failed to create conversation: ${errorMessage}`);
+        setIsLoading(false);
         return;
       }
+    }
+
+    // Verify conversation exists before proceeding
+    if (!conversationId) {
+      console.error('No conversation ID available after creation attempt');
+      toast.error('Failed to establish conversation context');
+      setIsLoading(false);
+      return;
     }
 
     // Save user message to Supabase
     let messageId: string;
     try {
+      console.log('Saving user message to conversation:', conversationId);
       messageId = await ChatService.saveUserMessage(conversationId, user.id, content);
+      console.log('Successfully saved user message with ID:', messageId);
     } catch (error) {
       console.error('Failed to save user message:', error);
-      toast.error('Failed to save message');
-      return;
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      
+      // If conversation doesn't exist or is invalid, try creating a new one
+      if (errorMessage.includes('not found') || errorMessage.includes('access denied') || errorMessage.includes('409')) {
+        console.log('Conversation issue detected, clearing state and creating new conversation...');
+        try {
+          // Clear current conversation state
+          setCurrentConversationId(undefined);
+          setMessages([]);
+          
+          const newConversationId = await ChatService.createConversation(user.id, 'New Chat');
+          setCurrentConversationId(newConversationId);
+          messageId = await ChatService.saveUserMessage(newConversationId, user.id, content);
+          console.log('Successfully saved user message with new conversation:', messageId);
+          conversationId = newConversationId; // Update the conversation ID for the user message
+        } catch (retryError) {
+          console.error('Retry with new conversation also failed:', retryError);
+          toast.error(`Failed to save message: ${retryError instanceof Error ? retryError.message : 'Unknown error'}`);
+          setIsLoading(false);
+          return;
+        }
+      } else {
+        toast.error(`Failed to save message: ${errorMessage}`);
+        setIsLoading(false);
+        return;
+      }
     }
 
     const userMessage: ChatMessage = {
       id: messageId + '_user',
-      conversation_id: conversationId,
+      conversation_id: currentConversationId || conversationId,
       content,
       sender: 'user',
       timestamp: new Date(),
@@ -134,7 +172,7 @@ export function useChat(conversationId?: string) {
             .from('bricks')
             .select('id, title, status, priority')
             .eq('user_id', user.id);
-          const { data, error: statsError } = await supabaseTimeout(statsPromise, 5000) as any;
+          const { data, error: statsError } = await supabaseTimeout(Promise.resolve(statsPromise), 5000) as any;
 
           if (statsError) {
             console.error('Error fetching bricks stats:', statsError);
@@ -152,7 +190,7 @@ export function useChat(conversationId?: string) {
             .eq('user_id', user.id)
             .order('created_at', { ascending: false })
             .limit(3);
-          const { data, error: conversationsError } = await supabaseTimeout(conversationsPromise, 5000) as any;
+          const { data, error: conversationsError } = await supabaseTimeout(Promise.resolve(conversationsPromise), 5000) as any;
 
           if (conversationsError) {
             console.error('Error fetching recent conversations:', conversationsError);
@@ -273,9 +311,9 @@ export function useChat(conversationId?: string) {
       } else if (typeof error === 'object' && error !== null) {
         // Handle API error responses
         if ('detail' in error && typeof error.detail === 'object' && error.detail !== null) {
-          errorDetails = error.detail.message || JSON.stringify(error.detail);
+          errorDetails = (error.detail as any).message || JSON.stringify(error.detail);
         } else if ('message' in error) {
-          errorDetails = error.message;
+          errorDetails = (error as any).message;
         } else {
           errorDetails = JSON.stringify(error);
         }
@@ -333,6 +371,15 @@ export function useChat(conversationId?: string) {
     setMessages([]);
   }, []);
 
+  // Manual conversation reset function for debugging
+  const resetConversation = useCallback(() => {
+    console.log('Manually resetting conversation state');
+    setCurrentConversationId(undefined);
+    setMessages([]);
+    setIsLoading(false);
+    setIsInitialized(true);
+  }, []);
+
   return {
     messages,
     isLoading,
@@ -342,5 +389,6 @@ export function useChat(conversationId?: string) {
     clearMessages,
     deleteConversation,
     startNewConversation,
+    resetConversation,
   };
 }

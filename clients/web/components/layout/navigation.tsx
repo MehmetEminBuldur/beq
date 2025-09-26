@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Menu, X, Sun, Moon, User, Settings, LogOut, Calendar, MessageSquare } from 'lucide-react';
+import { Menu, X, Sun, Moon, User, Settings, LogOut, Calendar, MessageSquare, Blocks, Zap } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/lib/hooks/use-auth';
 import Link from 'next/link';
@@ -127,12 +127,14 @@ export function Navigation() {
                     href="/bricks"
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 flex items-center gap-2"
                   >
+                    <Blocks className="h-4 w-4" />
                     Bricks
                   </Link>
                   <Link
                     href="/quantas"
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 flex items-center gap-2"
                   >
+                    <Zap className="h-4 w-4" />
                     Quantas
                   </Link>
                   <Link
@@ -221,16 +223,18 @@ export function Navigation() {
                   </Link>
                     <Link
                       href="/bricks"
-                      className="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50 dark:text-white dark:hover:bg-gray-800"
+                      className="-mx-3 flex items-center gap-2 rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50 dark:text-white dark:hover:bg-gray-800"
                       onClick={() => setIsOpen(false)}
                     >
+                      <Blocks className="h-5 w-5" />
                       Bricks
                     </Link>
                     <Link
                       href="/quantas"
-                      className="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50 dark:text-white dark:hover:bg-gray-800"
+                      className="-mx-3 flex items-center gap-2 rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50 dark:text-white dark:hover:bg-gray-800"
                       onClick={() => setIsOpen(false)}
                     >
+                      <Zap className="h-5 w-5" />
                       Quantas
                     </Link>
                   <Link

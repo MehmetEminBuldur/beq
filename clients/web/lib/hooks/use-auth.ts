@@ -206,7 +206,8 @@ export function useAuth() {
         setUser(enhancedUserData);
       }
     } catch (error) {
-      console.log('Using basic user data (profile fetch unavailable):', error.message || error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.log('Using basic user data (profile fetch unavailable):', errorMessage);
       // basicUserData is already set above, so no need to set again
     }
   };

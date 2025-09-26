@@ -468,11 +468,144 @@
         ],
         "priority": "high",
         "subtasks": []
+      },
+      {
+        "id": 23,
+        "title": "Design Calendar Component Architecture",
+        "description": "Design the overall architecture for the calendar component system including view management, state structure, and component hierarchy for daily/weekly/monthly views.",
+        "details": "Create a comprehensive design for the calendar system including: component hierarchy (CalendarView -> DailyView/WeeklyView/MonthlyView -> TimeSlot -> ScheduleObject), state management structure for calendar data, event handling patterns for drag-and-drop, and integration points with existing Bricks/Quantas APIs. Document the architecture with component diagrams and data flow.",
+        "testStrategy": "Review architecture documentation with development team and validate that all requirements can be implemented with the proposed design.",
+        "priority": "high",
+        "dependencies": [
+          7,
+          8
+        ],
+        "status": "done",
+        "subtasks": []
+      },
+      {
+        "id": 24,
+        "title": "Implement Calendar Grid Foundation",
+        "description": "Create the basic calendar grid component with time slots, responsive design, and proper styling that works across daily, weekly, and monthly views.",
+        "details": "Build the core CalendarGrid component with: time slot rendering (15-30 minute increments), responsive CSS Grid layout that adapts to different screen sizes, proper styling with Tailwind CSS, current time indicator, and basic event positioning logic. Include accessibility features like keyboard navigation and screen reader support.",
+        "testStrategy": "Test calendar grid rendering across different viewport sizes, verify time slot accuracy, and validate accessibility with screen readers.",
+        "priority": "high",
+        "dependencies": [
+          23
+        ],
+        "status": "done",
+        "subtasks": []
+      },
+      {
+        "id": 25,
+        "title": "Implement Multiple Calendar Views",
+        "description": "Implement the three distinct calendar views (daily, weekly, monthly) with proper navigation, view switching, and date range handling.",
+        "details": "Create three view components: DailyView (single day with hourly breakdown), WeeklyView (7-day grid with time slots), and MonthlyView (traditional calendar grid). Implement view switcher component, date navigation controls (prev/next), and proper date range calculations. Handle edge cases like month boundaries and daylight saving time transitions.",
+        "testStrategy": "Test view switching functionality, verify date navigation accuracy across different months/years, and validate proper rendering of events in each view.",
+        "priority": "high",
+        "dependencies": [
+          24
+        ],
+        "status": "done",
+        "subtasks": []
+      },
+      {
+        "id": 26,
+        "title": "Create Draggable Schedule Objects",
+        "description": "Implement draggable components for bricks and quantas with visual styling, proper touch/mouse handling, and accessibility support.",
+        "details": "Create draggable components for Bricks and Quantas with: distinct visual styling (colors, icons, sizing), drag handles and visual feedback, touch and mouse event handling, ghost images during drag, and keyboard accessibility for drag operations. Integrate with existing Brick/Quanta data structures and APIs.",
+        "testStrategy": "Test drag initiation on both desktop and mobile devices, verify visual feedback works correctly, and validate keyboard accessibility for drag operations.",
+        "priority": "high",
+        "dependencies": [
+          25
+        ],
+        "status": "done",
+        "subtasks": []
+      },
+      {
+        "id": 27,
+        "title": "Implement Drag-and-Drop Functionality",
+        "description": "Add complete drag-and-drop capability including dropping objects onto calendar, conflict detection, time snapping, and visual feedback.",
+        "details": "Implement full drag-and-drop system with: drop zone detection on calendar time slots, time snapping to 15-30 minute increments, conflict detection with existing events, visual drop indicators and feedback, successful drop handling with API updates, and proper error handling for failed drops.",
+        "testStrategy": "Test dropping objects on various time slots, verify conflict detection works correctly, validate time snapping accuracy, and ensure API updates occur on successful drops.",
+        "priority": "high",
+        "dependencies": [
+          26
+        ],
+        "status": "done",
+        "subtasks": []
+      },
+      {
+        "id": 28,
+        "title": "Add Schedule Object Resizing",
+        "description": "Implement resizing functionality for schedule objects with duration constraints, visual handles, and real-time duration updates.",
+        "details": "Add resize capability with: resize handles on top/bottom edges of schedule objects, visual feedback during resize operations, duration constraints (minimum 15 minutes, maximum based on availability), real-time duration display, snap-to-grid functionality, and API updates when resize is complete.",
+        "testStrategy": "Test resize operations with different duration constraints, verify visual feedback and snapping works correctly, and validate that API updates reflect new durations.",
+        "priority": "medium",
+        "dependencies": [
+          27
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 29,
+        "title": "Integrate AI Schedule Optimization",
+        "description": "Connect calendar interface to existing schedule optimization service with batch selection, criteria selection, and before/after comparison.",
+        "details": "Integrate with existing schedule optimization service (Task 13) by adding: selection controls for multiple schedule objects, optimization criteria UI (minimize conflicts, maximize focus time, etc.), API integration with /api/v1/schedule/optimize endpoint, before/after comparison view, and user confirmation flow for applying AI suggestions.",
+        "testStrategy": "Test batch selection of multiple objects, verify optimization API integration works correctly, validate before/after comparison accuracy, and ensure user can accept/reject optimization suggestions.",
+        "priority": "high",
+        "dependencies": [
+          28,
+          13
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 30,
+        "title": "Implement Embedded Chat Interface",
+        "description": "Create an in-page chat overlay with toggle button, message history, and integration with existing chat system for advanced scheduling commands.",
+        "details": "Build embedded chat component with: toggle button in bottom-right corner, slide-out or overlay chat window, integration with existing chat API (Task 6), message history persistence, typing indicators, and context awareness of current calendar view and selected objects.",
+        "testStrategy": "Test chat toggle functionality, verify integration with existing chat system works correctly, validate message history persistence, and ensure chat context includes calendar state.",
+        "priority": "high",
+        "dependencies": [
+          29,
+          6
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 31,
+        "title": "Add Advanced Chat Commands for Scheduling",
+        "description": "Implement natural language processing for complex scheduling commands like 'find time for project' and 'reschedule meetings'.",
+        "details": "Extend chat system with calendar-specific commands: 'Find X hours next week for [project]', 'Reschedule all morning meetings to afternoon', 'Block focus time for deep work', 'Optimize my schedule for [date]', 'What's my availability on [date]'. Implement command parsing, calendar operation execution, and result feedback.",
+        "testStrategy": "Test various natural language scheduling commands, verify calendar operations execute correctly, validate command parsing accuracy, and ensure proper feedback is provided to users.",
+        "priority": "medium",
+        "dependencies": [
+          30
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 32,
+        "title": "Polish Calendar User Experience",
+        "description": "Add animations, loading states, error handling, keyboard shortcuts, and mobile responsiveness optimizations to the calendar interface.",
+        "details": "Enhance user experience with: smooth animations for drag-and-drop and view transitions, loading states for API operations, comprehensive error handling and user feedback, keyboard shortcuts for power users, mobile touch optimizations, and performance optimizations for large calendars.",
+        "testStrategy": "Test animations and transitions on various devices, verify loading states and error handling work correctly, validate keyboard shortcuts, and ensure mobile experience is smooth and responsive.",
+        "priority": "medium",
+        "dependencies": [
+          31
+        ],
+        "status": "pending",
+        "subtasks": []
       }
     ],
     "metadata": {
       "created": "2025-09-19T20:22:52.329Z",
-      "updated": "2025-09-20T22:17:16.593Z",
+      "updated": "2025-09-26T18:46:36.872Z",
       "description": "Tasks for master context"
     }
   }

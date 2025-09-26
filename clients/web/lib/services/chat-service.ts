@@ -25,6 +25,37 @@ export interface Conversation {
 
 export class ChatService {
   /**
+   * Ensure conversation exists, create if it doesn't
+   */
+  static async ensureConversationExists(
+    conversationId: string,
+    userId: string
+  ): Promise<string> {
+    try {
+      // Check if conversation exists
+      const { data: conversation, error: convError } = await supabase
+        .from('conversations')
+        .select('id, user_id')
+        .eq('id', conversationId)
+        .eq('user_id', userId)
+        .single();
+
+      if (conversation && !convError) {
+        console.log('Conversation exists:', conversationId);
+        return conversationId;
+      }
+
+      // Conversation doesn't exist, create it
+      console.log('Conversation not found, creating new one');
+      return await this.createConversation(userId, 'New Chat');
+
+    } catch (error) {
+      console.error('Error ensuring conversation exists:', error);
+      throw new Error('Failed to ensure conversation exists');
+    }
+  }
+
+  /**
    * Save a user message to Supabase
    */
   static async saveUserMessage(
@@ -32,29 +63,76 @@ export class ChatService {
     userId: string,
     content: string
   ): Promise<string> {
-    const { data, error } = await supabase
-      .from('messages')
-      .insert({
+    try {
+      // First verify the conversation exists
+      const { data: conversation, error: convError } = await supabase
+        .from('conversations')
+        .select('id, user_id')
+        .eq('id', conversationId)
+        .eq('user_id', userId)
+        .single();
+
+      if (convError || !conversation) {
+        console.error('Conversation verification failed:', {
+          conversationId,
+          userId,
+          error: convError,
+          errorCode: convError?.code,
+          errorMessage: convError?.message
+        });
+        throw new Error(`Conversation ${conversationId} not found or access denied: ${convError?.message || 'Unknown error'}`);
+      }
+
+      // Save the message (let Supabase generate the ID)
+      const messageData = {
         conversation_id: conversationId,
         user_id: userId,
-        content,
+        content: content.trim(),
         response: null, // Will be updated when assistant responds
         model_used: null,
         processing_time_ms: null,
         metadata: {}
-      })
-      .select('id')
-      .single();
+      };
+      
+      console.log('Attempting to insert message:', { 
+        conversationId: messageData.conversation_id,
+        userId: messageData.user_id,
+        contentLength: messageData.content.length
+      });
+      
+      const { data, error } = await supabase
+        .from('messages')
+        .insert(messageData as any)
+        .select('id')
+        .single();
 
-    if (error) {
-      console.error('Error saving user message:', error);
-      throw new Error('Failed to save message');
+      if (error) {
+        console.error('Error saving user message:', {
+          conversationId,
+          userId,
+          error,
+          errorCode: error.code,
+          errorMessage: error.message,
+          errorDetails: error.details,
+          errorHint: error.hint
+        });
+        throw new Error(`Failed to save message: ${error.message} (Code: ${error.code})`);
+      }
+
+      if (!data || !(data as any).id) {
+        throw new Error('Message saved but no ID returned');
+      }
+
+      // Update conversation's last_message_at
+      await this.updateConversationLastMessage(conversationId);
+
+      console.log('Successfully saved user message:', (data as any).id);
+      return (data as any).id;
+
+    } catch (error) {
+      console.error('Message saving failed:', error);
+      throw error instanceof Error ? error : new Error('Unknown error saving message');
     }
-
-    // Update conversation's last_message_at
-    await this.updateConversationLastMessage(conversationId);
-
-    return data.id;
   }
 
   /**
@@ -69,8 +147,8 @@ export class ChatService {
     processingTimeMs: number,
     metadata?: Record<string, any>
   ): Promise<void> {
-    const { error } = await supabase
-      .from('messages')
+    const { error } = await (supabase
+      .from('messages') as any)
       .update({
         response,
         model_used: modelUsed,
@@ -112,7 +190,7 @@ export class ChatService {
     // Transform database messages to frontend format
     const messages: ChatMessage[] = [];
 
-    for (const msg of data) {
+    for (const msg of data as any[]) {
       // Add user message
       messages.push({
         id: msg.id + '_user',
@@ -152,31 +230,62 @@ export class ChatService {
     title?: string,
     context?: Record<string, any>
   ): Promise<string> {
-    const { data, error } = await supabase
-      .from('conversations')
-      .insert({
-        user_id: userId,
-        title: title || null,
-        context: context || {},
-        last_message_at: new Date().toISOString()
-      })
-      .select('id')
-      .single();
+    try {
+      // First, ensure the user profile exists
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', userId)
+        .single();
 
-    if (error) {
-      console.error('Error creating conversation:', error);
-      throw new Error('Failed to create conversation');
+      if (profileError) {
+        console.error('User profile not found:', profileError);
+        throw new Error('User profile not found. Please ensure you are properly authenticated.');
+      }
+
+      // Create the conversation
+      const { data, error } = await supabase
+        .from('conversations')
+        .insert({
+          user_id: userId,
+          title: title || 'New Chat',
+          context: context || {},
+          last_message_at: new Date().toISOString()
+        } as any)
+        .select('id')
+        .single();
+
+      if (error) {
+        console.error('Error creating conversation:', {
+          userId,
+          error,
+          errorCode: error.code,
+          errorMessage: error.message,
+          errorDetails: error.details,
+          errorHint: error.hint
+        });
+        throw new Error(`Failed to create conversation: ${error.message} (Code: ${error.code})`);
+      }
+
+      if (!data || !(data as any).id) {
+        throw new Error('Conversation created but no ID returned');
+      }
+
+      console.log('Successfully created conversation:', (data as any).id);
+      return (data as any).id;
+
+    } catch (error) {
+      console.error('Conversation creation failed:', error);
+      throw error instanceof Error ? error : new Error('Unknown error creating conversation');
     }
-
-    return data.id;
   }
 
   /**
    * Update conversation's last_message_at timestamp
    */
   private static async updateConversationLastMessage(conversationId: string): Promise<void> {
-    const { error } = await supabase
-      .from('conversations')
+    const { error } = await (supabase
+      .from('conversations') as any)
       .update({
         last_message_at: new Date().toISOString(),
         updated_at: new Date().toISOString()

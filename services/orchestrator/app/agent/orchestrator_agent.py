@@ -283,17 +283,20 @@ class OrchestratorAgent(LoggerMixin):
         # Prepare available tools for function calling
         available_functions = []
         for tool in self.tools:
-            if tool.name in ["create_brick", "create_quanta", "get_bricks"] and tool.args_schema is not None:
+            if tool.name in ["create_brick", "create_quanta", "get_bricks"]:
                 try:
-                    tool_schema = {
-                        "type": "function",
-                        "function": {
-                            "name": tool.name,
-                            "description": tool.description,
-                            "parameters": tool.args_schema.model_json_schema()
+                    # Use get_input_schema() method instead of args_schema attribute
+                    input_schema = tool.get_input_schema()
+                    if input_schema is not None:
+                        tool_schema = {
+                            "type": "function", 
+                            "function": {
+                                "name": tool.name,
+                                "description": tool.description,
+                                "parameters": input_schema.model_json_schema()
+                            }
                         }
-                    }
-                    available_functions.append(tool_schema)
+                        available_functions.append(tool_schema)
                 except Exception as e:
                     logger.error(f"Failed to create schema for tool {tool.name}", exc_info=e)
         
@@ -306,9 +309,22 @@ class OrchestratorAgent(LoggerMixin):
             tools=available_functions if available_functions else None
         )
         
+        self.logger.info(
+            "Generated response from LLM",
+            response_type=type(response).__name__,
+            has_choices=hasattr(response, 'choices'),
+            available_tools_count=len(available_functions) if available_functions else 0
+        )
+        
         # Handle function calls if present
-        if hasattr(response, 'choices') and hasattr(response.choices[0].message, 'tool_calls'):
+        # Check if response is the raw OpenAI response object with tool calls
+        if hasattr(response, 'choices') and response.choices and hasattr(response.choices[0].message, 'tool_calls'):
             message = response.choices[0].message
+            self.logger.info(
+                "Tool calls detected",
+                tool_calls_count=len(message.tool_calls) if message.tool_calls else 0,
+                tool_names=[call.function.name for call in (message.tool_calls or [])]
+            )
             if message.tool_calls:
                 # Execute tool calls
                 tool_results = []
@@ -317,19 +333,39 @@ class OrchestratorAgent(LoggerMixin):
                         function_name = tool_call.function.name
                         function_args = json.loads(tool_call.function.arguments)
                         
+                        # Inject required context into function args
+                        if function_name in ["create_brick", "create_quanta", "get_bricks", "update_brick"]:
+                            function_args["user_id"] = state.get("user_id")
+                        
                         # Find and execute the tool
                         tool = next((t for t in self.tools if t.name == function_name), None)
                         if tool:
+                            # Pass arguments as a dictionary (LangChain expects tool_input as single param)
                             result = await tool.arun(function_args)
                             tool_results.append(f"{function_name}: {result}")
                             
                             # Update state based on tool used
                             if function_name == "create_brick":
-                                state["bricks_created"].append(function_args.get("title", "Unknown"))
+                                # Extract brick ID from the result if successful
+                                if "Successfully created" in result and "with ID" in result:
+                                    brick_id = result.split("with ID ")[-1].strip()
+                                    state["bricks_created"].append(brick_id)
+                                else:
+                                    state["bricks_created"].append(function_args.get("title", "Unknown"))
                             elif function_name == "create_quanta":
-                                state["bricks_created"].append(f"Quanta: {function_args.get('title', 'Unknown')}")
+                                if "Successfully created" in result and "with ID" in result:
+                                    quanta_id = result.split("with ID ")[-1].strip()
+                                    state["bricks_created"].append(f"Quanta: {quanta_id}")
+                                else:
+                                    state["bricks_created"].append(f"Quanta: {function_args.get('title', 'Unknown')}")
                             
                             state["tools_used"].append(function_name)
+                            
+                            self.logger.info(
+                                "Tool executed successfully",
+                                tool_name=function_name,
+                                result=result[:100] + "..." if len(result) > 100 else result
+                            )
                     except Exception as e:
                         logger.error(f"Error executing tool {tool_call.function.name}", exc_info=e)
                         tool_results.append(f"Error executing {tool_call.function.name}: {str(e)}")
@@ -346,7 +382,12 @@ class OrchestratorAgent(LoggerMixin):
             else:
                 response_content = response  # String response
         else:
-            response_content = response  # String response
+            # No tool calls detected, response is a string
+            response_content = response
+            self.logger.info(
+                "No tool calls detected in response",
+                response_length=len(response) if isinstance(response, str) else 0
+            )
         
         # Add AI response to messages
         state["messages"].append(AIMessage(content=response_content))
@@ -394,6 +435,18 @@ class OrchestratorAgent(LoggerMixin):
         
         return state
     
+    def _safe_parse_uuid(self, uuid_string: str) -> Optional[UUID]:
+        """Safely parse a UUID string, returning None if invalid."""
+        try:
+            if uuid_string and isinstance(uuid_string, str):
+                # Remove any extra whitespace and validate format
+                cleaned = uuid_string.strip()
+                if len(cleaned) == 36 and cleaned.count('-') == 4:
+                    return UUID(cleaned)
+        except (ValueError, TypeError):
+            pass
+        return None
+
     def _create_system_prompt(self) -> str:
         """Create the system prompt for the BeQ agent."""
         return """
@@ -452,6 +505,12 @@ When creating Bricks or Quantas:
 - Set appropriate priorities (low, medium, high, urgent)
 
 IMPORTANT: When a user asks you to create a Brick or task, you MUST use the create_brick function to actually create it in the system. Don't just talk about creating it - actually call the function.
+
+USER CONTEXT:
+- You already have access to the user's ID and authentication information - you don't need to ask for it
+- When using tools like create_brick, create_quanta, get_bricks, etc., the user context is automatically provided
+- Simply call the tool functions directly with the required parameters (title, description, category, priority, etc.)
+- You do NOT need to ask users for their user ID, authentication details, or other system identifiers
 
 Examples of when to use create_brick function:
 - "Create a Brick for..."
@@ -529,8 +588,8 @@ Remember: You're not just a scheduler, you're a life optimization partner. Help 
                 actions_taken=final_state.get("tools_used", []),
                 suggestions=final_state.get("user_context", {}).get("last_suggestions", []),
                 schedule_updated=final_state.get("schedule_updated", False),
-                bricks_created=[UUID(bid) for bid in final_state.get("bricks_created", []) if bid],
-                resources_recommended=[UUID(rid) for rid in final_state.get("resources_recommended", []) if rid]
+                bricks_created=[self._safe_parse_uuid(bid) for bid in final_state.get("bricks_created", []) if self._safe_parse_uuid(bid)],
+                resources_recommended=[self._safe_parse_uuid(rid) for rid in final_state.get("resources_recommended", []) if self._safe_parse_uuid(rid)]
             )
             
             self.logger.info(
