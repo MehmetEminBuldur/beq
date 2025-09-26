@@ -1,295 +1,190 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthContext } from '@/lib/providers/auth-provider';
 import { supabase } from '@/lib/supabase/client';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, RefreshCw, User, Database, Shield } from 'lucide-react';
-import { AuthGuard } from '@/components/auth/auth-guard';
+import { Loader2, CheckCircle, User } from 'lucide-react';
 import { Navigation } from '@/components/layout/navigation';
+import { toast } from 'react-hot-toast';
 
 export default function AuthVerifyPage() {
-  const { user, isAuthenticated, signOut } = useAuthContext();
-  const [testResults, setTestResults] = useState<any[]>([]);
-  const [isTesting, setIsTesting] = useState(false);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { user, isAuthenticated } = useAuthContext();
+  const [isVerifying, setIsVerifying] = useState(true);
+  const [verificationSuccess, setVerificationSuccess] = useState(false);
 
-  const runVerificationTests = async () => {
-    setIsTesting(true);
-    const results = [];
+  // Handle email verification and redirect to onboarding
+  useEffect(() => {
+    const handleVerification = async () => {
+      const verified = searchParams?.get('verified');
+      const onboarding = searchParams?.get('onboarding');
+      
+      if (verified === 'true') {
+        setVerificationSuccess(true);
+        toast.success('Email verified successfully! Welcome to BeQ!');
+        
+        // If this is from signup (onboarding=true), redirect to onboarding
+        if (onboarding === 'true') {
+          setTimeout(() => {
+            router.replace('/onboarding');
+          }, 2000);
+        } else {
+          // If this is from signin or other verification, check onboarding status
+          setTimeout(() => {
+            checkOnboardingAndRedirect();
+          }, 2000);
+        }
+      }
+      
+      setIsVerifying(false);
+    };
 
-    // Test 1: Authentication State
-    results.push({
-      name: 'Authentication Status',
-      success: isAuthenticated,
-      details: isAuthenticated ? `User: ${user?.email}` : 'Not authenticated',
-      icon: isAuthenticated ? CheckCircle : XCircle,
-      color: isAuthenticated ? 'text-green-500' : 'text-red-500'
-    });
+    const checkOnboardingAndRedirect = async () => {
+      if (!isAuthenticated || !user?.id) {
+        router.replace('/auth');
+        return;
+      }
 
-    // Test 2: Supabase Connection
-    try {
-      const { error } = await supabase.from('profiles').select('id').limit(1);
-      results.push({
-        name: 'Database Connection',
-        success: !error,
-        details: error ? `Error: ${error.message}` : 'Connected successfully',
-        icon: !error ? CheckCircle : XCircle,
-        color: !error ? 'text-green-500' : 'text-red-500'
-      });
-    } catch (error) {
-      results.push({
-        name: 'Database Connection',
-        success: false,
-        details: `Connection failed: ${error.message}`,
-        icon: XCircle,
-        color: 'text-red-500'
-      });
-    }
-
-    // Test 3: User Profile Access
-    if (user?.id) {
       try {
-        const { data, error } = await supabase
+        // Check if user has completed onboarding
+        const { data: profile, error } = await supabase
           .from('profiles')
-          .select('*')
+          .select('onboarding_completed')
           .eq('id', user.id)
           .single();
 
-        results.push({
-          name: 'Profile Access',
-          success: !error && !!data,
-          details: data ? `Name: ${data.full_name || 'Not set'}` : `Error: ${error?.message}`,
-          icon: (!error && !!data) ? CheckCircle : XCircle,
-          color: (!error && !!data) ? 'text-green-500' : 'text-red-500'
-        });
+        if (!error && (profile as any)?.onboarding_completed) {
+          // User has completed onboarding, go to dashboard
+          router.replace('/dashboard');
+        } else {
+          // User needs to complete onboarding
+          router.replace('/onboarding');
+        }
       } catch (error) {
-        results.push({
-          name: 'Profile Access',
-          success: false,
-          details: `Failed: ${error.message}`,
-          icon: XCircle,
-          color: 'text-red-500'
-        });
+        console.error('Error checking onboarding status:', error);
+        // Default to onboarding if there's an error
+        router.replace('/onboarding');
       }
-    }
+    };
 
-    // Test 4: Session Persistence
-    try {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      const isValid = session && session.expires_at && session.expires_at > Date.now() / 1000;
+    handleVerification();
+  }, [searchParams, router, isAuthenticated, user?.id]);
 
-      results.push({
-        name: 'Session Persistence',
-        success: isValid,
-        details: isValid ? `Expires: ${new Date(session.expires_at * 1000).toLocaleString()}` : 'Session invalid or expired',
-        icon: isValid ? CheckCircle : XCircle,
-        color: isValid ? 'text-green-500' : 'text-red-500'
-      });
-    } catch (error) {
-      results.push({
-        name: 'Session Persistence',
-        success: false,
-        details: `Session check failed: ${error.message}`,
-        icon: XCircle,
-        color: 'text-red-500'
-      });
-    }
+  // Create user profile if doesn't exist (for new signups)
+  useEffect(() => {
+    const createProfileIfNeeded = async () => {
+      if (!isAuthenticated || !user?.id) return;
 
-    setTestResults(results);
-    setIsTesting(false);
-  };
+      try {
+        // Check if profile exists
+        const { error: checkError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', user.id)
+          .single();
 
-  const successCount = testResults.filter(r => r.success).length;
-  const totalCount = testResults.length;
+        // If profile doesn't exist, create it
+        if (checkError && checkError.code === 'PGRST116') {
+          const { error: insertError } = await supabase
+            .from('profiles')
+            .insert({
+              id: user.id,
+              email: user.email,
+              full_name: user.full_name,
+              onboarding_completed: false,
+              timezone: 'UTC',
+              preferences: {},
+            } as any);
 
-  return (
-    <AuthGuard>
+          if (insertError) {
+            console.error('Error creating profile:', insertError);
+          } else {
+            console.log('Profile created for new user');
+          }
+        }
+      } catch (error) {
+        console.error('Error in profile creation:', error);
+      }
+    };
+
+    createProfileIfNeeded();
+  }, [isAuthenticated, user?.id, user?.email, user?.full_name]);
+
+  if (isVerifying) {
+    return (
       <div className="min-h-screen bg-background">
         <Navigation />
-        <div className="container mx-auto px-4 py-8">
-          <div className="max-w-4xl mx-auto">
-            <div className="mb-8">
-              <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-                <Shield className="h-8 w-8 text-primary" />
-                Authentication Verification
+        <div className="flex items-center justify-center min-h-[calc(100vh-64px)] px-4">
+          <div className="w-full max-w-md space-y-8 text-center">
+            <div className="h-16 w-16 mx-auto text-primary">
+              <Loader2 className="h-16 w-16 animate-spin" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-gray-900">
+                Verifying your account...
               </h1>
-              <p className="text-muted-foreground mt-2">
-                Verify that your login session works correctly across all pages
+              <p className="mt-2 text-gray-600">
+                Please wait while we set up your account.
               </p>
             </div>
-
-            {/* User Info Card */}
-            {isAuthenticated && user && (
-              <Card className="mb-6">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <User className="h-5 w-5" />
-                    Current User Session
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm font-medium">Email:</span>
-                      <span className="text-sm">{user.email}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm font-medium">Name:</span>
-                      <span className="text-sm">{user.full_name || 'Not set'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm font-medium">User ID:</span>
-                      <span className="text-sm font-mono">{user.id}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm font-medium">Timezone:</span>
-                      <span className="text-sm">{user.timezone || 'UTC'}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Test Results */}
-            <Card className="mb-6">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <Database className="h-5 w-5" />
-                      Authentication Tests
-                    </CardTitle>
-                    <CardDescription>
-                      Test results for login session functionality
-                    </CardDescription>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {totalCount > 0 && (
-                      <Badge variant={successCount === totalCount ? 'default' : 'destructive'}>
-                        {successCount}/{totalCount} Passed
-                      </Badge>
-                    )}
-                    <Button
-                      onClick={runVerificationTests}
-                      disabled={isTesting}
-                      variant="outline"
-                      size="sm"
-                    >
-                      <RefreshCw className={`h-4 w-4 mr-2 ${isTesting ? 'animate-spin' : ''}`} />
-                      {isTesting ? 'Testing...' : 'Run Tests'}
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {testResults.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Shield className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>Click &quot;Run Tests&quot; to verify your authentication setup</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {testResults.map((result, index) => (
-                      <div key={index} className="flex items-center gap-3 p-3 border rounded-lg">
-                        <result.icon className={`h-5 w-5 ${result.color}`} />
-                        <div className="flex-1">
-                          <div className="font-medium">{result.name}</div>
-                          <div className="text-sm text-muted-foreground">{result.details}</div>
-                        </div>
-                        <Badge variant={result.success ? 'default' : 'destructive'}>
-                          {result.success ? '✓ Pass' : '✗ Fail'}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Navigation Tests */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Test Login Sessions Across Pages</CardTitle>
-                <CardDescription>
-                  Navigate to different pages to verify your session persists
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                  <a
-                    href="/dashboard"
-                    className="flex items-center gap-2 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-                  >
-                    📊 Dashboard
-                  </a>
-                  <a
-                    href="/bricks"
-                    className="flex items-center gap-2 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-                  >
-                    🧱 Bricks
-                  </a>
-                  <a
-                    href="/chat"
-                    className="flex items-center gap-2 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-                  >
-                    💬 Chat
-                  </a>
-                  <a
-                    href="/calendar"
-                    className="flex items-center gap-2 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-                  >
-                    📅 Calendar
-                  </a>
-                  <a
-                    href="/settings"
-                    className="flex items-center gap-2 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-                  >
-                    ⚙️ Settings
-                  </a>
-                  <button
-                    onClick={() => window.location.reload()}
-                    className="flex items-center gap-2 p-3 border rounded-lg hover:bg-muted/50 transition-colors text-left"
-                  >
-                    🔄 Refresh Page
-                  </button>
-                </div>
-
-                <div className="mt-6 pt-4 border-t">
-                  <div className="flex gap-2">
-                    <Button onClick={signOut} variant="outline">
-                      Sign Out (Test Logout)
-                    </Button>
-                    <Button onClick={runVerificationTests} variant="outline">
-                      Re-run Tests
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Help Section */}
-            <Card className="mt-6">
-              <CardHeader>
-                <CardTitle>🎯 Authentication Status</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-sm space-y-2">
-                  <p><strong>✅ Your authentication is working correctly!</strong></p>
-                  <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-                    <li>Login sessions persist across page navigation</li>
-                    <li>Session survives page refreshes</li>
-                    <li>All user data is accessible</li>
-                    <li>Protected routes work properly</li>
-                    <li>Logout clears session completely</li>
-                  </ul>
-                </div>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </div>
-    </AuthGuard>
+    );
+  }
+
+  if (verificationSuccess) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navigation />
+        <div className="flex items-center justify-center min-h-[calc(100vh-64px)] px-4">
+          <div className="w-full max-w-md space-y-8 text-center">
+            <div className="h-16 w-16 mx-auto text-green-500">
+              <CheckCircle className="h-16 w-16" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-gray-900">
+                Welcome to BeQ!
+              </h1>
+              <p className="mt-2 text-gray-600">
+                Your email has been verified successfully. Redirecting you to get started...
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Fallback for cases where verification parameters are missing
+  return (
+    <div className="min-h-screen bg-background">
+      <Navigation />
+      <div className="flex items-center justify-center min-h-[calc(100vh-64px)] px-4">
+        <div className="w-full max-w-md space-y-8 text-center">
+          <div className="h-16 w-16 mx-auto text-primary">
+            <User className="h-16 w-16" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-gray-900">
+              Account Verification
+            </h1>
+            <p className="mt-2 text-gray-600">
+              If you&apos;re seeing this page, please check your email for the verification link or try signing in again.
+            </p>
+            <div className="mt-6">
+              <button
+                onClick={() => router.push('/auth')}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+              >
+                Back to Sign In
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

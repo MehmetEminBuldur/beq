@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, Suspense, lazy, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuthContext } from '@/lib/providers/auth-provider';
 import { useDashboard } from '@/lib/hooks/use-dashboard';
 import { Navigation } from '@/components/layout/navigation';
 import { DynamicQuickActions } from '@/components/dashboard/dynamic-quick-actions';
+import { supabase } from '@/lib/supabase/client';
 
 // Lazy load heavy components
 const ChatInterface = lazy(() => import('@/components/chat/chat-interface').then(mod => ({ default: mod.ChatInterface })));
@@ -15,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { CalendarDays, MessageSquare, Target, TrendingUp, Plus, Clock, RefreshCw, Brain } from 'lucide-react';
 
 export default function DashboardPage() {
+  const router = useRouter();
   const { user, isAuthenticated, isLoading: authLoading, signOut } = useAuthContext();
   const { stats, todaySchedule, aiInsights, isLoading: dashboardLoading, refreshDashboard } = useDashboard();
   const [activeView, setActiveView] = useState<'overview' | 'chat'>('overview');
@@ -27,6 +30,32 @@ export default function DashboardPage() {
       }
     }
   }, [isAuthenticated, user, authLoading]);
+
+  // Check onboarding completion and redirect if needed
+  useEffect(() => {
+    const checkOnboardingStatus = async () => {
+      if (!isAuthenticated || !user?.id || authLoading) return;
+
+      try {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('onboarding_completed')
+          .eq('id', user.id)
+          .single();
+
+        if (!error && !profile?.onboarding_completed) {
+          // User hasn't completed onboarding, redirect
+          router.replace('/onboarding');
+        }
+      } catch (error) {
+        console.error('Error checking onboarding status:', error);
+        // If there's an error accessing profile, redirect to onboarding to be safe
+        router.replace('/onboarding');
+      }
+    };
+
+    checkOnboardingStatus();
+  }, [isAuthenticated, user?.id, authLoading, router]);
 
   // Show loading state while authentication is being checked
   if (authLoading) {

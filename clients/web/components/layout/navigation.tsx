@@ -21,7 +21,7 @@ export function Navigation() {
 
   const navigation = [
     { name: 'Home', href: '/' },
-    { name: 'Features', href: '/#features' },
+    { name: 'Calendar', href: '/calendar' },
     { name: 'Pricing', href: '/pricing' },
     { name: 'Docs', href: '/docs' },
   ];
@@ -63,12 +63,13 @@ export function Navigation() {
         </div>
 
         {/* Desktop navigation */}
-        <div className="hidden lg:flex lg:gap-x-12">
+        <div className="hidden lg:flex lg:gap-x-12" suppressHydrationWarning>
           {navigation.map((item) => (
             <Link
               key={item.name}
               href={item.href}
               className="text-sm font-semibold leading-6 text-gray-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+              suppressHydrationWarning
             >
               {item.name}
             </Link>
@@ -196,13 +197,14 @@ export function Navigation() {
           className="lg:hidden"
           suppressHydrationWarning
         >
-          <div className="space-y-2 px-6 pb-6 pt-2">
+          <div className="space-y-2 px-6 pb-6 pt-2" suppressHydrationWarning>
             {navigation.map((item) => (
               <Link
                 key={item.name}
                 href={item.href}
                 className="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50 dark:text-white dark:hover:bg-gray-800"
                 onClick={() => setIsOpen(false)}
+                suppressHydrationWarning
               >
                 {item.name}
               </Link>

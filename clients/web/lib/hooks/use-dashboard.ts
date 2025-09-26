@@ -141,12 +141,12 @@ export function useDashboard() {
       if (msgError) throw msgError;
 
       // Calculate statistics
-      const activeBricks = bricks?.filter(b => b.status === 'in_progress').length || 0;
-      const pendingBricks = bricks?.filter(b => b.status === 'pending').length || 0;
+      const activeBricks = bricks?.filter((b: any) => b.status === 'in_progress').length || 0;
+      const pendingBricks = bricks?.filter((b: any) => b.status === 'pending').length || 0;
       const totalBricks = bricks?.length || 0;
 
       const completedToday = completedQuantasToday?.length || 0;
-      const focusTime = completedQuantasToday?.reduce((total, q) => total + (q.actual_duration_minutes || 0), 0) / 60 || 0; // Convert to hours
+      const focusTime = completedQuantasToday?.reduce((total: number, q: any) => total + (q.actual_duration_minutes || 0), 0) / 60 || 0; // Convert to hours
       const aiConversations = messages?.length || 0;
 
       // Calculate completed this week
@@ -162,7 +162,7 @@ export function useDashboard() {
       // Calculate average session time
       const totalSessions = completedQuantasToday?.length || 0;
       const averageSessionTime = totalSessions > 0
-        ? completedQuantasToday.reduce((total, q) => total + (q.actual_duration_minutes || 0), 0) / totalSessions
+        ? completedQuantasToday.reduce((total: number, q: any) => total + (q.actual_duration_minutes || 0), 0) / totalSessions
         : 0;
 
       setStats({
@@ -204,10 +204,12 @@ export function useDashboard() {
 
       if (eventsError) throw eventsError;
 
+      // Declare now at function scope for reuse
+      const now = new Date();
+
       // Transform calendar events to schedule items
-      const scheduleItems: TodayScheduleItem[] = events?.map(event => {
+      const scheduleItems: TodayScheduleItem[] = events?.map((event: any) => {
         // Determine status based on current time
-        const now = new Date();
         const startTime = new Date(event.start_time);
         const endTime = new Date(event.end_time);
 
@@ -247,7 +249,7 @@ export function useDashboard() {
 
         if (!prefError && preferences) {
           // Add workout if user has workout frequency
-          if (preferences.workout_frequency_per_week > 0) {
+          if ((preferences as any).workout_frequency_per_week > 0) {
             const workoutTime = new Date();
             workoutTime.setHours(7, 0, 0, 0); // 7 AM
 
@@ -262,7 +264,7 @@ export function useDashboard() {
           }
 
           // Add learning session
-          if (preferences.daily_learning_minutes > 0) {
+          if ((preferences as any).daily_learning_minutes > 0) {
             const learningTime = new Date();
             learningTime.setHours(19, 30, 0, 0); // 7:30 PM
 
@@ -270,7 +272,7 @@ export function useDashboard() {
               id: 'learning-default',
               title: 'Daily Learning',
               start_time: learningTime.toISOString(),
-              end_time: new Date(learningTime.getTime() + preferences.daily_learning_minutes * 60 * 1000).toISOString(),
+              end_time: new Date(learningTime.getTime() + (preferences as any).daily_learning_minutes * 60 * 1000).toISOString(),
               status: now >= learningTime ? 'in_progress' : 'upcoming',
               type: 'brick',
             });
@@ -310,7 +312,21 @@ export function useDashboard() {
         .order('updated_at', { ascending: false })
         .limit(5);
 
-      if (!prefError && preferences && !bricksError && recentBricks) {
+      // Handle case where user_preferences table doesn't exist or user has no preferences yet
+      if (prefError && prefError.code === 'PGRST116') {
+        // No preferences found, provide default insights
+        console.log('No user preferences found, using default insights');
+      } else if (prefError && (prefError.code === 'PGRST205' || prefError.message.includes('Could not find the table'))) {
+        // Table doesn't exist in schema cache, skip preferences-based insights
+        console.warn('user_preferences table not found in schema, skipping preferences-based insights');
+      } else if (prefError && prefError.message.includes('404')) {
+        // Table doesn't exist, skip preferences-based insights
+        console.warn('user_preferences table not found, skipping preferences-based insights');
+      } else if (prefError) {
+        console.error('Error fetching user preferences:', prefError);
+      }
+
+      if ((!prefError || prefError.code === 'PGRST116' || prefError.code === 'PGRST205') && !bricksError && recentBricks) {
         // Productivity pattern insight
         const now = new Date();
         const hour = now.getHours();
@@ -333,28 +349,33 @@ export function useDashboard() {
           actionable: true,
         });
 
-        // Break recommendation
-        if (preferences.break_frequency_minutes > 0) {
+        // Break recommendation (with fallback values if preferences not available)
+        const breakFrequency = (preferences as any)?.break_frequency_minutes || 90; // Default 90 minutes
+        const breakDuration = (preferences as any)?.break_duration_minutes || 15; // Default 15 minutes
+        
+        if (breakFrequency > 0) {
           const lastBreakTime = localStorage.getItem('lastBreakTime');
           const lastBreak = lastBreakTime ? new Date(lastBreakTime) : null;
           const minutesSinceLastBreak = lastBreak
             ? (now.getTime() - lastBreak.getTime()) / (1000 * 60)
-            : preferences.break_frequency_minutes + 1;
+            : breakFrequency + 1;
 
-          if (minutesSinceLastBreak >= preferences.break_frequency_minutes) {
+          if (minutesSinceLastBreak >= breakFrequency) {
             insights.push({
               id: 'break-recommendation',
               type: 'break_recommendation',
               title: 'Break Recommendation',
-              description: `It's been ${Math.round(minutesSinceLastBreak)} minutes since your last break. A ${preferences.break_duration_minutes}-minute break would help maintain your focus and energy levels.`,
+              description: `It's been ${Math.round(minutesSinceLastBreak)} minutes since your last break. A ${breakDuration}-minute break would help maintain your focus and energy levels.`,
               priority: 'high',
               actionable: true,
             });
           }
         }
 
-        // Learning progress insight
-        if (preferences.daily_learning_minutes > 0) {
+        // Learning progress insight (with fallback values if preferences not available)
+        const dailyLearningMinutes = (preferences as any)?.daily_learning_minutes || 30; // Default 30 minutes
+        
+        if (dailyLearningMinutes > 0) {
           const { data: todayLearning, error: learningError } = await supabase
             .from('quantas')
             .select('actual_duration_minutes')
@@ -363,16 +384,16 @@ export function useDashboard() {
             .like('title', '%learn%');
 
           if (!learningError && todayLearning) {
-            const totalLearningMinutes = todayLearning.reduce((total, q) =>
+            const totalLearningMinutes = todayLearning.reduce((total: number, q: any) =>
               total + (q.actual_duration_minutes || 0), 0
             );
 
-            if (totalLearningMinutes < preferences.daily_learning_minutes) {
+            if (totalLearningMinutes < dailyLearningMinutes) {
               insights.push({
                 id: 'learning-progress',
                 type: 'learning_suggestion',
                 title: 'Learning Progress',
-                description: `You've completed ${totalLearningMinutes} minutes of learning today. You have ${preferences.daily_learning_minutes - totalLearningMinutes} minutes remaining to reach your daily goal.`,
+                description: `You've completed ${totalLearningMinutes} minutes of learning today. You have ${dailyLearningMinutes - totalLearningMinutes} minutes remaining to reach your daily goal.`,
                 priority: 'medium',
                 actionable: true,
               });
@@ -381,9 +402,9 @@ export function useDashboard() {
         }
 
         // Goal progress insight
-        const activeGoals = recentBricks?.filter(b => b.status === 'in_progress') || [];
+        const activeGoals = recentBricks?.filter((b: any) => b.status === 'in_progress') || [];
         if (activeGoals.length > 0) {
-          const goal = activeGoals[0];
+          const goal = activeGoals[0] as any;
           const progressPercent = goal.completion_percentage;
 
           if (progressPercent > 75) {
@@ -406,6 +427,43 @@ export function useDashboard() {
             });
           }
         }
+      } else if (!bricksError && recentBricks && recentBricks.length > 0) {
+        // Provide basic insights even when preferences are not available
+        insights.push({
+          id: 'basic-productivity',
+          type: 'productivity_pattern',
+          title: 'Getting Started',
+          description: 'Welcome to BeQ! Start by creating your first task or brick to begin organizing your workflow.',
+          priority: 'high',
+          actionable: true,
+        });
+
+        // Basic task completion insight
+        const completedToday = recentBricks.filter((b: any) => 
+          b.status === 'completed' && 
+          new Date(b.updated_at) >= getTodayRange().startOfDay
+        ).length;
+
+        if (completedToday > 0) {
+          insights.push({
+            id: 'daily-progress',
+            type: 'goal_progress',
+            title: 'Daily Progress',
+            description: `Great job! You've completed ${completedToday} task${completedToday > 1 ? 's' : ''} today. Keep up the momentum!`,
+            priority: 'medium',
+            actionable: false,
+          });
+        }
+      } else if (!bricksError && (!recentBricks || recentBricks.length === 0)) {
+        // No bricks yet, provide onboarding insight
+        insights.push({
+          id: 'welcome-insight',
+          type: 'goal_progress',
+          title: 'Welcome to BeQ!',
+          description: 'Start your productivity journey by creating your first task or brick. Click the "Add Brick" button to get started.',
+          priority: 'high',
+          actionable: true,
+        });
       }
 
       setAiInsights(insights);

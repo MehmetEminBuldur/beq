@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuthContext } from '@/lib/providers/auth-provider';
 import { bricksAPI, Brick, Quanta, CreateBrickRequest, UpdateBrickRequest, CreateQuantaRequest, UpdateQuantaRequest } from '@/lib/api/bricks';
 import { useUserDataCache } from './use-cached-query';
@@ -13,11 +13,28 @@ export function useBricks() {
   const [isCreatingBrick, setIsCreatingBrick] = useState(false);
   const [isCreatingQuanta, setIsCreatingQuanta] = useState(false);
 
-  // Cached queries for bricks and quantas
+  const lastBrickLoadRef = useRef<string | null>(null);
+  const lastQuantaLoadRef = useRef<string | null>(null);
+
+  const bricksFetcher = useMemo(() => {
+    if (!user?.id) return async () => [];
+    const userId = user.id;
+    return async () => {
+      try {
+        lastBrickLoadRef.current = userId;
+        const result = await bricksAPI.getUserBricks(userId);
+        return result;
+      } catch (error) {
+        console.error('Bricks fetch failed:', error);
+        return [];
+      }
+    };
+  }, [user?.id]);
+
   const bricksQuery = useUserDataCache(
     'bricks',
     user?.id || '',
-    () => user ? bricksAPI.getUserBricks(user.id) : Promise.resolve([]),
+    bricksFetcher,
     {
       cacheTTL: 10 * 60 * 1000, // 10 minutes for bricks
       enableOffline: true,
@@ -25,10 +42,25 @@ export function useBricks() {
     }
   );
 
+  const quantasFetcher = useMemo(() => {
+    if (!user?.id) return async () => [];
+    const userId = user.id;
+    return async () => {
+      try {
+        lastQuantaLoadRef.current = userId;
+        const result = await bricksAPI.getUserQuantas(userId);
+        return result;
+      } catch (error) {
+        console.error('Quantas fetch failed:', error);
+        return [];
+      }
+    };
+  }, [user?.id]);
+
   const quantasQuery = useUserDataCache(
     'quantas',
     user?.id || '',
-    () => user ? bricksAPI.getUserQuantas(user.id) : Promise.resolve([]),
+    quantasFetcher,
     {
       cacheTTL: 10 * 60 * 1000, // 10 minutes for quantas
       enableOffline: true,
@@ -38,21 +70,19 @@ export function useBricks() {
 
   const bricks = bricksQuery.data || [];
   const quantas = quantasQuery.data || [];
-  const isLoading = bricksQuery.isLoading || quantasQuery.isLoading;
+  
+  // Combined loading state from both queries
+  const isLoading = user?.id
+    ? (bricksQuery.isLoading || quantasQuery.isLoading)
+    : false;
   const selectedBrick = null; // This would need to be managed separately if needed
 
   // Combined loading state
   const isLoadingAny = bricksQuery.isLoading || quantasQuery.isLoading;
   const hasError = bricksQuery.error || quantasQuery.error;
 
-  // Trigger refresh when user becomes available
-  useEffect(() => {
-    if (user?.id && !bricksQuery.data && !quantasQuery.data && !isLoadingAny) {
-      // User just became available and we don't have data yet, refresh
-      bricksQuery.refresh();
-      quantasQuery.refresh();
-    }
-  }, [user?.id, bricksQuery, quantasQuery, bricksQuery.data, quantasQuery.data, isLoadingAny]);
+  // Auto-refresh logic is handled by the cached query hook itself
+  // No need for manual useEffect that causes infinite loops
 
   // === BRICK OPERATIONS ===
 

@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuthContext } from '@/lib/providers/auth-provider';
 import { rateLimiter } from '@/lib/utils/security';
+import { supabase } from '@/lib/supabase/client';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 
 const signInSchema = z.object({
@@ -45,10 +46,30 @@ export function SignInForm({ onSwitchToSignUp, onSwitchToResetPassword }: SignIn
     }
 
     const result = await signIn(data.email, data.password);
-    if (!result.error) {
+    if (!result.error && result.data?.session?.user) {
       // Reset rate limiter on successful login
       rateLimiter.reset(`signin-${data.email}`);
-      router.push('/dashboard');
+      
+      // Check onboarding status for first-time users
+      try {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('onboarding_completed')
+          .eq('id', result.data.session.user.id)
+          .single();
+
+        if (!error && profile?.onboarding_completed) {
+          // User has completed onboarding, go to dashboard
+          router.push('/dashboard');
+        } else {
+          // User needs to complete onboarding (first-time user or incomplete onboarding)
+          router.push('/onboarding');
+        }
+      } catch (error) {
+        console.error('Error checking onboarding status:', error);
+        // Default to onboarding if there's an error
+        router.push('/onboarding');
+      }
     }
   };
 

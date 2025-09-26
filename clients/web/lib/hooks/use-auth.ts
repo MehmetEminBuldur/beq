@@ -229,7 +229,7 @@ export function useAuth() {
           data: {
             full_name: fullName,
           },
-          emailRedirectTo: `${window.location.origin}/auth?verified=true`,
+          emailRedirectTo: `${window.location.origin}/auth-verify?verified=true&onboarding=true`,
         },
       });
 
@@ -241,8 +241,29 @@ export function useAuth() {
           'Account created! Please check your email and click the verification link to activate your account.',
           { duration: 6000 }
         );
-      } else if (data.session) {
+      } else if (data.session && data.user) {
         // Auto-confirmed (e.g., in development)
+        // Create profile for immediate signup
+        try {
+          const profileData = {
+            id: data.user.id,
+            email: data.user.email,
+            full_name: fullName,
+            onboarding_completed: false,
+            timezone: 'UTC',
+            preferences: {},
+          };
+          
+          const { error: insertError } = await supabase
+            .from('profiles')
+            .insert(profileData as any);
+            
+          if (insertError) {
+            console.warn('Profile creation failed:', insertError);
+          }
+        } catch (profileError) {
+          console.warn('Profile creation failed (may already exist):', profileError);
+        }
         toast.success('Account created and verified! Welcome to BeQ!');
       }
 
