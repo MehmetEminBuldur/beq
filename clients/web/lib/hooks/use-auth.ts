@@ -167,7 +167,7 @@ export function useAuth() {
         .single();
 
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Profile fetch timeout')), 2000)
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 10000) // Increased to 10 seconds
       );
 
       const { data: profile, error } = await Promise.race([
@@ -175,8 +175,22 @@ export function useAuth() {
         timeoutPromise
       ]) as any;
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
-        throw error;
+      if (error) {
+        // Handle specific error cases
+        if (error.code === 'PGRST116') {
+          // No profile found - this is OK, user might be new
+          console.log('No profile found for user, will use basic auth data');
+        } else if (error.message === 'Profile fetch timeout') {
+          // Timeout - log but don't throw
+          console.warn('Profile fetch timed out after 10 seconds');
+        } else if (error.code === 'PGRST205') {
+          // Table not found in schema cache
+          console.warn('Profiles table not found in database schema');
+        } else {
+          // Other database errors
+          console.warn('Database error fetching profile:', error);
+        }
+        // Don't throw - just continue with basic user data
       }
 
       // Update with profile data if available
@@ -192,7 +206,7 @@ export function useAuth() {
         setUser(enhancedUserData);
       }
     } catch (error) {
-      console.warn('Profile fetch failed, using basic user data:', error);
+      console.log('Using basic user data (profile fetch unavailable):', error.message || error);
       // basicUserData is already set above, so no need to set again
     }
   };
