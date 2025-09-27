@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Bot, User, Loader2, Calendar, Target, Lightbulb, Package } from 'lucide-react';
+import { Send, Bot, User, Loader2, Calendar, Target, Lightbulb, Package, Zap } from 'lucide-react';
 import { useChat } from '@/lib/hooks/use-chat';
 import { useDashboard } from '@/lib/hooks/use-dashboard';
 import { useBricks } from '@/lib/hooks/use-bricks';
@@ -12,11 +12,12 @@ import { SuggestedActions } from './suggested-actions';
 import { ScheduleView } from './schedule-view';
 import { AiInsightsSidebar } from './ai-insights-sidebar';
 import { BricksSidebar } from './bricks-sidebar';
+import { QuantasSidebar } from './quantas-sidebar';
 
 export function ChatInterface() {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [sidebarView, setSidebarView] = useState<'schedule' | 'insights' | 'bricks'>('schedule');
+  const [sidebarView, setSidebarView] = useState<'schedule' | 'insights' | 'bricks' | 'quantas'>('schedule');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -52,27 +53,29 @@ export function ChatInterface() {
   // Generate dynamic description based on user state
   const getDynamicDescription = () => {
     if (stats.activeBricks === 0) {
-      return "I'm here to help you organize your life using the Bricks and Quantas system. Let's get you started!";
+      return "I'm here to help you organize your life using the Bricks and Quantas system. Bricks are your main projects, and Quantas are the actionable steps within them. Let's get you started!";
     }
 
     if (stats.completedToday > 0) {
-      return `You've completed ${stats.completedToday} task${stats.completedToday > 1 ? 's' : ''} today. What would you like to work on next?`;
+      return `You've completed ${stats.completedToday} task${stats.completedToday > 1 ? 's' : ''} today. Ready to break down more projects into quantas or work on existing ones?`;
     }
 
     if (stats.pendingBricks > 0) {
-      return `You have ${stats.pendingBricks} pending task${stats.pendingBricks > 1 ? 's' : ''} waiting. How can I help you tackle them?`;
+      return `You have ${stats.pendingBricks} pending task${stats.pendingBricks > 1 ? 's' : ''} waiting. I can help you break them down into manageable quantas!`;
     }
 
-    return `You have ${stats.activeBricks} active project${stats.activeBricks > 1 ? 's' : ''}. Tell me about your goals or ask me anything!`;
+    return `You have ${stats.activeBricks} active project${stats.activeBricks > 1 ? 's' : ''}. I can help you create quantas (actionable steps) or work on existing ones. Tell me about your goals!`;
   };
 
   // Generate dynamic suggested actions based on user context
   const getDynamicSuggestions = () => {
     const suggestions = [];
 
-    // Based on active bricks
+    // Based on active bricks - prioritize quanta creation
     if (stats.activeBricks > 0) {
       suggestions.push(`Help me work on my ${stats.activeBricks} active project${stats.activeBricks > 1 ? 's' : ''}`);
+      // Add quanta-specific suggestion
+      suggestions.push("Break down my current project into smaller tasks (quantas)");
     } else {
       suggestions.push("Help me create my first project");
     }
@@ -104,13 +107,13 @@ export function ChatInterface() {
       suggestions.push("Help me get started on my tasks today");
     }
 
-    // Always include some general suggestions
+    // Always include some general suggestions with quanta focus
     if (suggestions.length < 4) {
       const generalSuggestions = [
-        "Help me learn Spanish - I'm a complete beginner",
-        "I need to prepare for a presentation next week",
-        "Create a morning routine that includes meditation",
-        "Help me organize my work schedule better"
+        "Help me learn Spanish - break it into daily quantas",
+        "I need to prepare for a presentation - create step-by-step quantas",
+        "Create a morning routine with specific quantas",
+        "Help me organize my work schedule with actionable quantas"
       ];
 
       // Add general suggestions to fill up to 4
@@ -312,6 +315,17 @@ export function ChatInterface() {
               Bricks
             </button>
             <button
+              onClick={() => setSidebarView('quantas')}
+              className={`flex-1 px-3 py-3 text-xs font-medium transition-colors ${
+                sidebarView === 'quantas'
+                  ? 'text-blue-600 border-b-2 border-blue-600 dark:text-blue-400 dark:border-blue-400'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+              }`}
+            >
+              <Zap className="h-4 w-4 inline mr-1" />
+              Quantas
+            </button>
+            <button
               onClick={() => setSidebarView('insights')}
               className={`flex-1 px-3 py-3 text-xs font-medium transition-colors ${
                 sidebarView === 'insights'
@@ -330,6 +344,8 @@ export function ChatInterface() {
               <ScheduleView />
             ) : sidebarView === 'bricks' ? (
               <BricksSidebar />
+            ) : sidebarView === 'quantas' ? (
+              <QuantasSidebar />
             ) : (
               <AiInsightsSidebar />
             )}

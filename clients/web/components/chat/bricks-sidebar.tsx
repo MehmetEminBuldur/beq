@@ -12,6 +12,7 @@ export function BricksSidebar() {
   const [selectedBrick, setSelectedBrick] = useState<Brick | null>(null);
   const [brickQuantas, setBrickQuantas] = useState<Quanta[]>([]);
   const [loadingQuantas, setLoadingQuantas] = useState(false);
+  const [detailView, setDetailView] = useState(false);
   const router = useRouter();
 
   const getStatusIcon = (status: string) => {
@@ -126,6 +127,7 @@ export function BricksSidebar() {
   const closeDetailPane = () => {
     setSelectedBrick(null);
     setBrickQuantas([]);
+    setDetailView(false);
   };
 
   const handleContinueWorking = (brick: Brick) => {
@@ -133,9 +135,21 @@ export function BricksSidebar() {
     router.push(`/calendar?brick=${brick.id}`);
   };
 
-  const handleViewDetails = (brick: Brick) => {
-    // Navigate to a dedicated brick details page or bricks page with this brick selected
-    router.push(`/bricks?id=${brick.id}`);
+  const handleViewDetails = async (brick: Brick) => {
+    // Show detailed view in the same pane instead of navigating away
+    setSelectedBrick(brick);
+    setDetailView(true);
+    
+    // Load quantas for this brick
+    setLoadingQuantas(true);
+    try {
+      const quantas = await getBrickQuantas(brick.id);
+      setBrickQuantas(quantas);
+    } catch (error) {
+      console.error('Failed to load quantas:', error);
+    } finally {
+      setLoadingQuantas(false);
+    }
   };
 
   if (isLoading) {
@@ -224,7 +238,7 @@ export function BricksSidebar() {
 
       {/* Brick Detail Pane */}
       <AnimatePresence>
-        {selectedBrick && (
+        {selectedBrick && !detailView && (
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -442,6 +456,206 @@ export function BricksSidebar() {
             </div>
           </div>
         </motion.div>
+        )}
+
+        {/* Detailed View Pane */}
+        {selectedBrick && detailView && (
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            className="absolute inset-0 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-lg shadow-2xl border border-white/40 dark:border-gray-700/40 p-4 overflow-y-auto"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setDetailView(false)}
+                  className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <ChevronRight className="h-5 w-5 text-gray-500 rotate-180" />
+                </button>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                  {selectedBrick.title}
+                </h3>
+              </div>
+              <button
+                onClick={closeDetailPane}
+                className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                <X className="h-5 w-5 text-gray-500" />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              {/* Status and Metadata */}
+              <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  {getStatusIcon(selectedBrick.status)}
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(selectedBrick.status)}`}>
+                    {selectedBrick.status.replace('_', ' ')}
+                  </span>
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getCategoryColor(selectedBrick.category)}`}>
+                    {selectedBrick.category}
+                  </span>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-500 dark:text-gray-400">Time Spent:</span>
+                    <span className="ml-2 font-medium">{selectedBrick.time_spent_minutes}m</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 dark:text-gray-400">Progress:</span>
+                    <span className="ml-2 font-medium">{selectedBrick.completion_percentage}%</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 dark:text-gray-400">Priority:</span>
+                    <span className="ml-2 font-medium capitalize">{selectedBrick.priority}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 dark:text-gray-400">Duration:</span>
+                    <span className="ml-2 font-medium">{selectedBrick.estimated_duration_minutes}m</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Description */}
+              {selectedBrick.description && (
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Description</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+                    {selectedBrick.description}
+                  </p>
+                </div>
+              )}
+
+              {/* Dates */}
+              <div className="grid grid-cols-1 gap-4">
+                {selectedBrick.target_date && (
+                  <div>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Target Date:</span>
+                    <span className="ml-2 text-sm font-medium">
+                      {new Date(selectedBrick.target_date).toLocaleDateString()}
+                    </span>
+                  </div>
+                )}
+                {selectedBrick.deadline && (
+                  <div>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Deadline:</span>
+                    <span className="ml-2 text-sm font-medium">
+                      {new Date(selectedBrick.deadline).toLocaleDateString()}
+                    </span>
+                  </div>
+                )}
+                <div>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">Created:</span>
+                  <span className="ml-2 text-sm font-medium">
+                    {new Date(selectedBrick.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+              </div>
+
+              {/* Progress Bar */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Overall Progress
+                  </span>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    {selectedBrick.completion_percentage}%
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                  <div 
+                    className="bg-primary-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${selectedBrick.completion_percentage}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              {/* Quantas Section */}
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+                  Quantas ({brickQuantas.length})
+                </h4>
+                {loadingQuantas ? (
+                  <div className="text-center py-4">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600 mx-auto"></div>
+                  </div>
+                ) : brickQuantas.length > 0 ? (
+                  <div className="space-y-2">
+                    {brickQuantas.map((quanta) => (
+                      <div
+                        key={quanta.id}
+                        className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg"
+                      >
+                        <div className="flex items-center gap-3 flex-1">
+                          <div className="flex-shrink-0">
+                            {quanta.status === 'completed' ? (
+                              <CheckCircle className="h-4 w-4 text-green-500" />
+                            ) : quanta.status === 'in_progress' ? (
+                              <Play className="h-4 w-4 text-blue-500" />
+                            ) : (
+                              <Square className="h-4 w-4 text-gray-400" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h5 className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                              {quanta.title}
+                            </h5>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              {quanta.estimated_duration_minutes}m • {quanta.status.replace('_', ' ')}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex gap-1">
+                          {quanta.status !== 'in_progress' && (
+                            <button
+                              onClick={() => handleQuantaStatusChange(quanta.id, 'in_progress')}
+                              className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                              title="Start working"
+                            >
+                              <Play className="h-3 w-3 text-blue-500" />
+                            </button>
+                          )}
+                          {quanta.status !== 'completed' && (
+                            <button
+                              onClick={() => handleQuantaStatusChange(quanta.id, 'completed')}
+                              className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                              title="Mark complete"
+                            >
+                              <CheckCircle className="h-3 w-3 text-green-500" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-gray-500 dark:text-gray-400">
+                    <List className="h-6 w-6 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No quantas yet</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <button 
+                  onClick={() => handleContinueWorking(selectedBrick)}
+                  className="flex-1 px-4 py-3 text-sm font-medium text-white bg-gradient-to-r from-primary-600 to-primary-700 rounded-lg hover:from-primary-700 hover:to-primary-800 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
+                >
+                  Continue Working
+                </button>
+                <button 
+                  onClick={() => router.push(`/calendar?brick=${selectedBrick.id}`)}
+                  className="px-4 py-3 text-sm font-medium text-gray-700 bg-white/60 dark:bg-gray-700/60 backdrop-blur-sm border border-white/50 dark:border-gray-600/50 rounded-lg hover:bg-white/80 dark:hover:bg-gray-700/80 dark:text-gray-300 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
+                >
+                  Schedule
+                </button>
+              </div>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

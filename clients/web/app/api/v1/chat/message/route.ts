@@ -33,8 +33,13 @@ interface ChatMessageResponse {
 
 // Forwarder to orchestrator chat endpoint
 async function callOrchestrator(body: ChatMessageRequest) {
-  const baseURL = process.env.NEXT_PUBLIC_ORCHESTRATOR_API_URL || 'http://localhost:8000';
-  console.log('Calling orchestrator at:', `${baseURL}/api/v1/chat/message`);
+  // Use Docker-specific URL when running in Docker environment
+  const isDocker = process.env.DOCKER_ENV === 'true';
+  const baseURL = isDocker 
+    ? (process.env.DOCKER_NEXT_PUBLIC_ORCHESTRATOR_API_URL || 'http://orchestrator:8000')
+    : (process.env.NEXT_PUBLIC_ORCHESTRATOR_API_URL || 'http://localhost:8000');
+  
+  console.log('Calling orchestrator at:', `${baseURL}/api/v1/chat/message`, 'Docker:', isDocker);
   
   try {
     const response = await fetch(`${baseURL}/api/v1/chat/message`, {
@@ -43,7 +48,7 @@ async function callOrchestrator(body: ChatMessageRequest) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(10000), // 10 second timeout
+      signal: AbortSignal.timeout(30000), // 30 second timeout (increased for LangGraph workflow)
       // Note: If auth required, consider forwarding Supabase JWT in Authorization header
     });
 

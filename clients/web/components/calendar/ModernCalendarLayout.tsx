@@ -260,7 +260,7 @@ export function ModernCalendarLayout({
   const calendarComponent = (
     <>
       {/* Day Header */}
-      <div className="h-16 flex-shrink-0 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 sticky top-0 z-10">
+      <div className="h-16 flex-shrink-0 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
         <div className="h-full flex items-center justify-center px-4">
           <div className="text-center">
             <div className="text-sm font-medium text-gray-900 dark:text-white">

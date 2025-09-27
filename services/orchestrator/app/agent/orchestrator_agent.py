@@ -11,10 +11,12 @@ from typing import Dict, List, Optional, Any, TypedDict
 from uuid import UUID
 import json
 
-from langgraph.graph import StateGraph, END
+from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
-from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
+from langgraph.prebuilt import ToolNode
+from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage, ToolMessage
 from langchain_core.tools import BaseTool
+from langchain_core.runnables import RunnableLambda
 from pydantic import BaseModel, Field
 import structlog
 
@@ -35,7 +37,11 @@ from ..tools.brick_management_tools import (
     CreateBrickTool,
     UpdateBrickTool,
     GetBricksTool,
-    CreateQuantaTool
+    CreateQuantaTool,
+    UpdateQuantaTool,
+    GetQuantasTool,
+    DeleteBrickTool,
+    DeleteQuantaTool
 )
 from ..tools.resource_tools import (
     GetResourceRecommendationsTool,
@@ -50,9 +56,55 @@ settings = get_settings()
 logger = structlog.get_logger(__name__)
 
 
+def handle_tool_error(state: Dict[str, Any]) -> Dict[str, Any]:
+    """Handle tool execution errors gracefully."""
+    error = state.get("error")
+    tool_calls = state["messages"][-1].tool_calls if state["messages"] and hasattr(state["messages"][-1], 'tool_calls') else []
+    
+    error_messages = []
+    for tc in tool_calls:
+        error_msg = ToolMessage(
+            content=f"Error executing tool '{tc.get('name', 'unknown')}': {repr(error)}\nPlease try a different approach or check your parameters.",
+            tool_call_id=tc.get("id", "unknown"),
+        )
+        error_messages.append(error_msg)
+    
+    return {"messages": error_messages}
+
+
+def create_tool_node_with_fallback(tools: List[BaseTool]) -> ToolNode:
+    """Create a ToolNode with proper error handling fallback."""
+    tool_node = ToolNode(tools)
+    return tool_node.with_fallbacks(
+        [RunnableLambda(handle_tool_error)], 
+        exception_key="error"
+    )
+
+
+def _print_event(event: Dict[str, Any], _printed: set, max_length: int = 1500) -> None:
+    """Print LangGraph events for debugging."""
+    current_state = event.get("dialog_state")
+    if current_state:
+        logger.debug("Currently in state", state=current_state[-1])
+    
+    message = event.get("messages")
+    if message:
+        if isinstance(message, list):
+            message = message[-1]
+        if hasattr(message, 'id') and message.id not in _printed:
+            msg_repr = str(message)
+            if len(msg_repr) > max_length:
+                msg_repr = msg_repr[:max_length] + " ... (truncated)"
+            logger.debug("Message event", message=msg_repr)
+            _printed.add(message.id)
+
+
+from typing import Annotated
+from langgraph.graph.message import add_messages
+
 class AgentState(TypedDict):
     """State for the LangGraph agent workflow."""
-    messages: List[BaseMessage]
+    messages: Annotated[List[BaseMessage], add_messages]
     user_id: str
     conversation_id: str
     user_context: Dict[str, Any]
@@ -132,7 +184,11 @@ class OrchestratorAgent(LoggerMixin):
             CreateBrickTool(),
             UpdateBrickTool(),
             GetBricksTool(),
-            CreateQuantaTool()
+            CreateQuantaTool(),
+            UpdateQuantaTool(),
+            GetQuantasTool(),
+            DeleteBrickTool(),
+            DeleteQuantaTool()
         ])
         
         # Resource recommendation tools
@@ -150,25 +206,215 @@ class OrchestratorAgent(LoggerMixin):
         return tools
     
     def _create_workflow(self) -> StateGraph:
-        """Create the LangGraph workflow."""
-        
-        # Create the workflow graph
+        """Create the LangGraph workflow using modern patterns."""
         workflow = StateGraph(AgentState)
         
         # Add nodes
-        workflow.add_node("analyze_request", self._analyze_request)
-        workflow.add_node("execute_tools", self._execute_tools)
-        workflow.add_node("generate_response", self._generate_response)
-        workflow.add_node("update_context", self._update_context)
+        workflow.add_node("call_model", self._call_model)
+        workflow.add_node("tools", self._get_tool_node())
         
-        # Define edges
-        workflow.set_entry_point("analyze_request")
-        workflow.add_edge("analyze_request", "execute_tools")
-        workflow.add_edge("execute_tools", "generate_response")
-        workflow.add_edge("generate_response", "update_context")
-        workflow.add_edge("update_context", END)
+        # Add edges
+        workflow.add_edge(START, "call_model")
+        workflow.add_conditional_edges(
+            "call_model",
+            self._should_continue,
+            {
+                "tools": "tools",
+                END: END,
+            }
+        )
+        workflow.add_edge("tools", "call_model")
         
+        # Compile workflow (recursion limit is handled in _should_continue)
         return workflow.compile(checkpointer=self.checkpointer)
+    
+    def _get_tool_node(self):
+        """Get the tool node with proper error handling and user ID injection."""
+        return self._create_custom_tool_node()
+    
+    def _create_custom_tool_node(self):
+        """Create a custom tool node that handles user ID injection."""
+        async def custom_tool_node(state: AgentState):
+            """Custom tool node that injects user_id for specific tools."""
+            messages = state["messages"]
+            if not messages:
+                return {"messages": []}
+            
+            last_message = messages[-1]
+            if not hasattr(last_message, 'tool_calls') or not last_message.tool_calls:
+                return {"messages": []}
+            
+            tool_results = []
+            for tool_call in last_message.tool_calls:
+                tool_name = tool_call.get("name")
+                tool_args = tool_call.get("args", {})
+                
+                # Handle string arguments that need to be parsed as JSON
+                if isinstance(tool_args, str):
+                    try:
+                        import json
+                        tool_args = json.loads(tool_args)
+                    except json.JSONDecodeError:
+                        self.logger.warning(f"Failed to parse tool args as JSON: {tool_args}")
+                        tool_args = {}
+                tool_id = tool_call.get("id")
+                
+                # Inject user_id for specific tools
+                if tool_name in ["create_brick", "get_bricks", "update_brick", "delete_brick", "get_quantas"]:
+                    tool_args["user_id"] = state.get("user_id")
+                    self.logger.info(f"Injected user_id {state.get('user_id')} for {tool_name}")
+                
+                self.logger.info(f"Executing tool {tool_name} with args: {tool_args}")
+                
+                # Find and execute the tool
+                tool = next((t for t in self.tools if t.name == tool_name), None)
+                if tool:
+                    try:
+                        result = await tool.arun(tool_input=tool_args)
+                        tool_message = ToolMessage(
+                            content=str(result),
+                            tool_call_id=tool_id,
+                            name=tool_name
+                        )
+                        tool_results.append(tool_message)
+                        
+                        self.logger.info("Tool executed successfully",
+                                       tool_name=tool_name,
+                                       result=result[:100] + "..." if len(str(result)) > 100 else str(result))
+                    except Exception as e:
+                        self.logger.error("Error executing tool", tool_name=tool_name, error=str(e))
+                        error_message = ToolMessage(
+                            content=f"Error executing {tool_name}: {str(e)}",
+                            tool_call_id=tool_id,
+                            name=tool_name
+                        )
+                        tool_results.append(error_message)
+                else:
+                    self.logger.warning("Tool not found", tool_name=tool_name)
+                    error_message = ToolMessage(
+                        content=f"Tool {tool_name} not found",
+                        tool_call_id=tool_id,
+                        name=tool_name
+                    )
+                    tool_results.append(error_message)
+            
+            return {"messages": tool_results}
+        
+        return custom_tool_node
+    
+    def _should_continue(self, state: AgentState) -> str:
+        """Determine whether to continue with tool execution or end."""
+        messages = state["messages"]
+        if not messages:
+            return END
+        
+        # Count AI messages to prevent infinite loops
+        ai_message_count = sum(1 for msg in messages if isinstance(msg, AIMessage))
+        if ai_message_count > 5:  # Limit to 5 AI responses max
+            self.logger.warning("Maximum AI message count reached, ending conversation", 
+                              ai_message_count=ai_message_count)
+            return END
+            
+        last_message = messages[-1]
+        
+        # If the LLM makes a tool call, execute tools
+        if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
+            self.logger.info("Tool calls detected, continuing to tools", 
+                           tool_calls=[tc.get('name', 'unknown') for tc in last_message.tool_calls],
+                           ai_message_count=ai_message_count)
+            return "tools"
+        
+        # Otherwise, we're done
+        self.logger.info("No tool calls, ending conversation", ai_message_count=ai_message_count)
+        return END
+    
+    async def _call_model(self, state: AgentState) -> AgentState:
+        """Call the LLM with current messages and system prompt."""
+        try:
+            self.logger.info("Calling LLM model", 
+                           message_count=len(state["messages"]),
+                           user_id=state.get("user_id"),
+                           conversation_id=state.get("conversation_id"))
+            
+            # Get the LLM client
+            llm_client = await self._get_llm_client()
+            
+            # Prepare messages for the LLM
+            messages = []
+            
+            # Add system message
+            system_prompt = self._create_system_prompt()
+            messages.append(ConversationMessage(role="system", content=system_prompt))
+            
+            # Add conversation history
+            for msg in state["messages"]:
+                if isinstance(msg, HumanMessage):
+                    messages.append(ConversationMessage(role="user", content=msg.content))
+                elif isinstance(msg, AIMessage):
+                    messages.append(ConversationMessage(role="assistant", content=msg.content))
+                elif isinstance(msg, ToolMessage):
+                    # Add tool results as user messages for context
+                    messages.append(ConversationMessage(role="user", content=f"Tool result: {msg.content}"))
+            
+            # Prepare available tools for function calling
+            available_functions = []
+            for tool in self.tools:
+                if tool.name in ["create_brick", "create_quanta", "get_bricks", "update_brick", "update_quanta", "get_quantas", "delete_brick", "delete_quanta"]:
+                    try:
+                        input_schema = tool.get_input_schema()
+                        if input_schema is not None:
+                            tool_schema = {
+                                "type": "function", 
+                                "function": {
+                                    "name": tool.name,
+                                    "description": tool.description,
+                                    "parameters": input_schema.model_json_schema()
+                                }
+                            }
+                            available_functions.append(tool_schema)
+                    except Exception as e:
+                        self.logger.warning("Failed to get schema for tool", tool_name=tool.name, error=str(e))
+            
+            self.logger.info("Prepared tools for LLM", 
+                           available_tool_count=len(available_functions),
+                           tool_names=[f["function"]["name"] for f in available_functions])
+            
+            # Call the LLM with function calling enabled
+            response = await llm_client.generate_response(
+                messages=messages,
+                system_prompt=None,  # System prompt is already included in messages
+                tools=available_functions if available_functions else None
+            )
+            
+            # Handle response based on type
+            if isinstance(response, str):
+                # Simple text response
+                ai_message = AIMessage(content=response)
+            else:
+                # Response with potential tool calls
+                message = response.choices[0].message
+                ai_message = AIMessage(content=message.content or "")
+                
+                # Handle tool calls if present
+                if hasattr(message, 'tool_calls') and message.tool_calls:
+                    tool_calls = []
+                    for tool_call in message.tool_calls:
+                        tool_calls.append({
+                            "id": tool_call.id,
+                            "name": tool_call.function.name,
+                            "args": tool_call.function.arguments
+                        })
+                    ai_message.tool_calls = tool_calls
+                    
+                    self.logger.info("LLM made tool calls", 
+                                   tool_calls=[tc["name"] for tc in tool_calls])
+            
+            return {"messages": [ai_message]}
+            
+        except Exception as e:
+            self.logger.error("Error in _call_model", exc_info=e)
+            error_message = AIMessage(content=f"I encountered an error while processing your request: {str(e)}")
+            return {"messages": [error_message]}
     
     async def _analyze_request(self, state: AgentState) -> AgentState:
         """Analyze the user request and determine required actions."""
@@ -208,7 +454,10 @@ class OrchestratorAgent(LoggerMixin):
         
         return state
     
-    async def _execute_tools(self, state: AgentState) -> AgentState:
+    # Note: _execute_tools, _generate_response, and _update_context methods removed
+    # as they are replaced by the modern LangGraph pattern with ToolNode
+    
+    async def _old_execute_tools(self, state: AgentState) -> AgentState:
         """Execute required tools based on the analysis."""
         
         latest_message = state["messages"][-1]
@@ -335,9 +584,10 @@ class OrchestratorAgent(LoggerMixin):
                         function_args = json.loads(tool_call.function.arguments)
                         
                         # Inject required context into function args
-                        if function_name in ["create_brick", "create_quanta", "get_bricks", "update_brick"]:
+                        if function_name in ["create_brick", "get_bricks", "update_brick"]:
                             function_args["user_id"] = state.get("user_id")
                             self.logger.info(f"Injected user_id {state.get('user_id')} for {function_name}")
+                        # Note: create_quanta doesn't need user_id as it gets user through brick relationship
                         
                         # Find and execute the tool
                         tool = next((t for t in self.tools if t.name == function_name), None)
@@ -498,7 +748,13 @@ You have access to various tools for scheduling, task management, resource recom
 
 2. **create_quanta**: Use when user wants to break down a Brick into smaller sub-tasks (Quantas). Requires a brick_id from a previously created Brick. ALWAYS suggest breaking down complex Bricks into Quantas for better task management.
 
-3. **get_schedule**, **get_bricks**: Use to retrieve current user data when needed for context.
+3. **get_bricks**: ALWAYS call this FIRST when user wants to create quantas to see their available Bricks. This helps you:
+   - Show the user their existing Bricks to choose from
+   - Match the user's request to the most appropriate Brick
+   - Avoid creating quantas for the wrong Brick
+   - Let the user specify which Brick they want to add quantas to
+
+4. **get_schedule**: Use to retrieve current user schedule when needed for context.
 
 When creating Bricks or Quantas:
 - Extract meaningful titles and descriptions from user messages
@@ -507,6 +763,12 @@ When creating Bricks or Quantas:
 - Set appropriate priorities (low, medium, high, urgent)
 
 IMPORTANT: When a user asks you to create a Brick or task, you MUST use the create_brick function to actually create it in the system. Don't just talk about creating it - actually call the function.
+
+QUANTA CREATION WORKFLOW:
+1. **ALWAYS call get_bricks first** when user wants to create quantas
+2. **Present options** to the user based on their existing Bricks
+3. **Let user choose** which Brick to add quantas to, OR intelligently match their request
+4. **Then call create_quanta** with the correct brick_id
 
 QUANTA CREATION GUIDELINES:
 - After creating a Brick, ALWAYS ask if the user wants to break it down into Quantas
@@ -593,9 +855,26 @@ Remember: You're not just a scheduler, you're a life optimization partner. Help 
                 "next_action": None
             }
             
-            # Execute the workflow
+            # Execute the workflow with timeout
             config = {"configurable": {"thread_id": str(conversation_id)}}
-            final_state = await self.workflow.ainvoke(initial_state, config)
+            
+            import asyncio
+            try:
+                # Add 20 second timeout to workflow execution
+                final_state = await asyncio.wait_for(
+                    self.workflow.ainvoke(initial_state, config),
+                    timeout=20.0
+                )
+            except asyncio.TimeoutError:
+                self.logger.error("Workflow execution timed out", 
+                                user_id=str(user_id),
+                                conversation_id=str(conversation_id))
+                # Return a timeout response
+                timeout_message = AIMessage(content="I'm taking longer than expected to process your request. Please try again with a simpler question.")
+                final_state = {
+                    **initial_state,
+                    "messages": initial_state["messages"] + [timeout_message]
+                }
             
             # Extract the AI response
             ai_message = final_state["messages"][-1]

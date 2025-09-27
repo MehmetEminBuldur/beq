@@ -38,9 +38,14 @@ export class ChatService {
         .select('id, user_id')
         .eq('id', conversationId)
         .eq('user_id', userId)
-        .single();
+        .maybeSingle(); // Use maybeSingle() to handle 0 results gracefully
 
-      if (conversation && !convError) {
+      if (convError) {
+        console.error('Error checking conversation:', convError);
+        throw new Error(`Failed to check conversation: ${convError.message}`);
+      }
+
+      if (conversation) {
         console.log('Conversation exists:', conversationId);
         return conversationId;
       }
@@ -70,9 +75,9 @@ export class ChatService {
         .select('id, user_id')
         .eq('id', conversationId)
         .eq('user_id', userId)
-        .single();
+        .maybeSingle(); // Use maybeSingle() instead of single() to handle 0 results gracefully
 
-      if (convError || !conversation) {
+      if (convError) {
         console.error('Conversation verification failed:', {
           conversationId,
           userId,
@@ -80,7 +85,15 @@ export class ChatService {
           errorCode: convError?.code,
           errorMessage: convError?.message
         });
-        throw new Error(`Conversation ${conversationId} not found or access denied: ${convError?.message || 'Unknown error'}`);
+        throw new Error(`Conversation verification error: ${convError?.message || 'Unknown error'}`);
+      }
+
+      if (!conversation) {
+        console.error('Conversation not found:', {
+          conversationId,
+          userId
+        });
+        throw new Error(`Conversation ${conversationId} not found or access denied`);
       }
 
       // Save the message (let Supabase generate the ID)
