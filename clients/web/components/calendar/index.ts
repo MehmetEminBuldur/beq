@@ -7,8 +7,12 @@
 // Main components
 export { CalendarGrid } from './CalendarGrid';
 export { TimeSlot } from './TimeSlot';
+export { EventCard } from './EventCard';
 export { ConflictManager } from './conflict-manager';
 export { CalendarApp } from './CalendarApp';
+export { TimeColumn } from './TimeColumn';
+export { ModernCalendarLayout } from './ModernCalendarLayout';
+export { SynchronizedScrollLayout } from './SynchronizedScrollLayout';
 
 // View components
 export { DailyView } from './views/DailyView';
@@ -39,6 +43,7 @@ export { DropEnabledTimeSlot } from './DropEnabledTimeSlot';
 export { DropFeedback, MiniDropFeedback, SnapIndicator } from './DropFeedback';
 export { DraggableObjectsDemo } from './DraggableObjectsDemo';
 export { DragDropCalendarDemo } from './DragDropCalendarDemo';
+export { ResizableObjectsDemo } from './ResizableObjectsDemo';
 
 // Drop system hooks
 export { useCalendarDrop } from '@/lib/hooks/use-calendar-drop';

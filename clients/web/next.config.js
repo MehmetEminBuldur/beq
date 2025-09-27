@@ -9,6 +9,7 @@ const nextConfig = {
   output: 'standalone',
   experimental: {
     // optimizeCss: true, // Temporarily disabled due to critters dependency issue
+    appDir: true, // Explicitly enable App Router
   },
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',

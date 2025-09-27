@@ -15,6 +15,15 @@ export {
 export { DraggableBrick } from './DraggableBrick';
 export { DraggableQuanta } from './DraggableQuanta';
 
+// Resizable components (extends draggable with resize functionality)
+export { 
+  ResizableScheduleObject,
+  type ResizeState,
+  type ResizeResult
+} from './ResizableScheduleObject';
+export { ResizableBrick } from './ResizableBrick';
+export { ResizableQuanta } from './ResizableQuanta';
+
 // Drag system hook
 export { 
   useDragSystem,

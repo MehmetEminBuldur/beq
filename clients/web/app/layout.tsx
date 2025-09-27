@@ -75,12 +75,12 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: '/favicon.ico?v=1', sizes: '16x16 32x32 48x48' },
-      { url: '/beq-logo.png?v=1', sizes: '32x32', type: 'image/png' },
-      { url: '/favicon.svg?v=1', type: 'image/svg+xml' },
+      { url: '/beq-logo.png?v=2', sizes: '16x16 32x32 48x48', type: 'image/png' },
+      { url: '/favicon.ico?v=2', sizes: '16x16 32x32 48x48' },
+      { url: '/favicon.svg?v=2', type: 'image/svg+xml' },
     ],
-    shortcut: '/beq-logo.png?v=1',
-    apple: '/apple-touch-icon.svg?v=1',
+    shortcut: '/beq-logo.png?v=2',
+    apple: '/apple-touch-icon.svg?v=2',
   },
   manifest: '/site.webmanifest',
 };

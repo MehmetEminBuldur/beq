@@ -1,7 +1,7 @@
 /**
  * MonthlyView Component
  * 
- * Traditional calendar grid view showing a full month
+ * Clean, modern monthly calendar view
  */
 
 'use client';
@@ -25,31 +25,19 @@ import {
   subDays
 } from 'date-fns';
 
-import { useResponsiveCalendar } from '../hooks/useResponsiveCalendar';
-
 import {
-  CalendarView,
-  CalendarGridConfig,
   ScheduleObject,
-  CalendarGridCell,
-  TimeSlotConfig,
 } from '@/lib/calendar/types';
-
-import {
-  DEFAULT_TIME_SLOT_CONFIG,
-  ANIMATIONS,
-  SCHEDULE_OBJECT_COLORS,
-} from '@/lib/calendar/constants';
 
 interface MonthlyViewProps {
   selectedDate: Date;
   events?: ScheduleObject[];
-  timeSlotConfig?: TimeSlotConfig;
+  timeSlotConfig?: any;
   compactMode?: boolean;
   showWeekNumbers?: boolean;
   weekStartsOn?: 0 | 1; // 0 = Sunday, 1 = Monday
-  onCellClick?: (cell: CalendarGridCell) => void;
-  onEventClick?: (event: ScheduleObject, cell: CalendarGridCell) => void;
+  onCellClick?: (cell: any) => void;
+  onEventClick?: (event: ScheduleObject, cell?: any) => void;
   onDateChange?: (date: Date) => void;
   onDragStart?: (object: ScheduleObject) => void;
   onDragEnd?: (result: any) => void;
@@ -71,7 +59,7 @@ interface MonthDay {
 export function MonthlyView({
   selectedDate,
   events = [],
-  timeSlotConfig = DEFAULT_TIME_SLOT_CONFIG,
+  timeSlotConfig,
   compactMode = false,
   showWeekNumbers = false,
   weekStartsOn = 1, // Monday
@@ -84,23 +72,28 @@ export function MonthlyView({
   className = '',
 }: MonthlyViewProps) {
 
-  // Create base configuration for monthly view
-  const baseConfig: CalendarGridConfig = useMemo(() => ({
-    view: 'monthly' as CalendarView,
-    selectedDate,
-    timeSlotConfig: {
-      ...timeSlotConfig,
-      firstDayOfWeek: weekStartsOn,
-    },
-    showWeekends: true,
-    showCurrentTimeIndicator: false, // Not relevant for monthly view
-    allowDragDrop: true,
-    allowResize: false, // Events in monthly view are typically all-day
-    compactMode,
-  }), [selectedDate, timeSlotConfig, weekStartsOn, compactMode]);
-
-  // Use responsive calendar hook for adaptations
-  const { adaptedConfig, responsiveState } = useResponsiveCalendar(baseConfig);
+  // Get event color based on type or content
+  const getEventColor = (event: ScheduleObject) => {
+    if (event.type === 'brick') {
+      return 'bg-blue-100 text-blue-800 border-blue-200';
+    } else if (event.type === 'quanta') {
+      return 'bg-green-100 text-green-800 border-green-200';
+    } else {
+      // Color based on title/content
+      const colors = [
+        'bg-pink-100 text-pink-800 border-pink-200',
+        'bg-purple-100 text-purple-800 border-purple-200',
+        'bg-indigo-100 text-indigo-800 border-indigo-200',
+        'bg-cyan-100 text-cyan-800 border-cyan-200',
+        'bg-teal-100 text-teal-800 border-teal-200',
+        'bg-emerald-100 text-emerald-800 border-emerald-200',
+        'bg-yellow-100 text-yellow-800 border-yellow-200',
+        'bg-orange-100 text-orange-800 border-orange-200',
+      ];
+      const hash = event.title.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+      return colors[hash % colors.length];
+    }
+  };
 
   // Calculate month range and days
   const monthData = useMemo(() => {
@@ -207,250 +200,125 @@ export function MonthlyView({
 
   // Handle day click
   const handleDayClick = (day: MonthDay) => {
-    const cell: CalendarGridCell = {
-      id: `cell-${format(day.date, 'yyyy-MM-dd')}`,
-      date: day.date,
-      events: day.events,
-      isToday: day.isToday,
-      isSelected: isSameDay(day.date, selectedDate),
-      isWeekend: day.isWeekend,
-      isOutsideMonth: !day.isCurrentMonth,
-      isDragTarget: false,
-      isDroppable: true,
-      row: 0,
-      column: 0,
-    };
-
-    onCellClick?.(cell);
+    onCellClick?.({ date: day.date, events: day.events });
     onDateChange?.(day.date);
   };
 
   // Handle event click
   const handleEventClick = (event: ScheduleObject, day: MonthDay, e: React.MouseEvent) => {
     e.stopPropagation();
-    
-    const cell: CalendarGridCell = {
-      id: `cell-${format(day.date, 'yyyy-MM-dd')}`,
-      date: day.date,
-      events: day.events,
-      isToday: day.isToday,
-      isSelected: isSameDay(day.date, selectedDate),
-      isWeekend: day.isWeekend,
-      isOutsideMonth: !day.isCurrentMonth,
-      isDragTarget: false,
-      isDroppable: true,
-      row: 0,
-      column: 0,
-    };
-
-    onEventClick?.(event, cell);
+    onEventClick?.(event, { date: day.date, events: day.events });
   };
 
   return (
-    <motion.div
-      className={`monthly-view flex flex-col h-full ${className}`}
-      variants={ANIMATIONS.variants.fadeIn}
-      initial="initial"
-      animate="animate"
-      exit="exit"
-    >
+    <div className={`monthly-view flex flex-col h-full bg-white dark:bg-gray-900 ${className}`}>
       {/* Month Header */}
-      <div className="flex-shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between">
-            {/* Month Information */}
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                {monthInfo.displayText}
-              </h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {monthStats.busyDays} busy days • {monthStats.total} events
-                {monthInfo.isCurrentMonth && (
-                  <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200">
-                    Current month
-                  </span>
-                )}
-              </p>
-            </div>
+      <div className="flex-shrink-0 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        <div className="p-4 text-center">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            {monthInfo.displayText}
+          </h1>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+            {monthStats.total} events • {monthStats.busyDays} busy days
+          </p>
+        </div>
+      </div>
 
-            {/* Month Statistics */}
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-4 text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                  <span className="text-gray-600 dark:text-gray-300">
-                    {monthStats.completed}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                  <span className="text-gray-600 dark:text-gray-300">
-                    {monthStats.inProgress}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                  <span className="text-gray-600 dark:text-gray-300">
-                    {monthStats.upcoming}
-                  </span>
-                </div>
-              </div>
-              
-              <div className="text-right">
-                <div className="text-sm text-gray-500 dark:text-gray-400">
-                  Daily average
-                </div>
-                <div className="text-lg font-medium text-gray-900 dark:text-white">
-                  {monthStats.averagePerDay}
-                </div>
-              </div>
+      {/* Week day headers */}
+      <div className="flex-shrink-0 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        <div className="grid grid-cols-7">
+          {weekDays.map((day, index) => (
+            <div
+              key={index}
+              className="p-3 text-center border-r border-gray-200 dark:border-gray-700 last:border-r-0"
+            >
+              <span className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                {day.short}
+              </span>
             </div>
-          </div>
+          ))}
+        </div>
+      </div>
 
-          {/* Quick actions for mobile */}
-          {responsiveState.screenSize === 'mobile' && (
-            <div className="mt-4 flex gap-2 overflow-x-auto">
-              <button
-                onClick={() => onDateChange?.(new Date())}
-                className="flex-shrink-0 px-3 py-1 text-xs bg-primary-100 text-primary-700 rounded-full hover:bg-primary-200 dark:bg-primary-900 dark:text-primary-300"
+      {/* Calendar days */}
+      <div className="flex-1 overflow-auto">
+        <div className="grid grid-cols-7">
+          {monthData.weeks.map((week, weekIndex) => 
+            week.map((day, dayIndex) => (
+              <div
+                key={`${weekIndex}-${dayIndex}`}
+                className={`
+                  relative border-r border-b border-gray-200 dark:border-gray-700 last:border-r-0 p-2 cursor-pointer transition-colors min-h-[120px]
+                  hover:bg-gray-50 dark:hover:bg-gray-800
+                  ${!day.isCurrentMonth ? 'bg-gray-25 dark:bg-gray-850 opacity-60' : 'bg-white dark:bg-gray-900'}
+                  ${day.isToday ? 'bg-blue-50 dark:bg-blue-900/20' : ''}
+                `}
+                onClick={() => handleDayClick(day)}
               >
-                This Month
-              </button>
-              <button className="flex-shrink-0 px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300">
-                Add Event
-              </button>
-            </div>
+                {/* Day number */}
+                <div className="flex items-center justify-between mb-2">
+                  <span className={`
+                    text-sm font-semibold
+                    ${day.isToday 
+                      ? 'flex items-center justify-center w-6 h-6 bg-blue-600 text-white rounded-full' 
+                      : day.isCurrentMonth 
+                        ? 'text-gray-900 dark:text-white' 
+                        : 'text-gray-400 dark:text-gray-500'
+                    }
+                  `}>
+                    {format(day.date, 'd')}
+                  </span>
+                  
+                  {/* Event count indicator */}
+                  {day.eventCount > 0 && (
+                    <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-1.5 py-0.5 rounded-full">
+                      {day.eventCount}
+                    </span>
+                  )}
+                </div>
+
+                {/* Events preview */}
+                <div className="space-y-1">
+                  {day.events.slice(0, 3).map((event, eventIndex) => (
+                    <div
+                      key={`${event.id}-${eventIndex}`}
+                      className={`
+                        text-xs px-2 py-1 rounded border cursor-pointer truncate
+                        hover:shadow-sm transition-all duration-200
+                        ${getEventColor(event)}
+                      `}
+                      onClick={(e) => handleEventClick(event, day, e)}
+                      title={event.title}
+                    >
+                      {event.title}
+                    </div>
+                  ))}
+                  
+                  {/* More events indicator */}
+                  {day.eventCount > 3 && (
+                    <div className="text-xs text-gray-500 dark:text-gray-400 px-2 py-1">
+                      +{day.eventCount - 3} more
+                    </div>
+                  )}
+                </div>
+
+                {/* Progress indicator */}
+                {day.completedCount > 0 && (
+                  <div className="absolute bottom-2 right-2">
+                    <div className="flex items-center gap-1">
+                      <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        {day.completedCount}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))
           )}
         </div>
       </div>
-
-      {/* Calendar Grid */}
-      <div className="flex-1 overflow-hidden flex flex-col">
-        {/* Week day headers */}
-        <div className="flex-shrink-0 bg-gray-50 dark:bg-gray-750 border-b border-gray-200 dark:border-gray-700">
-          <div className="grid grid-cols-7 gap-px bg-gray-200 dark:bg-gray-600">
-            {showWeekNumbers && (
-              <div className="bg-gray-100 dark:bg-gray-700 p-2 text-xs font-medium text-gray-500 dark:text-gray-400 text-center">
-                Week
-              </div>
-            )}
-            {weekDays.map((day, index) => (
-              <div
-                key={index}
-                className="bg-gray-50 dark:bg-gray-750 p-3 text-center"
-              >
-                <span className="text-sm font-medium text-gray-900 dark:text-white">
-                  {responsiveState.screenSize === 'mobile' ? day.short : day.long}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Calendar days */}
-        <div className="flex-1 overflow-auto">
-          <div className="grid grid-cols-7 gap-px bg-gray-200 dark:bg-gray-600 h-full">
-            {monthData.weeks.map((week, weekIndex) => 
-              week.map((day, dayIndex) => (
-                <div
-                  key={`${weekIndex}-${dayIndex}`}
-                  className={`
-                    bg-white dark:bg-gray-800 p-2 cursor-pointer transition-colors min-h-[120px]
-                    hover:bg-gray-50 dark:hover:bg-gray-750
-                    ${!day.isCurrentMonth ? 'opacity-40' : ''}
-                    ${day.isToday ? 'ring-2 ring-primary-500 ring-inset' : ''}
-                    ${day.isWeekend ? 'bg-gray-25 dark:bg-gray-825' : ''}
-                  `}
-                  onClick={() => handleDayClick(day)}
-                >
-                  {/* Week number (first day of week only) */}
-                  {showWeekNumbers && day.weekNumber && dayIndex === 0 && (
-                    <div className="text-xs text-gray-400 dark:text-gray-500 mb-1">
-                      W{day.weekNumber}
-                    </div>
-                  )}
-
-                  {/* Day number */}
-                  <div className="flex items-center justify-between mb-2">
-                    <span className={`
-                      text-sm font-medium
-                      ${day.isToday 
-                        ? 'flex items-center justify-center w-6 h-6 bg-primary-600 text-white rounded-full' 
-                        : day.isCurrentMonth 
-                          ? 'text-gray-900 dark:text-white' 
-                          : 'text-gray-400 dark:text-gray-500'
-                      }
-                    `}>
-                      {format(day.date, 'd')}
-                    </span>
-                    
-                    {/* Event count indicator */}
-                    {day.eventCount > 0 && (
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        {day.eventCount}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Events preview */}
-                  <div className="space-y-1">
-                    {day.events.slice(0, compactMode ? 2 : 3).map((event, eventIndex) => (
-                      <div
-                        key={`${event.id}-${eventIndex}`}
-                        className={`
-                          text-xs p-1 rounded truncate cursor-pointer
-                          hover:opacity-80 transition-opacity
-                        `}
-                        style={{ 
-                          backgroundColor: event.backgroundColor,
-                          color: event.color,
-                        }}
-                        onClick={(e) => handleEventClick(event, day, e)}
-                        title={event.title}
-                      >
-                        {event.title}
-                      </div>
-                    ))}
-                    
-                    {/* More events indicator */}
-                    {day.eventCount > (compactMode ? 2 : 3) && (
-                      <div className="text-xs text-gray-500 dark:text-gray-400 px-1">
-                        +{day.eventCount - (compactMode ? 2 : 3)} more
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Progress indicators */}
-                  {day.completedCount > 0 && (
-                    <div className="mt-2 flex justify-end">
-                      <div className="flex items-center gap-1">
-                        <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          {day.completedCount}/{day.eventCount}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Month Summary Footer (mobile only) */}
-      {responsiveState.screenSize === 'mobile' && (
-        <div className="flex-shrink-0 bg-gray-50 dark:bg-gray-800 px-4 py-3 border-t border-gray-200 dark:border-gray-700">
-          <div className="text-center text-sm text-gray-600 dark:text-gray-400">
-            {monthStats.total === 0 ? (
-              'No events this month'
-            ) : (
-              `${monthStats.total} events • ${monthStats.busyDays} busy days • ${monthStats.completed} completed`
-            )}
-          </div>
-        </div>
-      )}
-    </motion.div>
+    </div>
   );
 }
 

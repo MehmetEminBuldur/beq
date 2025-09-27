@@ -39,8 +39,8 @@ export const VIEW_CONFIGS: Record<CalendarView, ViewConfig> = {
 // ===============================================
 
 export const DEFAULT_TIME_SLOT_CONFIG: TimeSlotConfig = {
-  startHour: 6, // 6 AM
-  endHour: 22, // 10 PM
+  startHour: 7, // 7 AM
+  endHour: 20, // 8 PM
   slotDuration: 30, // 30 minutes
   firstDayOfWeek: 1, // Monday
 };
@@ -59,6 +59,13 @@ export const FULL_DAY_CONFIG: TimeSlotConfig = {
   endHour: 23, // 11 PM
   slotDuration: 60,
   firstDayOfWeek: 1,
+};
+
+export const COMPACT_DAY_CONFIG: TimeSlotConfig = {
+  startHour: 6, // 6 AM
+  endHour: 22, // 10 PM
+  slotDuration: 30, // 30 minutes
+  firstDayOfWeek: 1, // Monday
 };
 
 // ===============================================

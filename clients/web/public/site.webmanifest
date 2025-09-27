@@ -14,13 +14,25 @@
   "icons": [
     {
       "src": "/beq-logo.png",
-      "sizes": "32x32",
+      "sizes": "200x200",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/beq-logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/beq-logo.png",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
       "src": "/favicon.svg",
-      "sizes": "32x32",
+      "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
     },

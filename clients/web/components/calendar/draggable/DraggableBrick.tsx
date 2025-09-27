@@ -52,9 +52,9 @@ export function DraggableBrick({
   // Calculate brick metrics
   const brickMetrics = useMemo(() => {
     const duration = (new Date(brick.endTime).getTime() - new Date(brick.startTime).getTime()) / (1000 * 60 * 60);
-    const progress = brick.progress || 0;
-    const estimatedHours = brick.estimatedHours || duration;
-    const priority = brick.priority || 'medium';
+    const progress = (brick as any).progress || 0;
+    const estimatedHours = (brick as any).estimatedHours || duration;
+    const priority = (brick as any).priority || 'medium';
 
     return {
       duration,
@@ -186,10 +186,10 @@ export function DraggableBrick({
             )}
 
             {/* Dependencies */}
-            {brick.dependencies && brick.dependencies.length > 0 && (
+            {(brick as any).dependencies && (brick as any).dependencies.length > 0 && (
               <div className="flex items-center gap-1">
                 <Users className="w-3 h-3" />
-                <span>{brick.dependencies.length} deps</span>
+                <span>{(brick as any).dependencies.length} deps</span>
               </div>
             )}
           </div>

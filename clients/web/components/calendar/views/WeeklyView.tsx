@@ -1,7 +1,7 @@
 /**
  * WeeklyView Component
  * 
- * 7-day calendar view with time slots and full week navigation
+ * Clean weekly calendar view matching the provided design
  */
 
 'use client';
@@ -18,48 +18,63 @@ import {
   getDay,
   addDays,
   startOfDay,
-  endOfDay
+  endOfDay,
+  parseISO,
+  differenceInMinutes,
+  addMinutes,
+  
 } from 'date-fns';
 
-import { CalendarGrid } from '../CalendarGrid';
-import { useResponsiveCalendar } from '../hooks/useResponsiveCalendar';
-
 import {
-  CalendarView,
-  CalendarGridConfig,
   ScheduleObject,
-  CalendarGridCell,
-  TimeSlotConfig,
 } from '@/lib/calendar/types';
+
+interface WeeklyViewProps {
+  selectedDate: Date;
+  events?: ScheduleObject[];
+  timeSlotConfig?: any;
+  compactMode?: boolean;
+  showWeekends?: boolean;
+  weekStartsOn?: 0 | 1; // 0 = Sunday, 1 = Monday
+  onCellClick?: (cell: any) => void;
+  onEventClick?: (event: ScheduleObject, cell?: any) => void;
+  onDateChange?: (date: Date) => void;
+  onDragStart?: (object: ScheduleObject) => void;
+  onDragEnd?: (result: any) => void;
+  onEventUpdate?: (event: ScheduleObject) => void;
+  onTimeSlotClick?: (date: Date, time: string) => void;
+  className?: string;
+}
 
 import {
   DEFAULT_TIME_SLOT_CONFIG,
   ANIMATIONS,
 } from '@/lib/calendar/constants';
 
-interface WeeklyViewProps {
-  selectedDate: Date;
-  events?: ScheduleObject[];
-  timeSlotConfig?: TimeSlotConfig;
-  compactMode?: boolean;
-  showTimeIndicator?: boolean;
-  showWeekends?: boolean;
-  weekStartsOn?: 0 | 1; // 0 = Sunday, 1 = Monday
-  onCellClick?: (cell: CalendarGridCell) => void;
-  onEventClick?: (event: ScheduleObject, cell: CalendarGridCell) => void;
-  onDateChange?: (date: Date) => void;
-  onDragStart?: (object: ScheduleObject) => void;
-  onDragEnd?: (result: any) => void;
-  onEventUpdate?: (object: ScheduleObject) => void;
-  className?: string;
-}
+const HOUR_HEIGHT = 80; // Height per hour in pixels
+
+// Generate time slots based on configuration
+const generateTimeSlots = (config: any) => {
+  const slots = [];
+  const startHour = config?.startHour || 6;
+  const endHour = config?.endHour || 22;
+  
+  for (let hour = startHour; hour <= endHour; hour++) {
+    const time12 = hour === 0 ? '12:00 AM' 
+      : hour < 12 ? `${hour}:00 AM`
+      : hour === 12 ? '12:00 PM'
+      : `${hour - 12}:00 PM`;
+    slots.push(time12);
+  }
+  
+  return slots;
+};
 
 export function WeeklyView({
   selectedDate,
   events = [],
   timeSlotConfig = DEFAULT_TIME_SLOT_CONFIG,
   compactMode = false,
-  showTimeIndicator = true,
   showWeekends = true,
   weekStartsOn = 1, // Monday
   onCellClick,
@@ -68,26 +83,12 @@ export function WeeklyView({
   onDragStart,
   onDragEnd,
   onEventUpdate,
+  onTimeSlotClick,
   className = '',
 }: WeeklyViewProps) {
 
-  // Create base configuration for weekly view
-  const baseConfig: CalendarGridConfig = useMemo(() => ({
-    view: 'weekly' as CalendarView,
-    selectedDate,
-    timeSlotConfig: {
-      ...timeSlotConfig,
-      firstDayOfWeek: weekStartsOn,
-    },
-    showWeekends,
-    showCurrentTimeIndicator: showTimeIndicator,
-    allowDragDrop: true,
-    allowResize: true,
-    compactMode,
-  }), [selectedDate, timeSlotConfig, showTimeIndicator, showWeekends, weekStartsOn, compactMode]);
-
-  // Use responsive calendar hook for adaptations
-  const { adaptedConfig, responsiveState } = useResponsiveCalendar(baseConfig);
+  // Generate time slots based on configuration
+  const timeSlots = useMemo(() => generateTimeSlots(timeSlotConfig), [timeSlotConfig]);
 
   // Calculate week range
   const weekRange = useMemo(() => {
@@ -125,229 +126,171 @@ export function WeeklyView({
     });
   }, [events, weekRange.days]);
 
-  // Week header information
-  const weekInfo = useMemo(() => {
-    const startMonth = format(weekRange.start, 'MMM');
-    const endMonth = format(weekRange.end, 'MMM');
-    const startYear = format(weekRange.start, 'yyyy');
-    const endYear = format(weekRange.end, 'yyyy');
+  // Get event color based on type or content
+  const getEventColor = (event: ScheduleObject) => {
+    if (event.type === 'brick') {
+      return 'bg-gradient-to-r from-blue-400 to-blue-500';
+    } else if (event.type === 'quanta') {
+      return 'bg-gradient-to-r from-green-400 to-green-500';
+    } else {
+      // Color based on title/content
+      const colors = [
+        'bg-gradient-to-r from-pink-400 to-rose-500',
+        'bg-gradient-to-r from-purple-400 to-purple-500',
+        'bg-gradient-to-r from-indigo-400 to-indigo-500',
+        'bg-gradient-to-r from-cyan-400 to-cyan-500',
+        'bg-gradient-to-r from-teal-400 to-teal-500',
+        'bg-gradient-to-r from-emerald-400 to-emerald-500',
+        'bg-gradient-to-r from-yellow-400 to-yellow-500',
+        'bg-gradient-to-r from-orange-400 to-orange-500',
+      ];
+      const hash = event.title.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+      return colors[hash % colors.length];
+    }
+  };
+
+  // Calculate event position and height
+  const getEventStyle = (event: ScheduleObject, dayIndex: number) => {
+    const eventStart = new Date(event.startTime);
+    const eventEnd = new Date(event.endTime);
+    const configStartHour = timeSlotConfig?.startHour || 6;
     
-    const monthRange = startMonth === endMonth 
-      ? startMonth 
-      : `${startMonth} - ${endMonth}`;
+    // Calculate start time in minutes from config start hour
+    const startHour = eventStart.getHours();
+    const startMinute = eventStart.getMinutes();
+    const startFromConfigStart = (startHour - configStartHour) * 60 + startMinute;
     
-    const yearRange = startYear === endYear 
-      ? startYear 
-      : `${startYear} - ${endYear}`;
-
-    const weekNumber = Math.ceil(
-      (weekRange.start.getTime() - new Date(weekRange.start.getFullYear(), 0, 1).getTime()) / 
-      (7 * 24 * 60 * 60 * 1000)
-    );
-
+    // Calculate duration in minutes
+    const durationMinutes = differenceInMinutes(eventEnd, eventStart);
+    
+    // Convert to pixels
+    const top = Math.max(0, (startFromConfigStart / 60) * HOUR_HEIGHT);
+    const height = Math.max(20, (durationMinutes / 60) * HOUR_HEIGHT);
+    
     return {
-      monthRange,
-      yearRange,
-      weekNumber,
-      dateRange: `${format(weekRange.start, 'MMM d')} - ${format(weekRange.end, 'MMM d, yyyy')}`,
+      top: `${top}px`,
+      height: `${height}px`,
+      left: `${dayIndex * (100 / weekRange.days.length)}%`,
+      width: `${100 / weekRange.days.length}%`,
     };
-  }, [weekRange]);
-
-  // Day statistics for each day of the week
-  const dayStats = useMemo(() => {
-    return weekRange.days.map(day => {
-      const dayEvents = weekEvents.filter(event => {
-        const eventStart = startOfDay(new Date(event.startTime));
-        const eventEnd = endOfDay(new Date(event.endTime));
-        const dayStart = startOfDay(day);
-        const dayEnd = endOfDay(day);
-        
-        return (
-          isSameDay(eventStart, day) ||
-          isSameDay(eventEnd, day) ||
-          (eventStart <= dayStart && eventEnd >= dayEnd)
-        );
-      });
-
-      return {
-        date: day,
-        total: dayEvents.length,
-        completed: dayEvents.filter(e => e.status === 'completed').length,
-        inProgress: dayEvents.filter(e => e.status === 'in_progress').length,
-        upcoming: dayEvents.filter(e => e.status === 'upcoming' || e.status === 'pending').length,
-        isToday: isToday(day),
-        isWeekend: [0, 6].includes(getDay(day)),
-      };
-    });
-  }, [weekRange.days, weekEvents]);
-
-  // Week overview stats
-  const weekOverview = useMemo(() => {
-    const totalEvents = weekEvents.length;
-    const completed = weekEvents.filter(e => e.status === 'completed').length;
-    const inProgress = weekEvents.filter(e => e.status === 'in_progress').length;
-    const upcoming = weekEvents.filter(e => e.status === 'upcoming' || e.status === 'pending').length;
-
-    return {
-      total: totalEvents,
-      completed,
-      inProgress,
-      upcoming,
-      dailyAverage: Math.round(totalEvents / weekRange.days.length * 10) / 10,
-    };
-  }, [weekEvents, weekRange.days.length]);
+  };
 
   return (
-    <motion.div
-      className={`weekly-view flex flex-col h-full ${className}`}
-      variants={ANIMATIONS.variants.fadeIn}
-      initial="initial"
-      animate="animate"
-      exit="exit"
-    >
+    <div className={`weekly-view flex flex-col h-full bg-white dark:bg-gray-900 ${className}`}>
       {/* Week Header */}
-      <div className="flex-shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between">
-            {/* Week Information */}
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                {weekInfo.monthRange} {weekInfo.yearRange}
-              </h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Week {weekInfo.weekNumber} • {weekInfo.dateRange}
-              </p>
-            </div>
-
-            {/* Week Overview Statistics */}
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-4 text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                  <span className="text-gray-600 dark:text-gray-300">
-                    {weekOverview.completed}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                  <span className="text-gray-600 dark:text-gray-300">
-                    {weekOverview.inProgress}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                  <span className="text-gray-600 dark:text-gray-300">
-                    {weekOverview.upcoming}
-                  </span>
-                </div>
+      <div className="flex-shrink-0 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        {/* Days Header */}
+        <div className="grid grid-cols-8 border-b border-gray-200 dark:border-gray-700">
+          {/* Empty cell for time column */}
+          <div className="p-4 bg-gray-50 dark:bg-gray-800"></div>
+          
+          {/* Day headers */}
+          {weekRange.days.map((day, index) => (
+            <div
+              key={day.toISOString()}
+              className={`p-4 text-center cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                isToday(day) ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+              }`}
+              onClick={() => onDateChange?.(day)}
+            >
+              <div className={`text-xs font-medium uppercase tracking-wide mb-1 ${
+                isToday(day) ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'
+              }`}>
+                {format(day, 'EEE')}
               </div>
-              
-              <div className="text-right">
-                <div className="text-sm text-gray-500 dark:text-gray-400">
-                  Total events
-                </div>
-                <div className="text-lg font-medium text-gray-900 dark:text-white">
-                  {weekOverview.total}
-                </div>
+              <div className={`text-lg font-semibold ${
+                isToday(day) ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-white'
+              }`}>
+                {format(day, 'd')}
               </div>
             </div>
-          </div>
+          ))}
+        </div>
+      </div>
 
-          {/* Day headers with mini stats */}
-          <div className="mt-4 grid grid-cols-7 gap-1">
-            {dayStats.map((dayStat, index) => (
+      {/* Calendar Body */}
+      <div className="flex-1 overflow-auto">
+        <div className="relative">
+          {/* Time slots and grid */}
+          <div className="grid grid-cols-8">
+            {/* Time column */}
+            <div className="bg-gray-50 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
+              {timeSlots.map((time, index) => (
+                <div
+                  key={time}
+                  className="h-20 flex items-start justify-end pr-4 pt-2 text-sm text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700"
+                >
+                  {time}
+                </div>
+              ))}
+            </div>
+
+            {/* Day columns */}
+            {weekRange.days.map((day, dayIndex) => (
               <div
-                key={dayStat.date.toISOString()}
-                className={`
-                  p-3 rounded-lg text-center cursor-pointer transition-colors
-                  ${dayStat.isToday 
-                    ? 'bg-primary-100 border-2 border-primary-500 dark:bg-primary-900 dark:border-primary-400' 
-                    : 'bg-gray-50 border border-gray-200 hover:bg-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:hover:bg-gray-600'
-                  }
-                  ${dayStat.isWeekend ? 'opacity-75' : ''}
-                `}
-                onClick={() => onDateChange?.(dayStat.date)}
+                key={day.toISOString()}
+                className="relative border-r border-gray-200 dark:border-gray-700 last:border-r-0"
               >
-                <div className={`
-                  text-xs font-medium uppercase mb-1
-                  ${dayStat.isToday ? 'text-primary-700 dark:text-primary-300' : 'text-gray-500 dark:text-gray-400'}
-                `}>
-                  {format(dayStat.date, 'EEE')}
-                </div>
-                <div className={`
-                  text-lg font-bold mb-1
-                  ${dayStat.isToday ? 'text-primary-900 dark:text-primary-100' : 'text-gray-900 dark:text-white'}
-                `}>
-                  {format(dayStat.date, 'd')}
-                </div>
-                {dayStat.total > 0 && (
-                  <div className="flex items-center justify-center gap-1">
-                    {dayStat.completed > 0 && (
-                      <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
-                    )}
-                    {dayStat.inProgress > 0 && (
-                      <div className="w-1.5 h-1.5 rounded-full bg-yellow-500"></div>
-                    )}
-                    {dayStat.upcoming > 0 && (
-                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
-                    )}
-                  </div>
-                )}
+                {/* Time slot grid */}
+                {timeSlots.map((time, timeIndex) => (
+                  <div
+                    key={`${day.toISOString()}-${time}`}
+                    className="h-20 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors"
+                    onClick={() => {
+                      onTimeSlotClick?.(day, time);
+                      onCellClick?.({ date: day, time, dayIndex, timeIndex });
+                    }}
+                  />
+                ))}
               </div>
             ))}
           </div>
 
-          {/* Quick actions for mobile */}
-          {responsiveState.screenSize === 'mobile' && (
-            <div className="mt-4 flex gap-2 overflow-x-auto">
-              <button
-                onClick={() => onDateChange?.(new Date())}
-                className="flex-shrink-0 px-3 py-1 text-xs bg-primary-100 text-primary-700 rounded-full hover:bg-primary-200 dark:bg-primary-900 dark:text-primary-300"
-              >
-                This Week
-              </button>
-              <button className="flex-shrink-0 px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300">
-                Add Event
-              </button>
-              <button
-                onClick={() => onDateChange?.(addDays(selectedDate, 7))}
-                className="flex-shrink-0 px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300"
-              >
-                Next Week
-              </button>
+          {/* Events overlay */}
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="grid grid-cols-8 h-full">
+              {/* Skip time column */}
+              <div></div>
+              
+              {/* Event containers for each day */}
+              {weekRange.days.map((day, dayIndex) => (
+                <div key={day.toISOString()} className="relative">
+                  {weekEvents
+                    .filter(event => isSameDay(new Date(event.startTime), day))
+                    .map((event, eventIndex) => {
+                      const style = getEventStyle(event, 0); // dayIndex is 0 since we're in the day's container
+                      return (
+                        <div
+                          key={`${event.id}-${eventIndex}`}
+                          className={`absolute pointer-events-auto cursor-pointer rounded-lg shadow-sm hover:shadow-md transition-all duration-200 p-2 mx-1 ${getEventColor(event)} text-white`}
+                          style={{
+                            top: style.top,
+                            height: style.height,
+                            width: 'calc(100% - 8px)',
+                          }}
+                          onClick={() => onEventClick?.(event, { date: day, time: format(new Date(event.startTime), 'h:mm a') })}
+                        >
+                          <div className="text-xs font-medium mb-1 truncate">
+                            {event.title}
+                          </div>
+                          <div className="text-xs opacity-90 truncate">
+                            {format(new Date(event.startTime), 'h:mm a')} - {format(new Date(event.endTime), 'h:mm a')}
+                          </div>
+                          {event.description && (
+                            <div className="text-xs opacity-75 mt-1 truncate">
+                              {event.description}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
+              ))}
             </div>
-          )}
-        </div>
-      </div>
-
-      {/* Calendar Grid */}
-      <div className="flex-1 overflow-hidden">
-        <CalendarGrid
-          config={adaptedConfig}
-          events={weekEvents}
-          onCellClick={onCellClick}
-          onEventClick={onEventClick}
-          onDateChange={onDateChange}
-          onDragStart={onDragStart}
-          onDragEnd={onDragEnd}
-          onEventUpdate={onEventUpdate}
-          className="h-full"
-        />
-      </div>
-
-      {/* Week Summary Footer (mobile only) */}
-      {responsiveState.screenSize === 'mobile' && (
-        <div className="flex-shrink-0 bg-gray-50 dark:bg-gray-800 px-4 py-3 border-t border-gray-200 dark:border-gray-700">
-          <div className="text-center text-sm text-gray-600 dark:text-gray-400">
-            {weekOverview.total === 0 ? (
-              'No events scheduled this week'
-            ) : (
-              `${weekOverview.total} events this week • ${weekOverview.dailyAverage} avg/day • ${weekOverview.completed} completed`
-            )}
           </div>
         </div>
-      )}
-    </motion.div>
+      </div>
+    </div>
   );
 }
 

@@ -6,11 +6,12 @@
 
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { format, startOfDay, endOfDay, addMinutes, getHours, getMinutes } from 'date-fns';
 
 import { CalendarGrid } from '../CalendarGrid';
+import { ModernCalendarLayout } from '../ModernCalendarLayout';
 import { useResponsiveCalendar } from '../hooks/useResponsiveCalendar';
 
 import {
@@ -56,6 +57,21 @@ export function DailyView({
   onEventUpdate,
   className = '',
 }: DailyViewProps) {
+  
+  // Client-side current time to avoid hydration mismatch
+  const [currentTime, setCurrentTime] = useState<Date | null>(null);
+  
+  useEffect(() => {
+    // Set current time only on client side
+    setCurrentTime(new Date());
+    
+    // Update current time every minute
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000);
+    
+    return () => clearInterval(interval);
+  }, []);
 
   // Create base configuration for daily view
   const baseConfig: CalendarGridConfig = useMemo(() => ({
@@ -226,13 +242,13 @@ export function DailyView({
               </div>
               
               {/* Current time display for today */}
-              {dayInfo.isToday && (
+              {dayInfo.isToday && currentTime && (
                 <div className="text-right">
                   <div className="text-sm text-gray-500 dark:text-gray-400">
                     Current time
                   </div>
                   <div className="text-lg font-mono font-medium text-gray-900 dark:text-white">
-                    {format(new Date(), 'HH:mm')}
+                    {format(currentTime, 'HH:mm')}
                   </div>
                 </div>
               )}
@@ -256,36 +272,19 @@ export function DailyView({
         </div>
       </div>
 
-      {/* Time slots and events */}
+      {/* Modern Calendar Layout */}
       <div className="flex-1 overflow-hidden">
-        <CalendarGrid
-          config={adaptedConfig}
+        <ModernCalendarLayout
+          selectedDate={selectedDate}
           events={dayEvents}
+          timeSlotConfig={timeSlotConfig}
+          compactMode={compactMode}
+          showTimeIndicator={showTimeIndicator}
           onCellClick={onCellClick}
           onEventClick={onEventClick}
-          onDateChange={onDateChange}
-          onDragStart={onDragStart}
-          onDragEnd={onDragEnd}
           onEventUpdate={onEventUpdate}
           className="h-full"
-        >
-          {/* Current time indicator overlay */}
-          {currentTimePosition && (
-            <div 
-              className="absolute left-0 right-0 z-50 pointer-events-none"
-              style={{
-                top: `${(currentTimePosition.slotIndex + currentTimePosition.positionInSlot) * GRID_DIMENSIONS.timeSlotHeight.normal}px`,
-              }}
-            >
-              <div className="flex items-center">
-                <div className="flex items-center justify-center w-12 h-6 bg-red-500 text-white text-xs font-medium rounded-full">
-                  {currentTimePosition.time}
-                </div>
-                <div className="flex-1 h-0.5 bg-red-500"></div>
-              </div>
-            </div>
-          )}
-        </CalendarGrid>
+        />
       </div>
 
       {/* Footer with summary (mobile only) */}

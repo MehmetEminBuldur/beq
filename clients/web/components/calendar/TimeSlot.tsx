@@ -11,6 +11,7 @@ import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { Clock, Plus } from 'lucide-react';
 
+import { EventCard } from './EventCard';
 import { TimeSlot as TimeSlotType, ScheduleObject, TimeSlotProps } from '@/lib/calendar/types';
 import { 
   formatTimeSlot, 
@@ -304,6 +305,29 @@ export function TimeSlot({
       
       {/* Events preview (compact mode) */}
       {EventsPreview}
+
+      {/* Full Events Rendering (non-compact mode) */}
+      {!compactMode && events.length > 0 && (
+        <div className="absolute inset-1 flex flex-col gap-1 overflow-hidden">
+          {events.slice(0, 2).map((event, index) => (
+            <EventCard
+              key={event.id}
+              event={event}
+              onClick={(event) => {
+                // Handle event click
+                console.log('Event clicked:', event);
+              }}
+              compactMode={true}
+              className="text-xs"
+            />
+          ))}
+          {events.length > 2 && (
+            <div className="text-xs text-gray-500 dark:text-gray-400 text-center bg-white/70 dark:bg-gray-800/70 rounded-lg py-1">
+              +{events.length - 2} more
+            </div>
+          )}
+        </div>
+      )}
       
       {/* Add event button */}
       {AddEventButton}

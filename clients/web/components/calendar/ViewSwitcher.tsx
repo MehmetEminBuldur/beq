@@ -19,7 +19,6 @@ interface ViewOption {
   shortLabel: string;
   icon: React.ComponentType<{ className?: string }>;
   description: string;
-  keyboardShortcut?: string;
 }
 
 interface ViewSwitcherProps {
@@ -39,7 +38,6 @@ const VIEW_OPTIONS: ViewOption[] = [
     shortLabel: 'Day',
     icon: Calendar,
     description: 'Single day with hourly breakdown',
-    keyboardShortcut: 'D',
   },
   {
     value: 'weekly',
@@ -47,7 +45,6 @@ const VIEW_OPTIONS: ViewOption[] = [
     shortLabel: 'Week',
     icon: CalendarDays,
     description: '7-day grid with time slots',
-    keyboardShortcut: 'W',
   },
   {
     value: 'monthly',
@@ -55,7 +52,6 @@ const VIEW_OPTIONS: ViewOption[] = [
     shortLabel: 'Month',
     icon: LayoutGrid,
     description: 'Traditional calendar grid',
-    keyboardShortcut: 'M',
   },
 ];
 
@@ -69,25 +65,7 @@ export function ViewSwitcher({
   className = '',
 }: ViewSwitcherProps) {
 
-  // Handle keyboard shortcuts
-  React.useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (disabled || event.ctrlKey || event.metaKey || event.altKey) return;
-
-      const key = event.key.toLowerCase();
-      const option = VIEW_OPTIONS.find(opt => opt.keyboardShortcut?.toLowerCase() === key);
-      
-      if (option && option.value !== currentView) {
-        event.preventDefault();
-        onViewChange(option.value);
-      }
-    };
-
-    if (showKeyboardShortcuts) {
-      document.addEventListener('keydown', handleKeyDown);
-      return () => document.removeEventListener('keydown', handleKeyDown);
-    }
-  }, [currentView, onViewChange, disabled, showKeyboardShortcuts]);
+  // Keyboard shortcuts disabled - letters removed
 
   // Determine sizing classes
   const sizeClasses = useMemo(() => {
@@ -135,7 +113,7 @@ export function ViewSwitcher({
               }
             `}
             onClick={() => onViewChange(option.value)}
-            title={`${option.description}${showKeyboardShortcuts && option.keyboardShortcut ? ` (Press ${option.keyboardShortcut})` : ''}`}
+            title={option.description}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
@@ -149,12 +127,7 @@ export function ViewSwitcher({
               </span>
             )}
 
-            {/* Keyboard shortcut indicator */}
-            {showKeyboardShortcuts && option.keyboardShortcut && (
-              <span className="hidden lg:inline text-xs opacity-60">
-                {option.keyboardShortcut}
-              </span>
-            )}
+            {/* Keyboard shortcut indicator - removed letters */}
 
             {/* Active indicator */}
             {isActive && (
