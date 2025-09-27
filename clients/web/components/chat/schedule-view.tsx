@@ -66,11 +66,26 @@ export function ScheduleView() {
         const end = new Date(selectedDate);
         end.setHours(23, 59, 59, 999);
 
-        const events = await getCalendarEvents('primary', start, end);
-        setGoogleEvents(events);
+        try {
+          const events = await getCalendarEvents('primary', start, end);
+          setGoogleEvents(events);
+        } catch (eventsError) {
+          console.warn('Could not load Google Calendar events:', eventsError);
+          setGoogleEvents([]);
+        }
+      } else {
+        setGoogleEvents([]);
       }
     } catch (error) {
-      console.error('Failed to check Google auth status:', error);
+      // Silently handle auth status check failures - service may not be available
+      console.warn('Google Calendar service not available:', error);
+      setGoogleAuthStatus({
+        authenticated: false,
+        provider: 'google',
+        email: undefined,
+        scopes: [],
+      });
+      setGoogleEvents([]);
     }
   };
 
@@ -178,13 +193,29 @@ export function ScheduleView() {
       end.setDate(end.getDate() + 30); // Next month
 
       const result = await syncCalendar('primary', start, end);
-      toast.success(`Synced ${result.events_synced} events. ${result.conflicts_detected} conflicts detected.`);
-
-      // Refresh events
-      await checkGoogleAuthStatus();
+      
+      if (result.success) {
+        toast.success(`Synced ${result.events_synced} events. ${result.conflicts_detected} conflicts detected.`);
+        // Refresh events after successful sync
+        await checkGoogleAuthStatus();
+      } else {
+        // Handle failed sync gracefully
+        if (result.errors.length > 0) {
+          const errorMessage = result.errors[0];
+          if (errorMessage.includes('unavailable')) {
+            toast.error('Calendar service is currently unavailable. Please try again later.');
+          } else {
+            toast.error(`Sync failed: ${errorMessage}`);
+          }
+        } else {
+          toast.error('Sync failed for unknown reasons.');
+        }
+        console.warn('Calendar sync failed:', result);
+      }
     } catch (error) {
+      // This should rarely happen now since syncCalendar returns results instead of throwing
       toast.error('Failed to sync calendar');
-      console.error('Sync error:', error);
+      console.warn('Sync error:', error);
     }
   };
 

@@ -1,8 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useAuth } from '@/lib/hooks/use-auth'
+import { useRouter } from 'next/navigation'
+import { useAuthContext } from '@/lib/providers/auth-provider'
 import { useDashboard } from '@/lib/hooks/use-dashboard'
+import { useDatabase } from '@/lib/hooks/use-database'
 import { Navigation } from '@/components/layout/navigation'
 import { getUserSettings, updateUserSettings, UserSettings } from '../../lib/default-settings'
 import { supabase } from '@/lib/supabase/client'
@@ -25,8 +27,10 @@ interface NotificationSetting {
 }
 
 export default function SettingsPage() {
-  const { user, isAuthenticated, isLoading: authLoading, updateProfile } = useAuth()
+  const router = useRouter()
+  const { user, isAuthenticated, isLoading: authLoading } = useAuthContext()
   const { refreshDashboard } = useDashboard()
+  const { updateProfile } = useDatabase()
 
   const [settings, setSettings] = useState<UserSettings | null>(null)
   const [notifications, setNotifications] = useState<NotificationSetting[]>([])
@@ -44,14 +48,6 @@ export default function SettingsPage() {
     confirmPassword: ''
   })
 
-  // Redirect to homepage if not authenticated
-  useEffect(() => {
-    if (!authLoading && (!isAuthenticated || !user)) {
-      if (typeof window !== 'undefined') {
-        window.location.href = '/';
-      }
-    }
-  }, [isAuthenticated, user, authLoading]);
 
   // Update profile form when user data changes
   useEffect(() => {
@@ -113,12 +109,19 @@ export default function SettingsPage() {
   // Show loading state while authentication is being checked
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-stone-50 dark:from-slate-900 dark:via-gray-900 dark:to-stone-900 relative overflow-hidden">
+        {/* Animated Background Orbs */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-slate-300 to-gray-400 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-blob"></div>
+          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-stone-300 to-slate-400 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-blob animation-delay-2000"></div>
+          <div className="absolute top-40 left-40 w-80 h-80 bg-gradient-to-br from-gray-300 to-zinc-400 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-blob animation-delay-4000"></div>
+        </div>
+
         <Navigation />
-        <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto px-4 py-8 relative z-10">
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600 mx-auto mb-4"></div>
               <p className="text-gray-600 dark:text-gray-400">Loading settings...</p>
             </div>
           </div>
@@ -127,13 +130,27 @@ export default function SettingsPage() {
     )
   }
 
-  // If not authenticated, show loading while redirecting
-  if (!isAuthenticated || !user) {
+  // Show message for unauthenticated users
+  if (!authLoading && (!isAuthenticated || !user)) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Redirecting to homepage...</p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-stone-50 dark:from-slate-900 dark:via-gray-900 dark:to-stone-900 flex items-center justify-center relative overflow-hidden">
+        {/* Animated Background Orbs */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-slate-300 to-gray-400 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-blob"></div>
+          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-stone-300 to-slate-400 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-blob animation-delay-2000"></div>
+          <div className="absolute top-40 left-40 w-80 h-80 bg-gradient-to-br from-gray-300 to-zinc-400 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-blob animation-delay-4000"></div>
+        </div>
+
+        <Navigation />
+        <div className="text-center relative z-10">
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">Access Denied</h1>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">Please sign in to access your settings.</p>
+          <button
+            onClick={() => router.push('/auth')}
+            className="px-6 py-3 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors"
+          >
+            Sign In
+          </button>
         </div>
       </div>
     );
@@ -141,12 +158,19 @@ export default function SettingsPage() {
 
   if (isLoading || !settings) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-stone-50 dark:from-slate-900 dark:via-gray-900 dark:to-stone-900 relative overflow-hidden">
+        {/* Animated Background Orbs */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-slate-300 to-gray-400 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-blob"></div>
+          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-stone-300 to-slate-400 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-blob animation-delay-2000"></div>
+          <div className="absolute top-40 left-40 w-80 h-80 bg-gradient-to-br from-gray-300 to-zinc-400 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-blob animation-delay-4000"></div>
+        </div>
+
         <Navigation />
-        <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto px-4 py-8 relative z-10">
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600 mx-auto mb-4"></div>
               <p className="text-gray-600 dark:text-gray-400">Loading settings...</p>
             </div>
           </div>
@@ -182,14 +206,14 @@ export default function SettingsPage() {
           theme: themeId
         }
 
-        const result = await updateProfile({ preferences: updatedPrefs })
-        if (result.error) {
-          console.error('Failed to save theme to database:', result.error)
-          toast.error('Settings saved locally but failed to sync to cloud')
-        } else {
+        try {
+          await updateProfile({ preferences: updatedPrefs })
           toast.success('Theme updated successfully')
           // Refresh dashboard to apply theme changes
           await refreshDashboard()
+        } catch (profileError) {
+          console.error('Failed to save theme to database:', profileError)
+          toast.error('Settings saved locally but failed to sync to cloud')
         }
       }
     } catch (error) {
@@ -223,12 +247,12 @@ export default function SettingsPage() {
           workHours: updated.workHours
         }
 
-        const result = await updateProfile({ preferences: updatedPrefs })
-        if (result.error) {
-          console.error('Failed to save work hours to database:', result.error)
-          toast.error('Settings saved locally but failed to sync to cloud')
-        } else {
+        try {
+          await updateProfile({ preferences: updatedPrefs })
           toast.success('Work hours updated successfully')
+        } catch (profileError) {
+          console.error('Failed to save work hours to database:', profileError)
+          toast.error('Settings saved locally but failed to sync to cloud')
         }
       }
     } catch (error) {
@@ -269,12 +293,12 @@ export default function SettingsPage() {
           notifications: updated.notifications
         }
 
-        const result = await updateProfile({ preferences: updatedPrefs })
-        if (result.error) {
-          console.error('Failed to save notifications to database:', result.error)
-          toast.error('Settings saved locally but failed to sync to cloud')
-        } else {
+        try {
+          await updateProfile({ preferences: updatedPrefs })
           toast.success('Notification preferences updated')
+        } catch (profileError) {
+          console.error('Failed to save notifications to database:', profileError)
+          toast.error('Settings saved locally but failed to sync to cloud')
         }
       }
     } catch (error) {
@@ -292,17 +316,13 @@ export default function SettingsPage() {
   const handleProfileUpdate = async () => {
     try {
       setIsSaving(true)
-      const result = await updateProfile({
+      await updateProfile({
         full_name: profileForm.full_name,
         email: profileForm.email
       })
 
-      if (result.error) {
-        toast.error('Failed to update profile')
-      } else {
-        toast.success('Profile updated successfully')
-        setShowProfileEdit(false)
-      }
+      toast.success('Profile updated successfully')
+      setShowProfileEdit(false)
     } catch (error) {
       toast.error('Failed to update profile')
     } finally {
@@ -386,29 +406,36 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-stone-50 dark:from-slate-900 dark:via-gray-900 dark:to-stone-900 relative overflow-hidden">
+      {/* Animated Background Orbs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-slate-300 to-gray-400 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-blob"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-stone-300 to-slate-400 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-blob animation-delay-2000"></div>
+        <div className="absolute top-40 left-40 w-80 h-80 bg-gradient-to-br from-gray-300 to-zinc-400 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-blob animation-delay-4000"></div>
+      </div>
+
       <Navigation />
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 relative z-10">
         {/* Loading overlay */}
         {isSaving && (
-          <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 shadow-lg flex items-center gap-3">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
-              <span className="text-gray-700">Saving settings...</span>
+          <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl border border-white/40 dark:border-gray-700/40 rounded-2xl p-6 shadow-2xl flex items-center gap-3">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-slate-600"></div>
+              <span className="text-gray-800 dark:text-white font-medium">Saving settings...</span>
             </div>
           </div>
         )}
 
         <div className="max-w-4xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold tracking-tight">
+          <div className="mb-8 bg-white/30 dark:bg-gray-800/30 backdrop-blur-xl border border-white/40 dark:border-gray-700/40 rounded-3xl p-8 shadow-2xl">
+            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-slate-700 via-gray-800 to-stone-700 bg-clip-text text-transparent dark:from-white dark:to-gray-300">
               Settings{user?.full_name ? ` - ${user.full_name}` : ''}
             </h1>
-            <p className="text-muted-foreground mt-2">
+            <p className="text-gray-600 dark:text-gray-300 mt-2">
               Manage your account preferences and BeQ settings
               {user?.email && (
-                <span className="block text-sm text-muted-foreground mt-1">
+                <span className="block text-sm text-gray-500 dark:text-gray-400 mt-1">
                   Signed in as {user.email}
                 </span>
               )}
@@ -416,43 +443,43 @@ export default function SettingsPage() {
           </div>
 
           {/* Theme Selection */}
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-800">Choose Theme</h2>
-                <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-4">
+          <div className="mb-8 bg-white/30 dark:bg-gray-800/30 backdrop-blur-xl border border-white/40 dark:border-gray-700/40 rounded-3xl p-8 shadow-2xl">
+            <h2 className="text-2xl font-bold bg-gradient-to-r from-slate-700 to-gray-800 bg-clip-text text-transparent dark:from-white dark:to-gray-300 mb-6">Choose Theme</h2>
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-4">
                   {themes.map((theme) => (
                     <div
                       key={theme.id}
                       onClick={() => handleThemeSelect(theme.id)}
-                      className={`cursor-pointer rounded-lg border-2 p-4 text-center transition-all hover:border-blue-500 ${
+                      className={`cursor-pointer rounded-2xl border-2 p-4 text-center transition-all hover:border-blue-500 hover:shadow-lg transform hover:scale-105 ${
                         settings.theme === theme.id
-                          ? 'border-blue-500'
-                          : 'border-gray-200 bg-white'
+                          ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/20 shadow-lg'
+                          : 'border-white/40 dark:border-gray-700/40 bg-white/40 dark:bg-gray-800/40 backdrop-blur-sm'
                       }`}
                     >
                       {renderThemePreview(theme)}
-                      <p className="mt-2 text-sm font-medium text-gray-800">{theme.name}</p>
+                      <p className="mt-2 text-sm font-medium text-gray-800 dark:text-white">{theme.name}</p>
                     </div>
                   ))}
                 </div>
               </div>
 
               {/* Calendar Integrations */}
-              <div className="mt-8">
-                <h2 className="text-2xl font-bold text-gray-800">Calendar Integrations</h2>
-                <div className="mt-4 rounded-lg border border-gray-200 bg-white">
-                  <div className="flex items-center justify-between p-6">
+              <div className="mb-8 bg-white/30 dark:bg-gray-800/30 backdrop-blur-xl border border-white/40 dark:border-gray-700/40 rounded-3xl p-8 shadow-2xl">
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-slate-700 to-gray-800 bg-clip-text text-transparent dark:from-white dark:to-gray-300 mb-6">Calendar Integrations</h2>
+                <div className="bg-white/40 dark:bg-gray-800/40 backdrop-blur-sm border border-white/50 dark:border-gray-700/50 rounded-2xl p-6">
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <div className="flex size-12 items-center justify-center rounded-lg bg-gray-100 text-gray-600">
+                      <div className="flex size-12 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg">
                         <span className="material-symbols-outlined">calendar_month</span>
                       </div>
                       <div>
-                        <p className="text-base font-medium text-gray-800">Connect Calendars</p>
-                        <p className="text-sm text-gray-600">Connect your external calendars to sync events and avoid scheduling conflicts.</p>
+                        <p className="text-base font-medium text-gray-800 dark:text-white">Connect Calendars</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-300">Connect your external calendars to sync events and avoid scheduling conflicts.</p>
                       </div>
                     </div>
                     <button 
                       onClick={handleCalendarConnect}
-                      className="h-10 rounded-md bg-gray-100 px-4 text-sm font-medium text-gray-800 hover:bg-gray-200 transition-colors"
+                      className="h-10 rounded-xl bg-white/60 dark:bg-gray-700/60 backdrop-blur-sm border border-white/50 dark:border-gray-600/50 px-4 text-sm font-medium text-gray-800 dark:text-white hover:bg-white/80 dark:hover:bg-gray-700/80 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
                     >
                       Connect
                     </button>
@@ -461,22 +488,22 @@ export default function SettingsPage() {
               </div>
 
               {/* Notifications */}
-              <div className="mt-8">
-                <h2 className="text-2xl font-bold text-gray-800">Notifications</h2>
-                <div className="mt-4 space-y-4 rounded-lg border border-gray-200 bg-white">
+              <div className="mb-8 bg-white/30 dark:bg-gray-800/30 backdrop-blur-xl border border-white/40 dark:border-gray-700/40 rounded-3xl p-8 shadow-2xl">
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-slate-700 to-gray-800 bg-clip-text text-transparent dark:from-white dark:to-gray-300 mb-6">Notifications</h2>
+                <div className="space-y-4">
                   {notifications.map((notification, index) => (
-                    <div key={notification.id}>
-                      <div className="flex items-center justify-between p-6">
+                    <div key={notification.id} className="bg-white/40 dark:bg-gray-800/40 backdrop-blur-sm border border-white/50 dark:border-gray-700/50 rounded-2xl p-6 hover:bg-white/60 dark:hover:bg-gray-800/60 transition-all duration-300">
+                      <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                          <div className="flex size-12 items-center justify-center rounded-lg bg-gray-100 text-gray-600">
+                          <div className="flex size-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg">
                             <span className="material-symbols-outlined">{notification.icon}</span>
                           </div>
                           <div>
-                            <p className="text-base font-medium text-gray-800">{notification.title}</p>
-                            <p className="text-sm text-gray-600">{notification.description}</p>
+                            <p className="text-base font-medium text-gray-800 dark:text-white">{notification.title}</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-300">{notification.description}</p>
                           </div>
                         </div>
-                        <label className="relative flex h-[31px] w-[51px] cursor-pointer items-center rounded-full bg-gray-200 p-0.5 has-[:checked]:bg-blue-600 has-[:checked]:justify-end">
+                        <label className="relative flex h-[31px] w-[51px] cursor-pointer items-center rounded-full bg-gray-200 dark:bg-gray-600 p-0.5 has-[:checked]:bg-blue-600 has-[:checked]:justify-end shadow-lg">
                           <div className="h-full w-[27px] rounded-full bg-white shadow-md transition-transform"></div>
                           <input
                             checked={notification.enabled}
@@ -486,23 +513,22 @@ export default function SettingsPage() {
                           />
                         </label>
                       </div>
-                      {index < notifications.length - 1 && <hr className="border-gray-200"/>}
                     </div>
                   ))}
                 </div>
               </div>
 
               {/* Personal Information */}
-              <div className="mt-8">
-                <h2 className="text-2xl font-bold text-gray-800">Personal Information</h2>
-                <div className="mt-4 rounded-lg border border-gray-200 bg-white p-6">
+              <div className="mb-8 bg-white/30 dark:bg-gray-800/30 backdrop-blur-xl border border-white/40 dark:border-gray-700/40 rounded-3xl p-8 shadow-2xl">
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-slate-700 to-gray-800 bg-clip-text text-transparent dark:from-white dark:to-gray-300 mb-6">Personal Information</h2>
+                <div className="bg-white/40 dark:bg-gray-800/40 backdrop-blur-sm border border-white/50 dark:border-gray-700/50 rounded-2xl p-6">
                   <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                     <div>
-                      <label className="text-base font-medium text-gray-800" htmlFor="work-start">
+                      <label className="text-base font-medium text-gray-800 dark:text-white" htmlFor="work-start">
                         Work Hours Start
                       </label>
                       <input
-                        className="form-input mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        className="mt-2 block w-full rounded-xl border border-white/40 dark:border-gray-600/40 bg-white/60 dark:bg-gray-700/60 backdrop-blur-sm px-4 py-3 text-gray-900 dark:text-white shadow-lg focus:border-blue-500 focus:ring-blue-500 dark:focus:border-blue-400 dark:focus:ring-blue-400 transition-all duration-300"
                         id="work-start"
                         type="time"
                         value={settings.workHours.start}
@@ -510,11 +536,11 @@ export default function SettingsPage() {
                       />
                     </div>
                     <div>
-                      <label className="text-base font-medium text-gray-800" htmlFor="work-end">
+                      <label className="text-base font-medium text-gray-800 dark:text-white" htmlFor="work-end">
                         Work Hours End
                       </label>
                       <input
-                        className="form-input mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        className="mt-2 block w-full rounded-xl border border-white/40 dark:border-gray-600/40 bg-white/60 dark:bg-gray-700/60 backdrop-blur-sm px-4 py-3 text-gray-900 dark:text-white shadow-lg focus:border-blue-500 focus:ring-blue-500 dark:focus:border-blue-400 dark:focus:ring-blue-400 transition-all duration-300"
                         id="work-end"
                         type="time"
                         value={settings.workHours.end}
@@ -526,20 +552,21 @@ export default function SettingsPage() {
               </div>
 
               {/* AI Preferences */}
-              <div className="mt-8">
-                <h2 className="text-2xl font-bold text-gray-800">AI Assistance</h2>
-                <div className="mt-4 space-y-4 rounded-lg border border-gray-200 bg-white">
-                  <div className="flex items-center justify-between p-6">
-                    <div className="flex items-center gap-4">
-                      <div className="flex size-12 items-center justify-center rounded-lg bg-gray-100 text-gray-600">
-                        <span className="material-symbols-outlined">psychology</span>
+              <div className="mb-8 bg-white/30 dark:bg-gray-800/30 backdrop-blur-xl border border-white/40 dark:border-gray-700/40 rounded-3xl p-8 shadow-2xl">
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-slate-700 to-gray-800 bg-clip-text text-transparent dark:from-white dark:to-gray-300 mb-6">AI Assistance</h2>
+                <div className="space-y-4">
+                  <div className="bg-white/40 dark:bg-gray-800/40 backdrop-blur-sm border border-white/50 dark:border-gray-700/50 rounded-2xl p-6 hover:bg-white/60 dark:hover:bg-gray-800/60 transition-all duration-300">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="flex size-12 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 text-white shadow-lg">
+                          <span className="material-symbols-outlined">psychology</span>
+                        </div>
+                        <div>
+                          <p className="text-base font-medium text-gray-800 dark:text-white">Smart Suggestions</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-300">Let BeQ provide intelligent task and scheduling suggestions.</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-base font-medium text-gray-800">Smart Suggestions</p>
-                        <p className="text-sm text-gray-600">Let BeQ provide intelligent task and scheduling suggestions.</p>
-                      </div>
-                    </div>
-                    <label className="relative flex h-[31px] w-[51px] cursor-pointer items-center rounded-full bg-gray-200 p-0.5 has-[:checked]:bg-blue-600 has-[:checked]:justify-end">
+                      <label className="relative flex h-[31px] w-[51px] cursor-pointer items-center rounded-full bg-gray-200 dark:bg-gray-600 p-0.5 has-[:checked]:bg-blue-600 has-[:checked]:justify-end shadow-lg">
                       <div className="h-full w-[27px] rounded-full bg-white shadow-md transition-transform"></div>
                       <input
                         checked={settings.ai.suggestionsEnabled}
@@ -560,11 +587,11 @@ export default function SettingsPage() {
                                 ai: updated.ai
                               }
 
-                              const result = await updateProfile({ preferences: updatedPrefs })
-                              if (result.error) {
-                                toast.error('Settings saved locally but failed to sync to cloud')
-                              } else {
+                              try {
+                                await updateProfile({ preferences: updatedPrefs })
                                 toast.success('AI preferences updated')
+                              } catch (profileError) {
+                                toast.error('Settings saved locally but failed to sync to cloud')
                               }
                             }
                           } catch (error) {
@@ -578,19 +605,20 @@ export default function SettingsPage() {
                         type="checkbox"
                       />
                     </label>
-                  </div>
-                  <hr className="border-gray-200"/>
-                  <div className="flex items-center justify-between p-6">
-                    <div className="flex items-center gap-4">
-                      <div className="flex size-12 items-center justify-center rounded-lg bg-gray-100 text-gray-600">
-                        <span className="material-symbols-outlined">smart_toy</span>
-                      </div>
-                      <div>
-                        <p className="text-base font-medium text-gray-800">Smart Prioritization</p>
-                        <p className="text-sm text-gray-600">Automatically prioritize tasks based on deadlines and importance.</p>
-                      </div>
                     </div>
-                    <label className="relative flex h-[31px] w-[51px] cursor-pointer items-center rounded-full bg-gray-200 p-0.5 has-[:checked]:bg-blue-600 has-[:checked]:justify-end">
+                  </div>
+                  <div className="bg-white/40 dark:bg-gray-800/40 backdrop-blur-sm border border-white/50 dark:border-gray-700/50 rounded-2xl p-6 hover:bg-white/60 dark:hover:bg-gray-800/60 transition-all duration-300">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="flex size-12 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-red-600 text-white shadow-lg">
+                          <span className="material-symbols-outlined">smart_toy</span>
+                        </div>
+                        <div>
+                          <p className="text-base font-medium text-gray-800 dark:text-white">Smart Prioritization</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-300">Automatically prioritize tasks based on deadlines and importance.</p>
+                        </div>
+                      </div>
+                      <label className="relative flex h-[31px] w-[51px] cursor-pointer items-center rounded-full bg-gray-200 dark:bg-gray-600 p-0.5 has-[:checked]:bg-blue-600 has-[:checked]:justify-end shadow-lg">
                       <div className="h-full w-[27px] rounded-full bg-white shadow-md transition-transform"></div>
                       <input
                         checked={settings.ai.smartPrioritization}
@@ -611,11 +639,11 @@ export default function SettingsPage() {
                                 ai: updated.ai
                               }
 
-                              const result = await updateProfile({ preferences: updatedPrefs })
-                              if (result.error) {
-                                toast.error('Settings saved locally but failed to sync to cloud')
-                              } else {
+                              try {
+                                await updateProfile({ preferences: updatedPrefs })
                                 toast.success('Smart prioritization updated')
+                              } catch (profileError) {
+                                toast.error('Settings saved locally but failed to sync to cloud')
                               }
                             }
                           } catch (error) {
@@ -629,14 +657,15 @@ export default function SettingsPage() {
                         type="checkbox"
                       />
                     </label>
+                    </div>
                   </div>
                 </div>
               </div>
 
               {/* Privacy Settings */}
-              <div className="mt-8">
-                <h2 className="text-2xl font-bold text-gray-800">Privacy & Data</h2>
-                <div className="mt-4 space-y-4 rounded-lg border border-gray-200 bg-white">
+              <div className="mb-8 bg-white/30 dark:bg-gray-800/30 backdrop-blur-xl border border-white/40 dark:border-gray-700/40 rounded-3xl p-8 shadow-2xl">
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-slate-700 to-gray-800 bg-clip-text text-transparent dark:from-white dark:to-gray-300 mb-6">Privacy & Data</h2>
+                <div className="space-y-4">
                   <div className="flex items-center justify-between p-6">
                     <div className="flex items-center gap-4">
                       <div className="flex size-12 items-center justify-center rounded-lg bg-gray-100 text-gray-600">
@@ -668,11 +697,11 @@ export default function SettingsPage() {
                                 privacy: updated.privacy
                               }
 
-                              const result = await updateProfile({ preferences: updatedPrefs })
-                              if (result.error) {
-                                toast.error('Settings saved locally but failed to sync to cloud')
-                              } else {
+                              try {
+                                await updateProfile({ preferences: updatedPrefs })
                                 toast.success('Analytics preferences updated')
+                              } catch (profileError) {
+                                toast.error('Settings saved locally but failed to sync to cloud')
                               }
                             }
                           } catch (error) {
@@ -719,11 +748,11 @@ export default function SettingsPage() {
                                 privacy: updated.privacy
                               }
 
-                              const result = await updateProfile({ preferences: updatedPrefs })
-                              if (result.error) {
-                                toast.error('Settings saved locally but failed to sync to cloud')
-                              } else {
+                              try {
+                                await updateProfile({ preferences: updatedPrefs })
                                 toast.success('Data collection preferences updated')
+                              } catch (profileError) {
+                                toast.error('Settings saved locally but failed to sync to cloud')
                               }
                             }
                           } catch (error) {
@@ -742,9 +771,9 @@ export default function SettingsPage() {
               </div>
 
               {/* Account Management */}
-              <div className="mt-8">
-                <h2 className="text-2xl font-bold text-gray-800">Account Management</h2>
-                <div className="mt-4 space-y-4 rounded-lg border border-gray-200 bg-white">
+              <div className="mb-8 bg-white/30 dark:bg-gray-800/30 backdrop-blur-xl border border-white/40 dark:border-gray-700/40 rounded-3xl p-8 shadow-2xl">
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-slate-700 to-gray-800 bg-clip-text text-transparent dark:from-white dark:to-gray-300 mb-6">Account Management</h2>
+                <div className="space-y-4">
                   <div className="flex items-center justify-between p-6">
                     <div className="flex items-center gap-4">
                       <div className="flex size-12 items-center justify-center rounded-lg bg-gray-100 text-gray-600">
@@ -920,10 +949,12 @@ export default function SettingsPage() {
               </div>
 
           {/* Auto-Save Notice */}
-          <div className="mt-8 rounded-lg bg-green-50 border border-green-200 p-4">
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-green-600">check_circle</span>
-              <p className="text-sm text-green-700">Settings are automatically saved and synced to your account.</p>
+          <div className="bg-white/30 dark:bg-gray-800/30 backdrop-blur-xl border border-white/40 dark:border-gray-700/40 rounded-3xl p-6 shadow-2xl">
+            <div className="flex items-center gap-3">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 text-white shadow-lg">
+                <span className="material-symbols-outlined">check_circle</span>
+              </div>
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Settings are automatically saved and synced to your account.</p>
             </div>
           </div>
         </div>

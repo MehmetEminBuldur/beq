@@ -179,24 +179,22 @@ export async function POST(request: NextRequest) {
     // Calculate processing time
     const processingTimeMs = Date.now() - startTime;
 
-    // Analyze response for actions (simple keyword detection)
-    const actions: string[] = [];
-    const suggestions: string[] = [];
-    let scheduleUpdated = false;
-    const bricksCreated: string[] = [];
-    const bricksUpdated: string[] = [];
-    const resourcesRecommended: string[] = [];
+    // Extract actions from orchestrator response
+    const actions: string[] = orchestratorResponse.actions_taken || [];
+    const suggestions: string[] = orchestratorResponse.suggestions || [];
+    const scheduleUpdated = orchestratorResponse.schedule_updated || false;
+    const bricksCreated: string[] = orchestratorResponse.bricks_created || [];
+    const bricksUpdated: string[] = orchestratorResponse.bricks_updated || [];
+    const resourcesRecommended: string[] = orchestratorResponse.resources_recommended || [];
 
-    // Simple action detection
-    if (responseText.toLowerCase().includes('schedule') || responseText.toLowerCase().includes('calendar')) {
-      actions.push('schedule_analysis');
-    }
-    if (responseText.toLowerCase().includes('brick') || responseText.toLowerCase().includes('task')) {
-      actions.push('task_management');
-    }
-    if (responseText.toLowerCase().includes('recommend')) {
-      actions.push('resource_recommendation');
-    }
+    // Log the extracted actions for debugging
+    console.log('Extracted from orchestrator:', {
+      actions,
+      bricksCreated,
+      bricksUpdated,
+      scheduleUpdated,
+      suggestions: suggestions.length
+    });
 
     // Store conversation in Supabase (optional)
     try {
@@ -232,7 +230,7 @@ export async function POST(request: NextRequest) {
       conversation_id: finalConversationId,
       response: responseText,
       model_used: modelUsed,
-      confidence_score: 0.85, // Static for now, could be calculated
+      confidence_score: orchestratorResponse.confidence_score || 0.85,
       processing_time_ms: processingTimeMs,
       actions_taken: actions,
       suggestions: suggestions,

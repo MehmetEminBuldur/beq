@@ -283,7 +283,7 @@ class OrchestratorAgent(LoggerMixin):
         # Prepare available tools for function calling
         available_functions = []
         for tool in self.tools:
-            if tool.name in ["create_brick", "create_quanta", "get_bricks"]:
+            if tool.name in ["create_brick", "create_quanta", "get_bricks", "update_brick"]:
                 try:
                     # Use get_input_schema() method instead of args_schema attribute
                     input_schema = tool.get_input_schema()
@@ -297,6 +297,7 @@ class OrchestratorAgent(LoggerMixin):
                             }
                         }
                         available_functions.append(tool_schema)
+                        self.logger.debug(f"Added tool schema for {tool.name}")
                 except Exception as e:
                     logger.error(f"Failed to create schema for tool {tool.name}", exc_info=e)
         
@@ -336,6 +337,7 @@ class OrchestratorAgent(LoggerMixin):
                         # Inject required context into function args
                         if function_name in ["create_brick", "create_quanta", "get_bricks", "update_brick"]:
                             function_args["user_id"] = state.get("user_id")
+                            self.logger.info(f"Injected user_id {state.get('user_id')} for {function_name}")
                         
                         # Find and execute the tool
                         tool = next((t for t in self.tools if t.name == function_name), None)
@@ -494,17 +496,34 @@ You have access to various tools for scheduling, task management, resource recom
 
 1. **create_brick**: Use when user wants to create a main task/project (Brick). Extract meaningful title, description, category (learning, work, personal, health, etc.), priority, and estimated duration.
 
-2. **create_quanta**: Use when user wants to break down a Brick into smaller sub-tasks (Quantas). Requires a brick_id from a previously created Brick.
+2. **create_quanta**: Use when user wants to break down a Brick into smaller sub-tasks (Quantas). Requires a brick_id from a previously created Brick. ALWAYS suggest breaking down complex Bricks into Quantas for better task management.
 
 3. **get_schedule**, **get_bricks**: Use to retrieve current user data when needed for context.
 
 When creating Bricks or Quantas:
 - Extract meaningful titles and descriptions from user messages
 - Choose appropriate categories (learning, work, personal, health, social, maintenance, recreation)
-- Estimate realistic durations based on task complexity
+- Estimate realistic durations based on task complexity (Quantas should typically be 15-60 minutes)
 - Set appropriate priorities (low, medium, high, urgent)
 
 IMPORTANT: When a user asks you to create a Brick or task, you MUST use the create_brick function to actually create it in the system. Don't just talk about creating it - actually call the function.
+
+QUANTA CREATION GUIDELINES:
+- After creating a Brick, ALWAYS ask if the user wants to break it down into Quantas
+- When users mention sub-tasks, steps, or parts of a larger task, use create_quanta
+- Quantas should be specific, actionable steps that can be completed in one focused session
+- Each Quanta should have a clear outcome and be measurable
+- Use create_quanta when users say things like:
+  * "Break this down into steps"
+  * "What are the sub-tasks for..."
+  * "I need to plan the steps for..."
+  * "Create tasks for each part of..."
+  * "Add sub-tasks to..."
+
+EXAMPLES of when to create Quantas:
+- User: "Break down my 'Learn Spanish' brick" → Use create_quanta for each learning component
+- User: "I need steps for my presentation project" → Use create_quanta for research, outline, slides, practice, etc.
+- User: "Add tasks for planning my vacation" → Use create_quanta for booking, packing, itinerary, etc.
 
 USER CONTEXT:
 - You already have access to the user's ID and authentication information - you don't need to ask for it

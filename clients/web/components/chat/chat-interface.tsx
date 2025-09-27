@@ -158,18 +158,18 @@ export function ChatInterface() {
   };
 
   return (
-    <div className="flex h-full w-full flex-col bg-gray-50 dark:bg-gray-900">
+    <div className="flex h-full w-full flex-col bg-white/20 dark:bg-gray-900/20 backdrop-blur-xl border border-white/30 dark:border-gray-700/30 rounded-3xl shadow-2xl m-4">
       {/* Header */}
-      <div className="border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-800">
+      <div className="border-b border-white/30 dark:border-gray-700/30 bg-white/40 dark:bg-gray-800/40 backdrop-blur-sm px-6 py-4 rounded-t-3xl">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-600">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg">
             <Bot className="h-6 w-6 text-white" />
           </div>
           <div>
-            <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
+            <h1 className="text-lg font-semibold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent dark:from-white dark:to-gray-300">
               BeQ Assistant
             </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
               Your AI-powered life management companion
             </p>
           </div>
@@ -190,8 +190,8 @@ export function ChatInterface() {
                   className="text-center"
                 >
                   <div className="mb-6 flex justify-center">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900">
-                      <Bot className="h-8 w-8 text-primary-600 dark:text-primary-400" />
+                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-blue-100 to-indigo-200 dark:from-blue-900/50 dark:to-indigo-900/50 backdrop-blur-sm border border-white/40 dark:border-gray-700/40 shadow-lg">
+                      <Bot className="h-8 w-8 text-blue-600 dark:text-blue-400" />
                     </div>
                   </div>
                   <h2 className="mb-4 text-xl font-semibold text-gray-900 dark:text-white">
@@ -226,10 +226,10 @@ export function ChatInterface() {
                   exit={{ opacity: 0, y: 10 }}
                   className="flex items-center gap-3"
                 >
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-600">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg">
                     <Bot className="h-4 w-4 text-white" />
                   </div>
-                  <div className="flex items-center gap-1 rounded-lg bg-white px-4 py-2 shadow-sm dark:bg-gray-800">
+                  <div className="flex items-center gap-1 rounded-lg bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm px-4 py-2 shadow-lg border border-white/40 dark:border-gray-700/40">
                     <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
                     <span className="text-sm text-gray-500 dark:text-gray-400">
                       BeQ is thinking...
@@ -243,7 +243,7 @@ export function ChatInterface() {
           </div>
 
           {/* Input area */}
-          <div className="border-t border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-800">
+          <div className="border-t border-white/30 dark:border-gray-700/30 bg-white/40 dark:bg-gray-800/40 backdrop-blur-sm px-6 py-4 rounded-b-3xl">
             <div className="mx-auto max-w-3xl">
               <form onSubmit={handleSubmit} className="flex gap-4">
                 <div className="flex-1">
@@ -254,7 +254,7 @@ export function ChatInterface() {
                     onKeyDown={handleKeyDown}
                     placeholder="Ask BeQ to help organize your life..."
                     rows={1}
-                    className="block w-full resize-none rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-900 placeholder-gray-500 focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 dark:focus:border-primary-400 dark:focus:ring-primary-400"
+                    className="block w-full resize-none rounded-xl border border-white/40 dark:border-gray-700/40 bg-white/60 dark:bg-gray-700/60 backdrop-blur-sm px-4 py-3 text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-blue-500 dark:text-white dark:placeholder-gray-400 dark:focus:border-blue-400 dark:focus:ring-blue-400 shadow-lg"
                     style={{
                       minHeight: '52px',
                       maxHeight: '120px',
@@ -268,7 +268,7 @@ export function ChatInterface() {
                   whileTap={{ scale: 0.95 }}
                   type="submit"
                   disabled={!input.trim() || isLoading}
-                  className="flex h-[52px] w-[52px] items-center justify-center rounded-lg bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:focus:ring-offset-gray-800"
+                  className="flex h-[52px] w-[52px] items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 dark:focus:ring-offset-gray-800"
                 >
                   {isLoading ? (
                     <Loader2 className="h-5 w-5 animate-spin" />
@@ -286,14 +286,14 @@ export function ChatInterface() {
         </div>
 
         {/* Sidebar */}
-        <div className="hidden w-80 border-l border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-800 lg:flex lg:flex-col">
+        <div className="hidden w-80 border-l border-white/30 dark:border-gray-700/30 bg-white/30 dark:bg-gray-800/30 backdrop-blur-sm lg:flex lg:flex-col rounded-r-3xl">
           {/* Sidebar tabs */}
-          <div className="flex border-b border-gray-200 dark:border-gray-700">
+          <div className="flex border-b border-white/30 dark:border-gray-700/30 rounded-tr-3xl bg-white/20 dark:bg-gray-800/20 backdrop-blur-sm">
             <button
               onClick={() => setSidebarView('schedule')}
               className={`flex-1 px-3 py-3 text-xs font-medium transition-colors ${
                 sidebarView === 'schedule'
-                  ? 'text-primary-600 border-b-2 border-primary-600 dark:text-primary-400 dark:border-primary-400'
+                  ? 'text-blue-600 border-b-2 border-blue-600 dark:text-blue-400 dark:border-blue-400'
                   : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
               }`}
             >
@@ -304,7 +304,7 @@ export function ChatInterface() {
               onClick={() => setSidebarView('bricks')}
               className={`flex-1 px-3 py-3 text-xs font-medium transition-colors ${
                 sidebarView === 'bricks'
-                  ? 'text-primary-600 border-b-2 border-primary-600 dark:text-primary-400 dark:border-primary-400'
+                  ? 'text-blue-600 border-b-2 border-blue-600 dark:text-blue-400 dark:border-blue-400'
                   : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
               }`}
             >
@@ -315,7 +315,7 @@ export function ChatInterface() {
               onClick={() => setSidebarView('insights')}
               className={`flex-1 px-3 py-3 text-xs font-medium transition-colors ${
                 sidebarView === 'insights'
-                  ? 'text-primary-600 border-b-2 border-primary-600 dark:text-primary-400 dark:border-primary-400'
+                  ? 'text-blue-600 border-b-2 border-blue-600 dark:text-blue-400 dark:border-blue-400'
                   : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
               }`}
             >

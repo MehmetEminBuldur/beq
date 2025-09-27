@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Menu, X, Sun, Moon, User, Settings, LogOut, Calendar, MessageSquare, Blocks, Zap, Bell } from 'lucide-react';
 import { useTheme } from 'next-themes';
-import { useAuth } from '@/lib/hooks/use-auth';
+import { useAuthContext } from '@/lib/providers/auth-provider';
 import Link from 'next/link';
 
 export function Navigation() {
@@ -12,7 +12,7 @@ export function Navigation() {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const { theme, setTheme } = useTheme();
-  const { user, signOut } = useAuth();
+  const { user, signOut } = useAuthContext();
 
   // Prevent hydration mismatch for theme
   useEffect(() => {

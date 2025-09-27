@@ -177,7 +177,7 @@ class CreateQuantaTool(BaseTool, LoggerMixin):
                 'title': title,
                 'description': description,
                 'priority': priority,
-                'status': 'pending',
+                'status': 'not_started',
                 'estimated_duration_minutes': estimated_duration_minutes,
                 'completion_percentage': 0.0,
                 'order_index': order_index,

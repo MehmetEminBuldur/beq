@@ -103,18 +103,12 @@ export function useCalendar() {
     const calendarServiceUrl = process.env.NEXT_PUBLIC_CALENDAR_INTEGRATION_URL || 'http://localhost:8003';
     const orchestratorUrl = process.env.NEXT_PUBLIC_ORCHESTRATOR_API_URL || 'http://localhost:8000';
 
-    let url = `${calendarServiceUrl}/api/v1/calendar/${endpoint}`;
-    let response = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      ...options,
-    });
+    let response: Response;
+    let lastError: Error | null = null;
 
-    // If calendar service fails, try orchestrator service
-    if (!response.ok) {
-      url = `${orchestratorUrl}/api/v1/calendar/${endpoint}`;
+    // Try calendar service first
+    try {
+      const url = `${calendarServiceUrl}/api/v1/calendar/${endpoint}`;
       response = await fetch(url, {
         headers: {
           'Content-Type': 'application/json',
@@ -122,14 +116,39 @@ export function useCalendar() {
         },
         ...options,
       });
+
+      if (response.ok) {
+        return response.json();
+      }
+      
+      lastError = new Error(`Calendar service error: ${response.status}`);
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error('Calendar service unavailable');
     }
 
-    if (!response.ok) {
+    // If calendar service fails, try orchestrator service
+    try {
+      const url = `${orchestratorUrl}/api/v1/calendar/${endpoint}`;
+      response = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+        ...options,
+      });
+
+      if (response.ok) {
+        return response.json();
+      }
+
       const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
-      throw new Error(errorData.message || `Request failed: ${response.status}`);
+      throw new Error(errorData.message || `Orchestrator service error: ${response.status}`);
+    } catch (error) {
+      // If both services fail, throw the last error
+      const finalError = error instanceof Error ? error : new Error('Both calendar services unavailable');
+      console.warn('Calendar services unavailable:', { calendarError: lastError?.message, orchestratorError: finalError.message });
+      throw finalError;
     }
-
-    return response.json();
   }, [user?.id]);
 
   // Mock data for testing
@@ -197,32 +216,54 @@ export function useCalendar() {
       // For testing purposes, return mock authenticated status
       if (process.env.NODE_ENV === 'development') {
         return {
-          authenticated: true,
+          authenticated: false, // Changed to false to avoid confusion
           provider: 'google',
-          email: 'test@example.com',
-          scopes: ['https://www.googleapis.com/auth/calendar.readonly', 'https://www.googleapis.com/auth/calendar.events'],
+          email: undefined,
+          scopes: [],
         };
       }
 
       // Try calendar integration service first
       const calendarServiceUrl = process.env.NEXT_PUBLIC_CALENDAR_INTEGRATION_URL || 'http://localhost:8003';
-      const response = await fetch(`${calendarServiceUrl}/api/v1/auth/google/status/${user?.id}`);
+      
+      try {
+        const response = await fetch(`${calendarServiceUrl}/api/v1/auth/google/status/${user?.id}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
 
-      if (!response.ok) {
-        throw new Error(`Request failed: ${response.status}`);
+        if (!response.ok) {
+          throw new Error(`Calendar service unavailable: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return {
+          authenticated: data.authenticated,
+          provider: data.provider,
+          email: data.profile?.email,
+          scopes: data.scopes,
+        };
+      } catch (serviceError) {
+        // If calendar service is not available, return default unauthenticated status
+        console.warn('Calendar service not available:', serviceError);
+        return {
+          authenticated: false,
+          provider: 'google',
+          email: undefined,
+          scopes: [],
+        };
       }
-
-      const data = await response.json();
-      return {
-        authenticated: data.authenticated,
-        provider: data.provider,
-        email: data.profile?.email,
-        scopes: data.scopes,
-      };
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to get auth status';
-      setError(errorMessage);
-      throw err;
+      // Return unauthenticated status instead of throwing error
+      console.warn('Failed to get auth status:', err);
+      return {
+        authenticated: false,
+        provider: 'google',
+        email: undefined,
+        scopes: [],
+      };
     } finally {
       setLoading(false);
     }
@@ -238,6 +279,23 @@ export function useCalendar() {
       setLoading(true);
       setError(null);
 
+      // For development mode, return mock sync result
+      if (process.env.NODE_ENV === 'development') {
+        // Simulate sync delay
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return {
+          success: true,
+          events_synced: 3,
+          conflicts_detected: 0,
+          conflicts_resolved: 0,
+          conflicts_unresolved: 0,
+          conflict_details: {},
+          detected_conflicts: [],
+          errors: [],
+          sync_duration_seconds: 1.2
+        };
+      }
+
       const params = new URLSearchParams({
         calendar_id: calendarId,
         ...(startDate && { start_date: startDate.toISOString() }),
@@ -245,11 +303,39 @@ export function useCalendar() {
         ...(conflictResolution && { conflict_resolution: conflictResolution }),
       });
 
-      return await makeRequest(`sync/${user?.id}?${params}`);
+      try {
+        return await makeRequest(`sync/${user?.id}?${params}`);
+      } catch (serviceError) {
+        // If service is unavailable, return a mock result indicating service unavailability
+        console.warn('Calendar sync service unavailable:', serviceError);
+        return {
+          success: false,
+          events_synced: 0,
+          conflicts_detected: 0,
+          conflicts_resolved: 0,
+          conflicts_unresolved: 0,
+          conflict_details: {},
+          detected_conflicts: [],
+          errors: ['Calendar service is currently unavailable. Please try again later.'],
+          sync_duration_seconds: 0
+        };
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to sync calendar';
       setError(errorMessage);
-      throw err;
+      
+      // Return a failed sync result instead of throwing
+      return {
+        success: false,
+        events_synced: 0,
+        conflicts_detected: 0,
+        conflicts_resolved: 0,
+        conflicts_unresolved: 0,
+        conflict_details: {},
+        detected_conflicts: [],
+        errors: [errorMessage],
+        sync_duration_seconds: 0
+      };
     } finally {
       setLoading(false);
     }
@@ -265,6 +351,11 @@ export function useCalendar() {
       setLoading(true);
       setError(null);
 
+      // For development mode, return mock events
+      if (process.env.NODE_ENV === 'development') {
+        return mockCalendarResponse('events').then(response => response.events || []);
+      }
+
       const params = new URLSearchParams({
         calendar_id: calendarId,
         max_results: maxResults.toString(),
@@ -272,16 +363,23 @@ export function useCalendar() {
         ...(endDate && { end_date: endDate.toISOString() }),
       });
 
-      const response = await makeRequest(`events/${user?.id}?${params}`);
-      return response.events || [];
+      try {
+        const response = await makeRequest(`events/${user?.id}?${params}`);
+        return response.events || [];
+      } catch (serviceError) {
+        // If service is unavailable, return empty array instead of throwing
+        console.warn('Calendar events service unavailable:', serviceError);
+        return [];
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to get calendar events';
-      setError(errorMessage);
-      throw err;
+      console.warn('Failed to get calendar events:', errorMessage);
+      // Return empty array instead of throwing
+      return [];
     } finally {
       setLoading(false);
     }
-  }, [makeRequest, user?.id]);
+  }, [makeRequest, user?.id, mockCalendarResponse]);
 
   const getConflicts = useCallback(async (
     calendarId: string = 'primary',
@@ -465,37 +563,52 @@ export function useCalendar() {
       if (process.env.NODE_ENV === 'development') {
         // Simulate OAuth success
         setTimeout(() => {
-          toast.success('Google Calendar connected successfully! (Test mode)');
+          toast.success('Google Calendar connected successfully! (Development mode)');
         }, 1000);
         return 'mock_oauth_url';
       }
 
       const calendarServiceUrl = process.env.NEXT_PUBLIC_CALENDAR_INTEGRATION_URL || 'http://localhost:8003';
-      const response = await fetch(`${calendarServiceUrl}/api/v1/auth/google/login?user_id=${user?.id}`);
+      
+      try {
+        const response = await fetch(`${calendarServiceUrl}/api/v1/auth/google/login?user_id=${user?.id}`);
 
-      if (!response.ok) {
-        throw new Error(`Request failed: ${response.status}`);
+        if (!response.ok) {
+          throw new Error(`Calendar service unavailable: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // Open the authorization URL in a popup window
+        const authWindow = window.open(
+          data.authorization_url,
+          'google-calendar-auth',
+          'width=600,height=700,scrollbars=yes,resizable=yes'
+        );
+
+        if (!authWindow) {
+          throw new Error('Failed to open authorization window. Please allow popups for this site.');
+        }
+
+        toast.success('Google Calendar authorization opened. Please complete the authorization.');
+        return data.authorization_url;
+      } catch (serviceError) {
+        const errorMessage = serviceError instanceof Error ? serviceError.message : 'Calendar service unavailable';
+        if (errorMessage.includes('unavailable') || errorMessage.includes('404')) {
+          toast.error('Calendar service is currently unavailable. Please try again later.');
+        } else {
+          toast.error(`Failed to connect: ${errorMessage}`);
+        }
+        throw serviceError;
       }
-
-      const data = await response.json();
-
-      // Open the authorization URL in a popup window
-      const authWindow = window.open(
-        data.authorization_url,
-        'google-calendar-auth',
-        'width=600,height=700,scrollbars=yes,resizable=yes'
-      );
-
-      if (!authWindow) {
-        throw new Error('Failed to open authorization window. Please allow popups for this site.');
-      }
-
-      toast.success('Google Calendar authorization opened. Please complete the authorization.');
-      return data.authorization_url;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to initiate Google Calendar connection';
       setError(errorMessage);
-      toast.error(errorMessage);
+      
+      // Don't show duplicate toast if we already showed one above
+      if (!errorMessage.includes('unavailable') && !errorMessage.includes('Calendar service')) {
+        toast.error(errorMessage);
+      }
       throw err;
     } finally {
       setLoading(false);
