@@ -1,4 +1,11 @@
+import os
 from supabase import create_client, Client
 
+# Use environment variables for security
+supabase_url = os.getenv("SUPABASE_URL")
+supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
-create_client("https://ncuqhnggwiayzqvrelql.supabase.co", supabase_key="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5jdXFobmdnd2lheXpxdnJlbHFsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1ODI4OTA4NywiZXhwIjoyMDczODY1MDg3fQ.FvxvPeqgGVkkZ8Tn24SRWRy5HxLpXXqIbST-YtOl7OI")
+if not supabase_url or not supabase_key:
+    raise ValueError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables are required")
+
+create_client(supabase_url, supabase_key=supabase_key)
