@@ -7,6 +7,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 
+// CORS configuration
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+  'Access-Control-Max-Age': '86400',
+};
+
+// Handle preflight OPTIONS request
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, {
+    status: 200,
+    headers: corsHeaders,
+  });
+}
+
 // Types
 interface ChatMessageRequest {
   message: string;
@@ -138,14 +154,20 @@ export async function POST(request: NextRequest) {
     if (!message || !user_id) {
       return NextResponse.json(
         { error: 'Missing required fields: message and user_id' },
-        { status: 400 }
+        { 
+          status: 400,
+          headers: corsHeaders,
+        }
       );
     }
 
     if (message.length > 2000) {
       return NextResponse.json(
         { error: 'Message too long (max 2000 characters)' },
-        { status: 400 }
+        { 
+          status: 400,
+          headers: corsHeaders,
+        }
       );
     }
 
@@ -248,7 +270,10 @@ export async function POST(request: NextRequest) {
 
     console.log(`Chat message processed for user ${user_id} in ${processingTimeMs}ms`);
 
-    return NextResponse.json(response, { status: 200 });
+    return NextResponse.json(response, { 
+      status: 200,
+      headers: corsHeaders,
+    });
 
   } catch (error) {
     const processingTimeMs = Date.now() - startTime;
@@ -262,7 +287,10 @@ export async function POST(request: NextRequest) {
         processing_time_ms: processingTimeMs,
         timestamp: new Date().toISOString()
       },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: corsHeaders,
+      }
     );
   }
 }

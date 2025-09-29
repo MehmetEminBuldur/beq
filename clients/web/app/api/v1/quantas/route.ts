@@ -1,6 +1,6 @@
 /**
- * Bricks (tasks/projects) management endpoint
- * Full implementation for brick and quanta operations
+ * Quantas (subtasks) management endpoint
+ * Handles CRUD operations for quantas associated with bricks
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -15,235 +15,8 @@ export async function OPTIONS() {
   });
 }
 
-// GET handler - Fetch user's Bricks
+// GET handler - Fetch quantas for a brick
 export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('user_id');
-
-    if (!userId) {
-      return NextResponse.json({
-        error: 'Missing user_id parameter'
-      }, {
-        status: 400,
-        headers: corsHeaders,
-      });
-    }
-
-    // Use service role for server-side operations to bypass RLS
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-
-    // Fetch user's bricks
-    const { data: bricks, error } = await supabase
-      .from('bricks')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching bricks:', error);
-      return NextResponse.json({
-        error: 'Failed to fetch bricks',
-        details: error.message
-      }, {
-        status: 500,
-        headers: corsHeaders,
-      });
-    }
-
-    return NextResponse.json({
-      success: true,
-      bricks: bricks || []
-    }, {
-      headers: corsHeaders,
-    });
-
-  } catch (error) {
-    console.error('GET /api/v1/bricks error:', error);
-    return NextResponse.json({
-      error: 'Internal server error',
-      message: error instanceof Error ? error.message : 'Unknown error'
-    }, {
-      status: 500,
-      headers: corsHeaders,
-    });
-  }
-}
-
-// POST handler - Create new Brick (with optional quantas)
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { user_id, brick, quantas } = body;
-
-    if (!user_id || !brick) {
-      return NextResponse.json({
-        error: 'Missing required fields: user_id and brick'
-      }, {
-        status: 400,
-        headers: corsHeaders,
-      });
-    }
-
-    // Use service role for server-side operations to bypass RLS
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-
-    // Create the brick - only include fields that exist in database
-    const brickData = {
-      user_id,
-      title: brick.title,
-      description: brick.description || '',
-      category: brick.category || 'general',
-      priority: brick.priority || 'medium',
-      estimated_duration_minutes: brick.estimated_duration_minutes || 60,
-      status: 'not_started',
-      // Only include these fields if they exist in the schema
-      ...(brick.recurrence_type && { recurrence_type: brick.recurrence_type }),
-      ...(brick.recurrence_interval && { recurrence_interval: brick.recurrence_interval }),
-      ...(brick.learning_objectives && { learning_objectives: brick.learning_objectives }),
-      ...(brick.personalization_tags && { personalization_tags: brick.personalization_tags }),
-      ...(brick.target_date && { target_date: brick.target_date }),
-      ...(brick.deadline && { deadline: brick.deadline })
-    };
-
-    const { data: createdBrick, error: brickError } = await supabase
-      .from('bricks')
-      .insert(brickData)
-      .select()
-      .single();
-
-    if (brickError) {
-      console.error('Error creating brick:', brickError);
-      return NextResponse.json({
-        error: 'Failed to create brick',
-        details: brickError.message
-      }, {
-        status: 500,
-        headers: corsHeaders,
-      });
-    }
-
-    let createdQuantas = [];
-
-    // Create quantas if provided
-    if (quantas && Array.isArray(quantas) && quantas.length > 0) {
-      const quantaInserts = quantas.map((quanta, index) => ({
-        brick_id: createdBrick.id,
-        user_id,
-        title: quanta.title,
-        description: quanta.description || '',
-        estimated_duration_minutes: quanta.estimated_duration_minutes || 30,
-        priority: quanta.priority || 'medium',
-        status: 'not_started',
-        order_index: quanta.order_index ?? index,
-        // Only include optional fields if they exist in schema
-        ...(quanta.ai_suggestions && { ai_suggestions: quanta.ai_suggestions })
-      }));
-
-      const { data: quantaData, error: quantaError } = await supabase
-        .from('quantas')
-        .insert(quantaInserts)
-        .select();
-
-      if (quantaError) {
-        console.error('Error creating quantas:', quantaError);
-        // Don't fail the whole operation, just log the error
-        console.warn('Brick created but quantas failed to create');
-      } else {
-        createdQuantas = quantaData || [];
-      }
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: 'Brick created successfully',
-      brick: createdBrick,
-      quantas: createdQuantas,
-      quantas_count: createdQuantas.length
-    }, {
-      headers: corsHeaders,
-    });
-
-  } catch (error) {
-    console.error('POST /api/v1/bricks error:', error);
-    return NextResponse.json({
-      error: 'Internal server error',
-      message: error instanceof Error ? error.message : 'Unknown error'
-    }, {
-      status: 500,
-      headers: corsHeaders,
-    });
-  }
-}
-
-// PUT handler - Update Brick
-export async function PUT(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { brick_id, user_id, updates } = body;
-
-    if (!brick_id || !user_id || !updates) {
-      return NextResponse.json({
-        error: 'Missing required fields: brick_id, user_id, and updates'
-      }, {
-        status: 400,
-        headers: corsHeaders,
-      });
-    }
-
-    // Use service role for server-side operations to bypass RLS
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-
-    const { data, error } = await supabase
-      .from('bricks')
-      .update(updates)
-      .eq('id', brick_id)
-      .eq('user_id', user_id)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error updating brick:', error);
-      return NextResponse.json({
-        error: 'Failed to update brick',
-        details: error.message
-      }, {
-        status: 500,
-        headers: corsHeaders,
-      });
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: 'Brick updated successfully',
-      brick: data
-    }, {
-      headers: corsHeaders,
-    });
-
-  } catch (error) {
-    console.error('PUT /api/v1/bricks error:', error);
-    return NextResponse.json({
-      error: 'Internal server error',
-      message: error instanceof Error ? error.message : 'Unknown error'
-    }, {
-      status: 500,
-      headers: corsHeaders,
-    });
-  }
-}
-
-// DELETE handler - Delete Brick
-export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const brickId = searchParams.get('brick_id');
@@ -264,24 +37,34 @@ export async function DELETE(request: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // Delete associated quantas first
-    await supabase
-      .from('quantas')
-      .delete()
-      .eq('brick_id', brickId)
-      .eq('user_id', userId);
-
-    // Delete the brick
-    const { error } = await supabase
+    // Verify the brick belongs to the user
+    const { data: brick, error: brickError } = await supabase
       .from('bricks')
-      .delete()
+      .select('id, user_id')
       .eq('id', brickId)
-      .eq('user_id', userId);
+      .eq('user_id', userId)
+      .single();
+
+    if (brickError || !brick) {
+      return NextResponse.json({
+        error: 'Brick not found or access denied'
+      }, {
+        status: 404,
+        headers: corsHeaders,
+      });
+    }
+
+    // Fetch quantas for the brick
+    const { data: quantas, error } = await supabase
+      .from('quantas')
+      .select('*')
+      .eq('brick_id', brickId)
+      .order('order_index', { ascending: true });
 
     if (error) {
-      console.error('Error deleting brick:', error);
+      console.error('Error fetching quantas:', error);
       return NextResponse.json({
-        error: 'Failed to delete brick',
+        error: 'Failed to fetch quantas',
         details: error.message
       }, {
         status: 500,
@@ -291,13 +74,244 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Brick and associated quantas deleted successfully'
+      quantas: quantas || []
     }, {
       headers: corsHeaders,
     });
 
   } catch (error) {
-    console.error('DELETE /api/v1/bricks error:', error);
+    console.error('GET /api/v1/quantas error:', error);
+    return NextResponse.json({
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    }, {
+      status: 500,
+      headers: corsHeaders,
+    });
+  }
+}
+
+// POST handler - Create new Quanta
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { user_id, brick_id, title, description, estimated_duration_minutes, priority, ai_suggestions } = body;
+
+    if (!user_id || !brick_id || !title) {
+      return NextResponse.json({
+        error: 'Missing required fields: user_id, brick_id, and title'
+      }, {
+        status: 400,
+        headers: corsHeaders,
+      });
+    }
+
+    // Use service role for server-side operations to bypass RLS
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    // Verify the brick belongs to the user
+    const { data: brick, error: brickError } = await supabase
+      .from('bricks')
+      .select('id, user_id')
+      .eq('id', brick_id)
+      .eq('user_id', user_id)
+      .single();
+
+    if (brickError || !brick) {
+      return NextResponse.json({
+        error: 'Brick not found or access denied'
+      }, {
+        status: 404,
+        headers: corsHeaders,
+      });
+    }
+
+    // Get the highest order index for this brick
+    const { data: existingQuantas } = await supabase
+      .from('quantas')
+      .select('order_index')
+      .eq('brick_id', brick_id)
+      .order('order_index', { ascending: false })
+      .limit(1);
+
+    const nextOrderIndex = existingQuantas && existingQuantas.length > 0
+      ? existingQuantas[0].order_index + 1
+      : 0;
+
+    const quantaData = {
+      brick_id,
+      title,
+      description: description || '',
+      estimated_duration_minutes: estimated_duration_minutes || 30,
+      status: 'not_started',
+      order_index: nextOrderIndex
+    };
+
+    const { data: createdQuanta, error: quantaError } = await supabase
+      .from('quantas')
+      .insert(quantaData)
+      .select()
+      .single();
+
+    if (quantaError) {
+      console.error('Error creating quanta:', quantaError);
+      return NextResponse.json({
+        error: 'Failed to create quanta',
+        details: quantaError.message
+      }, {
+        status: 500,
+        headers: corsHeaders,
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Quanta created successfully',
+      quanta: createdQuanta
+    }, {
+      headers: corsHeaders,
+    });
+
+  } catch (error) {
+    console.error('POST /api/v1/quantas error:', error);
+    return NextResponse.json({
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    }, {
+      status: 500,
+      headers: corsHeaders,
+    });
+  }
+}
+
+// PUT handler - Update Quanta
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { quanta_id, user_id, updates } = body;
+
+    if (!quanta_id || !user_id || !updates) {
+      return NextResponse.json({
+        error: 'Missing required fields: quanta_id, user_id, and updates'
+      }, {
+        status: 400,
+        headers: corsHeaders,
+      });
+    }
+
+    // Use service role for server-side operations to bypass RLS
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    // Verify the quanta belongs to the user
+    const { data: quanta, error: quantaCheckError } = await supabase
+      .from('quantas')
+      .select('id, user_id')
+      .eq('id', quanta_id)
+      .eq('user_id', user_id)
+      .single();
+
+    if (quantaCheckError || !quanta) {
+      return NextResponse.json({
+        error: 'Quanta not found or access denied'
+      }, {
+        status: 404,
+        headers: corsHeaders,
+      });
+    }
+
+    const { data, error } = await supabase
+      .from('quantas')
+      .update(updates)
+      .eq('id', quanta_id)
+      .eq('user_id', user_id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating quanta:', error);
+      return NextResponse.json({
+        error: 'Failed to update quanta',
+        details: error.message
+      }, {
+        status: 500,
+        headers: corsHeaders,
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Quanta updated successfully',
+      quanta: data
+    }, {
+      headers: corsHeaders,
+    });
+
+  } catch (error) {
+    console.error('PUT /api/v1/quantas error:', error);
+    return NextResponse.json({
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    }, {
+      status: 500,
+      headers: corsHeaders,
+    });
+  }
+}
+
+// DELETE handler - Delete Quanta
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const quantaId = searchParams.get('quanta_id');
+    const userId = searchParams.get('user_id');
+
+    if (!quantaId || !userId) {
+      return NextResponse.json({
+        error: 'Missing required parameters: quanta_id and user_id'
+      }, {
+        status: 400,
+        headers: corsHeaders,
+      });
+    }
+
+    // Use service role for server-side operations to bypass RLS
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    const { error } = await supabase
+      .from('quantas')
+      .delete()
+      .eq('id', quantaId)
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Error deleting quanta:', error);
+      return NextResponse.json({
+        error: 'Failed to delete quanta',
+        details: error.message
+      }, {
+        status: 500,
+        headers: corsHeaders,
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Quanta deleted successfully'
+    }, {
+      headers: corsHeaders,
+    });
+
+  } catch (error) {
+    console.error('DELETE /api/v1/quantas error:', error);
     return NextResponse.json({
       error: 'Internal server error',
       message: error instanceof Error ? error.message : 'Unknown error'

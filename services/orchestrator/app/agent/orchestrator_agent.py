@@ -259,8 +259,15 @@ class OrchestratorAgent(LoggerMixin):
                         tool_args = {}
                 tool_id = tool_call.get("id")
                 
-                # Inject user_id for specific tools
-                if tool_name in ["create_brick", "get_bricks", "update_brick", "delete_brick", "get_quantas"]:
+                # Inject user_id for tools that need it
+                tools_needing_user_id = [
+                    "create_brick", "get_bricks", "update_brick", "delete_brick", 
+                    "get_quantas", "create_quanta", "update_quanta", "delete_quanta",
+                    "schedule_brick", "optimize_schedule", "get_schedule",
+                    "get_resource_recommendations", "search_resources",
+                    "get_calendar_events", "sync_calendar"
+                ]
+                if tool_name in tools_needing_user_id:
                     tool_args["user_id"] = state.get("user_id")
                     self.logger.info(f"Injected user_id {state.get('user_id')} for {tool_name}")
                 
@@ -277,6 +284,9 @@ class OrchestratorAgent(LoggerMixin):
                             name=tool_name
                         )
                         tool_results.append(tool_message)
+                        
+                        # Track tool execution results for response metadata
+                        self._track_tool_execution(state, tool_name, str(result), tool_args)
                         
                         self.logger.info("Tool executed successfully",
                                        tool_name=tool_name,
@@ -499,6 +509,42 @@ class OrchestratorAgent(LoggerMixin):
         state["tools_used"] = tools_used
         return state
     
+    def _track_tool_execution(self, state: AgentState, tool_name: str, result: str, tool_args: Dict[str, Any]) -> None:
+        """Track tool execution results for response metadata."""
+        if tool_name == "create_brick":
+            # Extract brick ID from the result if successful
+            if "Successfully created" in result and "with ID" in result:
+                try:
+                    # Parse: "Successfully created Brick 'title' with ID {brick_id}. ..."
+                    brick_id = result.split("with ID ")[1].split(".")[0].strip()
+                    state["bricks_created"].append(brick_id)
+                    self.logger.info("Tracked brick creation", brick_id=brick_id)
+                except (IndexError, ValueError) as e:
+                    self.logger.warning("Failed to parse brick ID from result", result=result, error=str(e))
+                    state["bricks_created"].append(tool_args.get("title", "Unknown"))
+            else:
+                state["bricks_created"].append(tool_args.get("title", "Unknown"))
+        
+        elif tool_name == "update_brick":
+            # Track brick updates
+            if "Successfully updated" in result or "updated successfully" in result:
+                brick_id = tool_args.get("brick_id", "Unknown")
+                state["bricks_updated"].append(brick_id)
+                self.logger.info("Tracked brick update", brick_id=brick_id)
+        
+        elif tool_name == "create_quanta":
+            # Track quanta creation (these don't go in bricks_created but are tracked)
+            if "Successfully created" in result and "with ID" in result:
+                try:
+                    quanta_id = result.split("with ID ")[1].split(".")[0].strip()
+                    # Quantas aren't bricks, but we track them for completeness
+                    self.logger.info("Tracked quanta creation", quanta_id=quanta_id)
+                except (IndexError, ValueError) as e:
+                    self.logger.warning("Failed to parse quanta ID from result", result=result, error=str(e))
+        
+        # Add tool to used tools list
+        state["tools_used"].append(tool_name)
+    
     async def _generate_response(self, state: AgentState) -> AgentState:
         """Generate the final response to the user."""
         
@@ -584,7 +630,14 @@ class OrchestratorAgent(LoggerMixin):
                         function_args = json.loads(tool_call.function.arguments)
                         
                         # Inject required context into function args
-                        if function_name in ["create_brick", "get_bricks", "update_brick"]:
+                        tools_needing_user_id = [
+                            "create_brick", "get_bricks", "update_brick", "delete_brick", 
+                            "get_quantas", "create_quanta", "update_quanta", "delete_quanta",
+                            "schedule_brick", "optimize_schedule", "get_schedule",
+                            "get_resource_recommendations", "search_resources",
+                            "get_calendar_events", "sync_calendar"
+                        ]
+                        if function_name in tools_needing_user_id:
                             function_args["user_id"] = state.get("user_id")
                             self.logger.info(f"Injected user_id {state.get('user_id')} for {function_name}")
                         # Note: create_quanta doesn't need user_id as it gets user through brick relationship
@@ -596,22 +649,8 @@ class OrchestratorAgent(LoggerMixin):
                             result = await tool.arun(function_args)
                             tool_results.append(f"{function_name}: {result}")
                             
-                            # Update state based on tool used
-                            if function_name == "create_brick":
-                                # Extract brick ID from the result if successful
-                                if "Successfully created" in result and "with ID" in result:
-                                    brick_id = result.split("with ID ")[-1].strip()
-                                    state["bricks_created"].append(brick_id)
-                                else:
-                                    state["bricks_created"].append(function_args.get("title", "Unknown"))
-                            elif function_name == "create_quanta":
-                                if "Successfully created" in result and "with ID" in result:
-                                    quanta_id = result.split("with ID ")[-1].strip()
-                                    state["bricks_created"].append(f"Quanta: {quanta_id}")
-                                else:
-                                    state["bricks_created"].append(f"Quanta: {function_args.get('title', 'Unknown')}")
-                            
-                            state["tools_used"].append(function_name)
+                            # Track tool execution results for response metadata
+                            self._track_tool_execution(state, function_name, str(result), function_args)
                             
                             self.logger.info(
                                 "Tool executed successfully",
@@ -860,10 +899,10 @@ Remember: You're not just a scheduler, you're a life optimization partner. Help 
             
             import asyncio
             try:
-                # Add 20 second timeout to workflow execution
+                # Add 45 second timeout to workflow execution (increased from 20s)
                 final_state = await asyncio.wait_for(
                     self.workflow.ainvoke(initial_state, config),
-                    timeout=20.0
+                    timeout=45.0
                 )
             except asyncio.TimeoutError:
                 self.logger.error("Workflow execution timed out", 
@@ -887,6 +926,7 @@ Remember: You're not just a scheduler, you're a life optimization partner. Help 
                 suggestions=final_state.get("user_context", {}).get("last_suggestions", []),
                 schedule_updated=final_state.get("schedule_updated", False),
                 bricks_created=[self._safe_parse_uuid(bid) for bid in final_state.get("bricks_created", []) if self._safe_parse_uuid(bid)],
+                bricks_updated=[self._safe_parse_uuid(bid) for bid in final_state.get("bricks_updated", []) if self._safe_parse_uuid(bid)],
                 resources_recommended=[self._safe_parse_uuid(rid) for rid in final_state.get("resources_recommended", []) if self._safe_parse_uuid(rid)]
             )
             

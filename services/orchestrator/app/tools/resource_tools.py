@@ -12,7 +12,6 @@ from ..core.logging import LoggerMixin
 
 class GetResourceRecommendationsInput(BaseModel):
     """Input for getting resource recommendations."""
-    user_id: str = Field(description="User ID")
     context: str = Field(description="Context for recommendations (e.g., skill, topic)")
     brick_id: str = Field(None, description="Related Brick ID")
 
@@ -21,7 +20,7 @@ class GetResourceRecommendationsTool(BaseTool, LoggerMixin):
     """Tool for getting personalized resource recommendations."""
     
     name = "get_resource_recommendations"
-    description = "Get personalized resource recommendations for learning and skill development"
+    description = "Get personalized resource recommendations for learning and skill development. User authentication is handled automatically - do not ask for user ID."
     args_schema = GetResourceRecommendationsInput
     
     async def _arun(self, **kwargs) -> str:
@@ -44,7 +43,7 @@ class SearchResourcesTool(BaseTool, LoggerMixin):
     """Tool for searching available resources."""
     
     name = "search_resources"
-    description = "Search for specific resources by query"
+    description = "Search for specific resources by query. User authentication is handled automatically - do not ask for user ID."
     args_schema = SearchResourcesInput
     
     async def _arun(self, **kwargs) -> str:

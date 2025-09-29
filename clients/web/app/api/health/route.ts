@@ -5,6 +5,22 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
+// CORS configuration
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+  'Access-Control-Max-Age': '86400',
+};
+
+// Handle preflight OPTIONS request
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, {
+    status: 200,
+    headers: corsHeaders,
+  });
+}
+
 export async function GET(request: NextRequest) {
   try {
     const health = {
@@ -31,6 +47,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(health, {
       status: 200,
       headers: {
+        ...corsHeaders,
         'Cache-Control': 'public, max-age=30'
       }
     });
@@ -45,7 +62,10 @@ export async function GET(request: NextRequest) {
         error: error instanceof Error ? error.message : 'Unknown error',
         timestamp: new Date().toISOString()
       },
-      { status: 503 }
+      { 
+        status: 503,
+        headers: corsHeaders,
+      }
     );
   }
 }

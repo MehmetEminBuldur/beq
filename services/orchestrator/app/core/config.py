@@ -5,6 +5,7 @@ This module handles all configuration settings using Pydantic Settings
 for type safety and environment variable management.
 """
 
+import os
 from functools import lru_cache
 from typing import List, Optional
 from pydantic import Field
@@ -61,6 +62,13 @@ class Settings(BaseSettings):
     presence_penalty: float = Field(0.1, description="Presence penalty")
     
     # External service URLs
+    web_api_url: str = Field(
+        default_factory=lambda: (
+            "http://web:3000" if os.getenv("DOCKER_ENV") == "true" 
+            else "http://localhost:3000"
+        ),
+        description="Web API URL for brick/quanta operations"
+    )
     scheduler_service_url: str = Field(
         "http://localhost:8001",
         description="Scheduler service URL"

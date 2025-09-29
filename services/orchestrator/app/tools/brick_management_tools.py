@@ -5,6 +5,8 @@ These tools allow the agent to create, update, and manage Bricks and Quantas.
 """
 
 import uuid
+import aiohttp
+import json
 from datetime import datetime
 from typing import Optional, List
 from langchain_core.tools import BaseTool
@@ -12,13 +14,13 @@ from pydantic import BaseModel, Field
 
 from ..core.logging import LoggerMixin
 from ..core.supabase import get_supabase
+from ..core.config import get_settings
 
 
 class CreateBrickInput(BaseModel):
     """Input for creating a Brick."""
     title: str = Field(description="Title of the Brick")
     description: str = Field(description="Description of the Brick")
-    user_id: str = Field(description="User ID")
     category: str = Field(default="personal", description="Category of the Brick (work, personal, health, learning, social, maintenance, recreation)")
     priority: str = Field(default="medium", description="Priority level (low, medium, high, urgent)")
     estimated_duration_minutes: int = Field(default=60, description="Estimated duration in minutes")
@@ -30,7 +32,7 @@ class CreateBrickTool(BaseTool, LoggerMixin):
     """Tool for creating new Bricks."""
     
     name = "create_brick"
-    description = "Create a new Brick (main task) for the user"
+    description = "Create a new Brick (main task) for the user. User authentication is handled automatically - do not ask for user ID."
     
     def get_input_schema(self, config=None):
         """Return the input schema for this tool."""
@@ -47,11 +49,10 @@ class CreateBrickTool(BaseTool, LoggerMixin):
                    target_date=None, 
                    deadline=None, 
                    **kwargs) -> str:
-        """Async implementation of the tool."""
+        """Async implementation using the new API endpoint."""
         try:
             # Handle both calling conventions: dict input or keyword args
             if tool_input is not None and isinstance(tool_input, dict):
-                # Extract from dictionary
                 title = tool_input.get('title', title)
                 description = tool_input.get('description', description)
                 user_id = tool_input.get('user_id', user_id)
@@ -60,7 +61,6 @@ class CreateBrickTool(BaseTool, LoggerMixin):
                 estimated_duration_minutes = tool_input.get('estimated_duration_minutes', estimated_duration_minutes)
                 target_date = tool_input.get('target_date', target_date)
                 deadline = tool_input.get('deadline', deadline)
-            # Otherwise use the keyword arguments passed directly
             
             # Normalize case for database constraints
             if category:
@@ -68,46 +68,56 @@ class CreateBrickTool(BaseTool, LoggerMixin):
             if priority:
                 priority = priority.lower()
             
-            supabase = get_supabase()
+            # Use the web API endpoint (Docker-aware)
+            settings = get_settings()
+            api_url = f"{settings.web_api_url}/api/v1/bricks"
             
-            # Generate UUID for the new brick
-            brick_id = str(uuid.uuid4())
-            
-            # Prepare brick data
-            brick_data = {
-                'id': brick_id,
-                'user_id': user_id,
-                'title': title,
-                'description': description,
-                'category': category,
-                'priority': priority,
-                'status': 'not_started',
-                'estimated_duration_minutes': estimated_duration_minutes
+            payload = {
+                "user_id": user_id,
+                "brick": {
+                    "title": title,
+                    "description": description,
+                    "category": category,
+                    "priority": priority,
+                    "estimated_duration_minutes": estimated_duration_minutes
+                }
             }
             
             # Add optional dates if provided
             if target_date:
-                brick_data['target_date'] = target_date
+                payload["brick"]["target_date"] = target_date
             if deadline:
-                brick_data['deadline'] = deadline
+                payload["brick"]["deadline"] = deadline
             
-            # Insert into Supabase
-            response = supabase.table('bricks').insert(brick_data).execute()
-            
-            if response.data:
-                self.logger.info(
-                    "Brick created successfully",
-                    brick_id=brick_id,
-                    user_id=user_id,
-                    title=title
-                )
-                return f"Successfully created Brick '{title}' with ID {brick_id}"
-            else:
-                self.logger.error("Failed to create brick - no data returned")
-                return f"Failed to create Brick '{title}'"
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    api_url,
+                    json=payload,
+                    headers={"Content-Type": "application/json"}
+                ) as response:
+                    
+                    if response.status == 200:
+                        result = await response.json()
+                        if result.get("success"):
+                            brick_id = result["brick"]["id"]
+                            self.logger.info(
+                                "Brick created successfully via API",
+                                brick_id=brick_id,
+                                user_id=user_id,
+                                title=title
+                            )
+                            return f"Successfully created Brick '{title}' with ID {brick_id}. You can now add Quantas (sub-tasks) to break it down further!"
+                        else:
+                            error_msg = result.get("error", "Unknown API error")
+                            self.logger.error("API returned error", error=error_msg)
+                            return f"Failed to create Brick '{title}': {error_msg}"
+                    else:
+                        error_text = await response.text()
+                        self.logger.error("API request failed", status=response.status, error=error_text)
+                        return f"Failed to create Brick '{title}': API error {response.status}"
                 
         except Exception as e:
-            self.logger.error("Error creating brick", exc_info=e)
+            self.logger.error("Error creating brick via API", exc_info=e)
             return f"Error creating Brick '{title}': {str(e)}"
     
     def _run(self, **kwargs) -> str:
@@ -128,7 +138,7 @@ class CreateQuantaTool(BaseTool, LoggerMixin):
     """Tool for creating new Quantas."""
     
     name = "create_quanta"
-    description = "Create a new Quanta (sub-task) under a Brick"
+    description = "Create a new Quanta (sub-task) under a Brick. User authentication is handled automatically - do not ask for user ID."
     
     def get_input_schema(self, config=None):
         """Return the input schema for this tool."""
@@ -139,56 +149,74 @@ class CreateQuantaTool(BaseTool, LoggerMixin):
                    title=None, 
                    description=None, 
                    brick_id=None, 
+                   user_id=None,
                    estimated_duration_minutes=30, 
                    order_index=0,
                    **kwargs) -> str:
-        """Async implementation of the tool."""
+        """Async implementation using the new API endpoint."""
         try:
             # Handle both calling conventions: dict input or keyword args
             if tool_input is not None and isinstance(tool_input, dict):
-                # Extract from dictionary
                 title = tool_input.get('title', title)
                 description = tool_input.get('description', description)
                 brick_id = tool_input.get('brick_id', brick_id)
+                user_id = tool_input.get('user_id', user_id)
                 estimated_duration_minutes = tool_input.get('estimated_duration_minutes', estimated_duration_minutes)
                 order_index = tool_input.get('order_index', order_index)
-            # Otherwise use the keyword arguments passed directly
             
-            supabase = get_supabase()
+            # Basic validation
+            if not title:
+                return "Error: Missing required field 'title' for quanta creation"
+            if not brick_id:
+                return "Error: Missing required field 'brick_id' for quanta creation"
+            if not user_id:
+                return "Error: Missing user_id (should be auto-injected)"
             
-            # Generate UUID for the new quanta
-            quanta_id = str(uuid.uuid4())
+            # Use the web API endpoint (Docker-aware)
+            settings = get_settings()
+            api_url = f"{settings.web_api_url}/api/v1/quantas"
             
-            # Prepare quanta data (matching actual database schema)
-            quanta_data = {
-                'id': quanta_id,
-                'brick_id': brick_id,
-                'title': title,
-                'description': description,
-                'status': 'not_started',
-                'estimated_duration_minutes': estimated_duration_minutes,
-                'order_index': order_index,
-                'created_at': datetime.utcnow().isoformat(),
-                'updated_at': datetime.utcnow().isoformat()
+            self.logger.info("Creating quanta via API", 
+                           api_url=api_url, title=title, brick_id=brick_id, user_id=user_id)
+            
+            payload = {
+                "user_id": user_id,
+                "brick_id": brick_id,
+                "title": title,
+                "description": description or '',
+                "estimated_duration_minutes": estimated_duration_minutes,
+                "priority": "medium"  # Default priority
             }
             
-            # Insert into Supabase
-            response = supabase.table('quantas').insert(quanta_data).execute()
-            
-            if response.data:
-                self.logger.info(
-                    "Quanta created successfully",
-                    quanta_id=quanta_id,
-                    brick_id=brick_id,
-                    title=title
-                )
-                return f"Successfully created Quanta '{title}' with ID {quanta_id}"
-            else:
-                self.logger.error("Failed to create quanta - no data returned")
-                return f"Failed to create Quanta '{title}'"
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    api_url,
+                    json=payload,
+                    headers={"Content-Type": "application/json"}
+                ) as response:
+                    
+                    if response.status == 200:
+                        result = await response.json()
+                        if result.get("success"):
+                            quanta_id = result["quanta"]["id"]
+                            self.logger.info(
+                                "Quanta created successfully via API",
+                                quanta_id=quanta_id,
+                                brick_id=brick_id,
+                                title=title
+                            )
+                            return f"Successfully created Quanta '{title}' with ID {quanta_id}"
+                        else:
+                            error_msg = result.get("error", "Unknown API error")
+                            self.logger.error("API returned error", error=error_msg)
+                            return f"Failed to create Quanta '{title}': {error_msg}"
+                    else:
+                        error_text = await response.text()
+                        self.logger.error("API request failed", status=response.status, error=error_text)
+                        return f"Failed to create Quanta '{title}': API error {response.status}"
                 
         except Exception as e:
-            self.logger.error("Error creating quanta", exc_info=e)
+            self.logger.error("Error creating quanta via API", exc_info=e)
             return f"Error creating Quanta '{title}': {str(e)}"
     
     def _run(self, **kwargs) -> str:
@@ -199,7 +227,6 @@ class CreateQuantaTool(BaseTool, LoggerMixin):
 class UpdateBrickInput(BaseModel):
     """Input for updating a Brick."""
     brick_id: str = Field(description="ID of the Brick to update")
-    user_id: str = Field(description="User ID")
     title: Optional[str] = Field(None, description="New title")
     description: Optional[str] = Field(None, description="New description")
     status: Optional[str] = Field(None, description="New status")
@@ -210,7 +237,7 @@ class UpdateBrickTool(BaseTool, LoggerMixin):
     """Tool for updating existing Bricks."""
     
     name = "update_brick"
-    description = "Update an existing Brick"
+    description = "Update an existing Brick. User authentication is handled automatically - do not ask for user ID."
     
     def get_input_schema(self, config=None):
         """Return the input schema for this tool."""
@@ -261,7 +288,6 @@ class UpdateBrickTool(BaseTool, LoggerMixin):
 
 class GetBricksInput(BaseModel):
     """Input for getting user's Bricks."""
-    user_id: str = Field(description="User ID")
     status: Optional[str] = Field(None, description="Filter by status")
     category: Optional[str] = Field(None, description="Filter by category")
 
@@ -270,7 +296,7 @@ class GetBricksTool(BaseTool, LoggerMixin):
     """Tool for retrieving user's Bricks."""
     
     name = "get_bricks"
-    description = "Get user's Bricks, optionally filtered by status or category"
+    description = "Get user's Bricks, optionally filtered by status or category. User authentication is handled automatically - do not ask for user ID."
     
     def get_input_schema(self, config=None):
         """Return the input schema for this tool."""
@@ -338,7 +364,7 @@ class UpdateQuantaTool(BaseTool, LoggerMixin):
     """Tool for updating existing Quantas."""
     
     name = "update_quanta"
-    description = "Update an existing Quanta (sub-task)"
+    description = "Update an existing Quanta (sub-task). User authentication is handled automatically - do not ask for user ID."
     
     def get_input_schema(self, config=None):
         """Return the input schema for this tool."""
@@ -388,7 +414,6 @@ class UpdateQuantaTool(BaseTool, LoggerMixin):
 class GetQuantasInput(BaseModel):
     """Input for getting Quantas."""
     brick_id: Optional[str] = Field(None, description="Brick ID to filter quantas by")
-    user_id: Optional[str] = Field(None, description="User ID to filter quantas by")
     status: Optional[str] = Field(None, description="Filter by status")
 
 
@@ -396,7 +421,7 @@ class GetQuantasTool(BaseTool, LoggerMixin):
     """Tool for retrieving Quantas."""
     
     name = "get_quantas"
-    description = "Get Quantas, optionally filtered by brick, user, or status"
+    description = "Get Quantas, optionally filtered by brick or status. User authentication is handled automatically - do not ask for user ID."
     
     def get_input_schema(self, config=None):
         """Return the input schema for this tool."""
@@ -449,7 +474,6 @@ class GetQuantasTool(BaseTool, LoggerMixin):
 class DeleteBrickInput(BaseModel):
     """Input for deleting a Brick."""
     brick_id: str = Field(description="ID of the Brick to delete")
-    user_id: str = Field(description="User ID")
     delete_quantas: bool = Field(default=True, description="Whether to also delete associated quantas")
 
 
@@ -457,7 +481,7 @@ class DeleteBrickTool(BaseTool, LoggerMixin):
     """Tool for deleting Bricks."""
     
     name = "delete_brick"
-    description = "Delete a Brick and optionally its associated Quantas"
+    description = "Delete a Brick and optionally its associated Quantas. User authentication is handled automatically - do not ask for user ID."
     
     def get_input_schema(self, config=None):
         """Return the input schema for this tool."""
@@ -510,7 +534,7 @@ class DeleteQuantaTool(BaseTool, LoggerMixin):
     """Tool for deleting Quantas."""
     
     name = "delete_quanta"
-    description = "Delete a Quanta (sub-task)"
+    description = "Delete a Quanta (sub-task). User authentication is handled automatically - do not ask for user ID."
     
     def get_input_schema(self, config=None):
         """Return the input schema for this tool."""
