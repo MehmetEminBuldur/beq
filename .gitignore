@@ -277,6 +277,11 @@ docs/build/
 test.db
 *.test.db
 
+# Test files with potential credentials
+**/test.py
+test_*.py
+*_test.py
+
 # Local data
 data/
 storage/
